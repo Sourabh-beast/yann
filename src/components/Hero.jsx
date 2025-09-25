@@ -34,7 +34,7 @@ export default function Hero() {
           <div className="flex flex-col sm:flex-row gap-4 justify-center items-center pt-8">
             <Link
               href="/book"
-              className="group relative inline-flex items-center justify-center px-8 py-4 text-lg font-semibold text-white bg-gradient-to-r from-blue-500 to-purple-600 rounded-full transition-all duration-300 hover:shadow-2xl hover:shadow-blue-500/25 hover:-translate-y-1 hover:from-blue-600 hover:to-purple-700 min-w-[200px]"
+              className="group relative inline-flex items-center justify-center px-8 py-4 text-lg font-semibold text-white bg-gradient-to-r from-blue-600 to-purple-600 rounded-full transition-all duration-300 hover:shadow-2xl hover:shadow-blue-500/25 hover:-translate-y-1 hover:from-blue-600 hover:to-purple-700 min-w-[200px]"
             >
               <span className="relative z-10">Book Now</span>
               <div className="absolute inset-0 rounded-full bg-gradient-to-r from-blue-600 to-purple-700 opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
