@@ -92,10 +92,10 @@ export default function ServiceProviderRegistration() {
 
       {/* Modal */}
       {isModalOpen && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+        <div className="fixed inset-0 backdrop-blur-xs bg-opacity-50 flex items-center justify-center z-50 p-0 h-[98%]">
           <div className="bg-white rounded-xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-hidden">
             {/* Header */}
-            <div className="bg-gradient-to-r from-blue-600 to-purple-600 text-white p-6 relative">
+            <div className="bg-gradient-to-r from-blue-500 to-purple-600 text-white p-6 relative">
               <button
                 onClick={() => setIsModalOpen(false)}
                 className="absolute top-4 right-4 text-white hover:text-gray-200"
@@ -107,7 +107,7 @@ export default function ServiceProviderRegistration() {
             </div>
 
             {/* Content */}
-            <div className="p-6 overflow-y-auto max-h-[calc(90vh-140px)]">
+            <div className="p-6 overflow-y-auto max-h-[calc(90vh-186px)]">
               <div className="space-y-6">
                 {/* Basic Information */}
                 <div className="space-y-4">
@@ -262,7 +262,7 @@ export default function ServiceProviderRegistration() {
             </div>
 
             {/* Footer */}
-            <div className="border-t p-6 bg-gray-50">
+            <div className="border-t px-6 py-3 bg-gray-50 ">
               <div className="flex justify-end space-x-3">
                 <button
                   type="button"
