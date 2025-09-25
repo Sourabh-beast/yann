@@ -18,7 +18,7 @@ export default function Hero() {
       <div className="relative z-10 max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
         <div className="space-y-6 sm:space-y-8">
           {/* Main Headline */}
-          <h1 className="text-3xl sm:text-5xl md:text-6xl lg:text-7xl font-bold text-gray-900 leading-tight">
+          <h1 className="text-3xl sm:text-5xl md:text-6xl lg:text-7xl font-bold text-gray-900 leading-tight mt-4">
             <span className="block">Services at your</span>
             <span className="block bg-gradient-to-r from-blue-500 to-purple-600 bg-clip-text text-transparent">
               doorstep with Yann
@@ -31,10 +31,10 @@ export default function Hero() {
           </p>
 
           {/* Call-to-action buttons */}
-          <div className="flex flex-col sm:flex-row gap-4 justify-center items-center pt-6 sm:pt-8">
+          <div className="flex flex-col sm:flex-row gap-4 justify-center items-center pt-6 sm:pt-2">
             <Link
               href="/book"
-              className="group relative inline-flex items-center justify-center px-6 sm:px-8 py-3 sm:py-4 text-base sm:text-lg font-semibold text-white bg-gradient-to-r from-blue-500 to-purple-600 rounded-full transition-all duration-300 hover:shadow-2xl hover:shadow-blue-500/25 hover:-translate-y-1 hover:from-blue-600 hover:to-purple-700 min-w-[160px] sm:min-w-[200px]"
+              className="group relative inline-flex items-center justify-center px-8 py-4 text-lg font-semibold text-white bg-gradient-to-r from-blue-600 to-purple-600 rounded-full transition-all duration-300 hover:shadow-2xl hover:shadow-blue-500/25 hover:-translate-y-1 hover:from-blue-600 hover:to-purple-700 min-w-[200px]"
             >
               <span className="relative z-10">Book Now</span>
               <div className="absolute inset-0 rounded-full bg-gradient-to-r from-blue-600 to-purple-700 opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
@@ -62,7 +62,7 @@ export default function Hero() {
           </div>
 
           {/* Trust indicators */}
-          <div className="pt-8 sm:pt-12">
+          <div className="pt-8 sm:pt-12 md:pt-4">
             <p className="text-xs sm:text-sm text-gray-500 mb-4 sm:mb-6">
               Trusted by thousands of customers
             </p>

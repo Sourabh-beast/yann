@@ -149,7 +149,7 @@ export default function Services() {
               {/* Call-to-action removed per request */}
 
               {/* Decorative element */}
-              <div className={`absolute top-0 right-0 w-20 h-20 bg-gradient-to-br ${service.gradient} opacity-5 rounded-bl-full transition-opacity group-hover:opacity-10`}></div>
+              {/* <div className={`absolute top-0 right-0 w-20 h-20 bg-gradient-to-br ${service.gradient} opacity-5 rounded-bl-full transition-opacity group-hover:opacity-10`}></div> */}
             </div>
           ))}
         </div>
