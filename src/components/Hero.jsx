@@ -1,9 +1,15 @@
 "use client";
 
 import Link from "next/link";
-import React from "react";
+import React, { useState } from "react";
+import ServiceProviderRegistration from "./registration/Modal";
 
 export default function Hero() {
+  const [isModalOpen, setIsModalOpen] = useState(false);
+
+  const openModal = () => setIsModalOpen(true);
+  const closeModal = () => setIsModalOpen(false);
+
   return (
     <section className="relative min-h-screen w-full flex items-center justify-center overflow-hidden">
       {/* Background with gradient overlay */}
@@ -32,11 +38,11 @@ export default function Hero() {
 
           {/* Call-to-action buttons */}
           <div className="flex flex-col sm:flex-row gap-4 justify-center items-center pt-6 sm:pt-2">
-            <Link
-              href="/book"
+            <button
+              onClick={openModal}
               className="group relative inline-flex items-center justify-center px-8 py-4 text-lg font-semibold text-white bg-gradient-to-r from-blue-600 to-purple-600 rounded-full transition-all duration-300 hover:shadow-2xl hover:shadow-blue-500/25 hover:-translate-y-1 hover:from-blue-600 hover:to-purple-700 min-w-[200px]"
             >
-              <span className="relative z-10">Book Now</span>
+              <span className="relative z-10">Join Us</span>
               <div className="absolute inset-0 rounded-full bg-gradient-to-r from-blue-600 to-purple-700 opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
               <svg
                 className="ml-2 w-4 h-4 sm:w-5 sm:h-5 transition-transform group-hover:translate-x-1"
@@ -51,7 +57,7 @@ export default function Hero() {
                   d="M13 7l5 5m0 0l-5 5m5-5H6"
                 />
               </svg>
-            </Link>
+            </button>
 
             <Link
               href="/services"
@@ -115,6 +121,12 @@ export default function Hero() {
           />
         </svg>
       </div>
+
+      {/* Service Provider Registration Modal */}
+      <ServiceProviderRegistration 
+        isOpen={isModalOpen} 
+        onClose={closeModal} 
+      />
     </section>
   );
 }
