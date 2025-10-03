@@ -210,7 +210,7 @@ const Footer = () => {
               </div>
               <div>
                 <p className="text-white font-semibold">Call Us</p>
-                <p className="text-gray-400">+1 (555) 123-4567</p>
+                <p className="text-gray-400">+91 9876543210</p>
               </div>
             </div>
             
@@ -235,7 +235,8 @@ const Footer = () => {
               </div>
               <div>
                 <p className="text-white font-semibold">Visit Us</p>
-                <p className="text-gray-400">123 Service St, City, State</p>
+                <p className="text-gray-400">Plot no. 16, Street no. 2, Goverdhan
+patti Badha Sector -86, Gurgaon</p>
               </div>
             </div>
           </div>
