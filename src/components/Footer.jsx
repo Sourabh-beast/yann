@@ -1,6 +1,7 @@
 'use client';
 
 import Link from 'next/link';
+import Image from 'next/image';
 
 const Footer = () => {
   const currentYear = new Date().getFullYear();
@@ -105,12 +106,18 @@ const Footer = () => {
       </div>
 
       {/* Main Footer Content */}
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-6 gap-8">
           {/* Brand Section */}
           <div className="lg:col-span-2">
-            <Link href="/" className="text-2xl font-bold mb-4 inline-block hover:text-blue-400 transition-colors">
-              Yann
+            <Link href="/" className="mb-2 inline-block hover:opacity-80 transition-opacity">
+              <Image
+                src="/logo.svg"
+                alt="YANN - Your Ride, Your Way"
+                width={240}
+                height={80}
+                className="h-60 w-auto"
+              />
             </Link>
             <p className="text-gray-400 mb-6 leading-relaxed">
               Your trusted partner for professional home services. We connect you with skilled professionals 
