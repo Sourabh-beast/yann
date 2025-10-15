@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import Image from "next/image";
 import { useState } from "react";
 import ServiceProviderRegistration from "./registration/Modal";
 
@@ -29,9 +30,16 @@ export default function Navbar() {
             {/* Logo */}
             <Link
               href="/"
-              className="text-2xl font-semibold text-gray-800 hover:text-blue-600 transition-all duration-300 hover:scale-105"
+              className="flex items-center transition-all duration-300 hover:scale-105"
             >
-              Yann
+              <Image
+                src="/logo.svg"
+                alt="YANN - Your Ride, Your Way"
+                width={787}
+                height={262}
+                className="h-40 w-auto"
+                priority
+              />
             </Link>
 
             {/* Desktop Navigation */}
