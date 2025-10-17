@@ -37,7 +37,8 @@ export default function Navbar() {
                 alt="YANN - Your Ride, Your Way"
                 width={787}
                 height={262}
-                className="h-40 w-auto"
+                className="h-15 w-auto position-absolute z-1"
+
                 priority
               />
             </Link>
