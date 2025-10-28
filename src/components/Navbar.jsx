@@ -4,23 +4,25 @@ import Link from "next/link";
 import Image from "next/image";
 import { useState } from "react";
 import ServiceProviderRegistration from "./registration/Modal";
+import LoginModal from "./LoginModal"; // ✅ new import
 
 export default function Navbar() {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isRegistrationModalOpen, setIsRegistrationModalOpen] = useState(false);
+  const [isLoginModalOpen, setIsLoginModalOpen] = useState(false); // ✅ new state
 
-  const toggleMenu = () => {
-    setIsMenuOpen((prev) => !prev);
-  };
-
+  const toggleMenu = () => setIsMenuOpen((prev) => !prev);
   const openRegistrationModal = () => {
     setIsRegistrationModalOpen(true);
-    setIsMenuOpen(false); // Close mobile menu when opening modal
+    setIsMenuOpen(false);
   };
+  const closeRegistrationModal = () => setIsRegistrationModalOpen(false);
 
-  const closeRegistrationModal = () => {
-    setIsRegistrationModalOpen(false);
+  const openLoginModal = () => {
+    setIsLoginModalOpen(true);
+    setIsMenuOpen(false);
   };
+  const closeLoginModal = () => setIsLoginModalOpen(false);
 
   return (
     <>
@@ -61,10 +63,18 @@ export default function Navbar() {
                 <span className="absolute -bottom-1 left-0 w-0 h-0.5 bg-gradient-to-r from-blue-500 to-purple-500 group-hover:w-full transition-all duration-300"></span>
               </Link>
 
-              {/* Updated Partner Registration Button */}
+              {/* ✅ Login Button */}
+              <button
+                onClick={openLoginModal}
+                className="text-blue-600 border border-blue-600 px-6 py-2.5 rounded-full font-medium transition-all duration-300 hover:bg-blue-600 hover:text-white"
+              >
+                Login
+              </button>
+
+              {/* Partner Registration Button */}
               <button
                 onClick={openRegistrationModal}
-                className="bg-gradient-to-r from-blue-600 to-purple-600 text-white px-6 py-2.5 rounded-full font-medium transition-all duration-300 hover:shadow-lg hover:shadow-blue-500/25 hover:-translate-y-0.5 hover:from-blue-600 hover:to-purple-700"
+                className="bg-gradient-to-r from-blue-600 to-purple-600 text-white px-6 py-2.5 rounded-full font-medium transition-all duration-300 hover:shadow-lg hover:shadow-blue-500/25 hover:-translate-y-0.5"
               >
                 Partner Registration
               </button>
@@ -75,14 +85,30 @@ export default function Navbar() {
               onClick={toggleMenu}
               className="md:hidden flex flex-col justify-center items-center w-8 h-8 space-y-1.5 group"
             >
-              <span className={`w-6 h-0.5 bg-gray-600 transition-all duration-300 ${isMenuOpen ? "rotate-45 translate-y-2" : ""}`}></span>
-              <span className={`w-6 h-0.5 bg-gray-600 transition-all duration-300 ${isMenuOpen ? "opacity-0" : ""}`}></span>
-              <span className={`w-6 h-0.5 bg-gray-600 transition-all duration-300 ${isMenuOpen ? "-rotate-45 -translate-y-2" : ""}`}></span>
+              <span
+                className={`w-6 h-0.5 bg-gray-600 transition-all duration-300 ${
+                  isMenuOpen ? "rotate-45 translate-y-2" : ""
+                }`}
+              ></span>
+              <span
+                className={`w-6 h-0.5 bg-gray-600 transition-all duration-300 ${
+                  isMenuOpen ? "opacity-0" : ""
+                }`}
+              ></span>
+              <span
+                className={`w-6 h-0.5 bg-gray-600 transition-all duration-300 ${
+                  isMenuOpen ? "-rotate-45 -translate-y-2" : ""
+                }`}
+              ></span>
             </button>
           </div>
 
           {/* Mobile Navigation */}
-          <div className={`md:hidden transition-all duration-300 ease-in-out ${isMenuOpen ? "max-h-64 opacity-100" : "max-h-0 opacity-0"} overflow-hidden`}>
+          <div
+            className={`md:hidden transition-all duration-300 ease-in-out ${
+              isMenuOpen ? "max-h-64 opacity-100" : "max-h-0 opacity-0"
+            } overflow-hidden`}
+          >
             <div className="py-4 space-y-4 border-t border-gray-100">
               <Link
                 href="/"
@@ -100,7 +126,15 @@ export default function Navbar() {
                 Services
               </Link>
 
-              {/* Updated Mobile Partner Registration Button */}
+              {/* ✅ Mobile Login Button */}
+              <button
+                onClick={openLoginModal}
+                className="block w-full text-center text-blue-600 border border-blue-600 px-6 py-2.5 rounded-full font-medium transition-all duration-300 hover:bg-blue-600 hover:text-white"
+              >
+                Login
+              </button>
+
+              {/* Partner Registration Button */}
               <button
                 onClick={openRegistrationModal}
                 className="bg-gradient-to-r from-blue-500 to-purple-600 text-white px-6 py-2.5 rounded-full font-medium transition-all duration-300 hover:shadow-lg hover:shadow-blue-500/25 mt-2"
@@ -115,10 +149,17 @@ export default function Navbar() {
       {/* Registration Modal */}
       {isRegistrationModalOpen && (
         <div className="fixed inset-0 z-50">
-          <ServiceProviderRegistration 
+          <ServiceProviderRegistration
             isOpen={isRegistrationModalOpen}
             onClose={closeRegistrationModal}
           />
+        </div>
+      )}
+
+      {/* ✅ Login Modal */}
+      {isLoginModalOpen && (
+        <div className="fixed inset-0 z-50">
+          <LoginModal isOpen={isLoginModalOpen} onClose={closeLoginModal} />
         </div>
       )}
     </>

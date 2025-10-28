@@ -1,9 +1,9 @@
 import React from 'react'
-import ServiceProviderRegistration from '@/components/registration/Modal'
+import LoginModal from '@/components/LoginModal';
 const page = () => {
   return (
    <>
-   <ServiceProviderRegistration />
+   <LoginModal />
    </>
   )
 }
