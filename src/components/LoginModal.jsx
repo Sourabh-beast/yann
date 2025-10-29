@@ -1,24 +1,60 @@
 "use client";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 
-export default function LoginModal({ isOpen, onClose }) {
+export default function LoginModal({ isOpen, onClose, onLoginSuccess }) {
   const [email, setEmail] = useState("");
   const [otp, setOtp] = useState("");
   const [step, setStep] = useState(1);
-  const [loading, setLoading] = useState(false);
+  const [sendingOtp, setSendingOtp] = useState(false);
+  const [verifying, setVerifying] = useState(false);
+  const [timer, setTimer] = useState(0);
   const router = useRouter();
+
+  const RESEND_INTERVAL = 60;
+
+  useEffect(() => {
+    if (timer <= 0) {
+      return;
+    }
+
+    const intervalId = setInterval(() => {
+      setTimer((prev) => (prev > 0 ? prev - 1 : 0));
+    }, 1000);
+
+    return () => clearInterval(intervalId);
+  }, [timer]);
+
+  useEffect(() => {
+    if (isOpen) {
+      return;
+    }
+
+    setStep(1);
+    setEmail("");
+    setOtp("");
+    setTimer(0);
+    setSendingOtp(false);
+    setVerifying(false);
+  }, [isOpen]);
 
   if (!isOpen) return null;
 
-  const sendOtp = async () => {
+  const formatTimer = (seconds) => {
+    const minutes = String(Math.floor(seconds / 60)).padStart(2, "0");
+    const remainingSeconds = String(seconds % 60).padStart(2, "0");
+    return `${minutes}:${remainingSeconds}`;
+  };
+
+  const requestOtp = async () => {
     if (!email) return alert("Please enter your email!");
-    setLoading(true);
+    setSendingOtp(true);
     
     try {
       const res = await fetch("/api/auth/send-otp", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
+        credentials: "include",
         body: JSON.stringify({ email }),
       });
       const data = await res.json();
@@ -26,41 +62,52 @@ export default function LoginModal({ isOpen, onClose }) {
       if (res.ok) {
         alert(data.message || "OTP sent successfully!");
         setStep(2);
+        setTimer(RESEND_INTERVAL);
+        setOtp("");
       } else {
         alert(data.message);
       }
     } catch (err) {
       alert("Network error. Please try again.");
     } finally {
-      setLoading(false);
+      setSendingOtp(false);
     }
   };
 
   const verifyOtp = async () => {
     if (!otp) return alert("Please enter the OTP!");
-    setLoading(true);
+    setVerifying(true);
     
     try {
       const res = await fetch("/api/auth/verify-otp", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
+        credentials: "include",
         body: JSON.stringify({ email, otp }),
       });
       const data = await res.json();
       
-      if (res.ok && data.token) {
-        localStorage.setItem("token", data.token);
-        alert("✅ Login successful!");
+      if (res.ok && data.success) {
+        alert(data.message || "✅ Login successful!");
         onClose();
+        onLoginSuccess?.(data.provider);
+        window.dispatchEvent(new Event('auth:refresh'));
         router.push("/dashboard");
+        router.refresh();
       } else {
         alert(data.message || "Invalid OTP");
       }
     } catch (err) {
       alert("Network error. Please try again.");
     } finally {
-      setLoading(false);
+      setVerifying(false);
     }
+  };
+
+  const handleChangeEmail = () => {
+    setStep(1);
+    setOtp("");
+    setTimer(0);
   };
 
   return (
@@ -123,11 +170,11 @@ export default function LoginModal({ isOpen, onClose }) {
               </div>
             </div>
             <button
-              onClick={sendOtp}
-              disabled={loading || !email}
+              onClick={requestOtp}
+              disabled={sendingOtp || !email}
               className="w-full bg-gradient-to-r from-blue-600 to-purple-600 text-white py-3 rounded-xl font-semibold hover:shadow-lg transform hover:-translate-y-0.5 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none"
             >
-              {loading ? (
+              {sendingOtp ? (
                 <span className="flex items-center justify-center">
                   <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-white" fill="none" viewBox="0 0 24 24">
                     <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
@@ -159,11 +206,26 @@ export default function LoginModal({ isOpen, onClose }) {
               </div>
             </div>
             <button
+              onClick={requestOtp}
+              disabled={sendingOtp || verifying || timer > 0}
+              className="w-full border border-gray-300 text-gray-700 py-3 rounded-xl font-medium transition-all duration-200 hover:border-blue-500 hover:text-blue-600 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {sendingOtp ? (
+                <span className="flex items-center justify-center">
+                  <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-gray-500" fill="none" viewBox="0 0 24 24">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                  </svg>
+                  Sending OTP...
+                </span>
+              ) : timer > 0 ? `Resend in ${formatTimer(timer)}` : "Resend OTP"}
+            </button>
+            <button
               onClick={verifyOtp}
-              disabled={loading || !otp}
+              disabled={verifying || !otp}
               className="w-full bg-gradient-to-r from-green-600 to-emerald-600 text-white py-3 rounded-xl font-semibold hover:shadow-lg transform hover:-translate-y-0.5 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none"
             >
-              {loading ? (
+              {verifying ? (
                 <span className="flex items-center justify-center">
                   <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-white" fill="none" viewBox="0 0 24 24">
                     <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
@@ -174,7 +236,7 @@ export default function LoginModal({ isOpen, onClose }) {
               ) : "Verify & Login"}
             </button>
             <button
-              onClick={() => setStep(1)}
+              onClick={handleChangeEmail}
               className="w-full text-blue-600 hover:text-blue-700 py-2 text-sm font-medium transition-colors duration-200"
             >
               ← Change email address
