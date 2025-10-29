@@ -2,14 +2,73 @@
 
 import Link from "next/link";
 import Image from "next/image";
-import { useState } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
+import { useRouter } from "next/navigation";
 import ServiceProviderRegistration from "./registration/Modal";
-import LoginModal from "./LoginModal"; // ✅ new import
+import LoginModal from "./LoginModal";
 
 export default function Navbar() {
+  const router = useRouter();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isRegistrationModalOpen, setIsRegistrationModalOpen] = useState(false);
-  const [isLoginModalOpen, setIsLoginModalOpen] = useState(false); // ✅ new state
+  const [isLoginModalOpen, setIsLoginModalOpen] = useState(false);
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const [userName, setUserName] = useState("");
+  const sessionRequestIdRef = useRef(0);
+
+  const fetchSession = useCallback(async () => {
+    const requestId = ++sessionRequestIdRef.current;
+    try {
+      const res = await fetch('/api/auth/me', {
+        credentials: 'include',
+        cache: 'no-store',
+      });
+      if (requestId !== sessionRequestIdRef.current) {
+        return;
+      }
+
+      if (res.ok) {
+        const data = await res.json();
+        setIsLoggedIn(true);
+        setUserName(data.provider?.name || 'User');
+      } else {
+        setIsLoggedIn(false);
+        setUserName('');
+      }
+    } catch (err) {
+      console.error('Error fetching user:', err);
+      if (requestId === sessionRequestIdRef.current) {
+        setIsLoggedIn(false);
+        setUserName('');
+      }
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchSession();
+  }, [fetchSession]);
+
+  useEffect(() => {
+    const handleAuthLogout = () => {
+      sessionRequestIdRef.current += 1;
+      setIsLoggedIn(false);
+      setUserName('');
+      setIsMenuOpen(false);
+      setIsLoginModalOpen(false);
+    };
+
+    const handleAuthRefresh = () => {
+      fetchSession();
+    };
+
+    window.addEventListener('auth:logout', handleAuthLogout);
+    window.addEventListener('auth:refresh', handleAuthRefresh);
+
+    return () => {
+      window.removeEventListener('auth:logout', handleAuthLogout);
+      window.removeEventListener('auth:refresh', handleAuthRefresh);
+    };
+  }, [fetchSession]);
 
   const toggleMenu = () => setIsMenuOpen((prev) => !prev);
   const openRegistrationModal = () => {
@@ -23,6 +82,27 @@ export default function Navbar() {
     setIsMenuOpen(false);
   };
   const closeLoginModal = () => setIsLoginModalOpen(false);
+
+  const handleLogout = async () => {
+    sessionRequestIdRef.current += 1; // invalidate in-flight session fetches
+    try {
+      await fetch('/api/auth/logout', {
+        method: 'POST',
+        credentials: 'include',
+        cache: 'no-store',
+      });
+    } catch (err) {
+      console.error('Error during logout:', err);
+    }
+
+    setIsLoggedIn(false);
+    setUserName('');
+    setIsMenuOpen(false);
+    setIsLoginModalOpen(false);
+    router.push('/');
+    router.refresh();
+    window.dispatchEvent(new Event('auth:logout'));
+  };
 
   return (
     <>
@@ -47,37 +127,94 @@ export default function Navbar() {
 
             {/* Desktop Navigation */}
             <div className="hidden md:flex items-center space-x-8">
-              <Link
-                href="/"
-                className="text-gray-600 hover:text-blue-600 font-medium transition-colors duration-300 relative group"
-              >
-                Home
-                <span className="absolute -bottom-1 left-0 w-0 h-0.5 bg-gradient-to-r from-blue-500 to-purple-500 group-hover:w-full transition-all duration-300"></span>
-              </Link>
+              {!isLoggedIn ? (
+                <>
+                  <Link
+                    href="/"
+                    className="text-gray-600 hover:text-blue-600 font-medium transition-colors duration-300 relative group"
+                  >
+                    Home
+                    <span className="absolute -bottom-1 left-0 w-0 h-0.5 bg-gradient-to-r from-blue-500 to-purple-500 group-hover:w-full transition-all duration-300"></span>
+                  </Link>
 
-              <Link
-                href="/services"
-                className="text-gray-600 hover:text-blue-600 font-medium transition-colors duration-300 relative group"
-              >
-                Services
-                <span className="absolute -bottom-1 left-0 w-0 h-0.5 bg-gradient-to-r from-blue-500 to-purple-500 group-hover:w-full transition-all duration-300"></span>
-              </Link>
+                  <Link
+                    href="/services"
+                    className="text-gray-600 hover:text-blue-600 font-medium transition-colors duration-300 relative group"
+                  >
+                    Services
+                    <span className="absolute -bottom-1 left-0 w-0 h-0.5 bg-gradient-to-r from-blue-500 to-purple-500 group-hover:w-full transition-all duration-300"></span>
+                  </Link>
 
-              {/* ✅ Login Button */}
-              <button
-                onClick={openLoginModal}
-                className="text-blue-600 border border-blue-600 px-6 py-2.5 rounded-full font-medium transition-all duration-300 hover:bg-blue-600 hover:text-white"
-              >
-                Login
-              </button>
+                  {/* Login Button */}
+                  <button
+                    onClick={openLoginModal}
+                    className="text-blue-600 border border-blue-600 px-6 py-2.5 rounded-full font-medium transition-all duration-300 hover:bg-blue-600 hover:text-white"
+                  >
+                    Login
+                  </button>
 
-              {/* Partner Registration Button */}
-              <button
-                onClick={openRegistrationModal}
-                className="bg-gradient-to-r from-blue-600 to-purple-600 text-white px-6 py-2.5 rounded-full font-medium transition-all duration-300 hover:shadow-lg hover:shadow-blue-500/25 hover:-translate-y-0.5"
-              >
-                Partner Registration
-              </button>
+                  {/* Partner Registration Button */}
+                  <button
+                    onClick={openRegistrationModal}
+                    className="bg-gradient-to-r from-blue-600 to-purple-600 text-white px-6 py-2.5 rounded-full font-medium transition-all duration-300 hover:shadow-lg hover:shadow-blue-500/25 hover:-translate-y-0.5"
+                  >
+                    Partner Registration
+                  </button>
+                </>
+              ) : (
+                <>
+                  {[{
+                    label: 'Dashboard',
+                    href: '/dashboard'
+                  }, {
+                    label: 'Bookings',
+                    href: '/dashboard/bookings'
+                  }, {
+                    label: 'Manage Services',
+                    href: '/dashboard/services'
+                  }, {
+                    label: 'Profile',
+                    href: '/dashboard/profile'
+                  }, {
+                    label: 'Earnings',
+                    href: '/dashboard/earnings'
+                  }, {
+                    label: 'Support',
+                    href: '/support'
+                  }].map((item) => (
+                    <Link
+                      key={item.href}
+                      href={item.href}
+                      className="text-gray-600 hover:text-blue-600 font-medium transition-colors duration-300 relative group"
+                    >
+                      {item.label}
+                      <span className="absolute -bottom-1 left-0 w-0 h-0.5 bg-gradient-to-r from-blue-500 to-purple-500 group-hover:w-full transition-all duration-300"></span>
+                    </Link>
+                  ))}
+
+                  {/* User Menu */}
+                  <div className="flex items-center space-x-3">
+                    <div className="flex items-center space-x-2 bg-gradient-to-r from-blue-50 to-purple-50 px-4 py-2 rounded-full">
+                      <div className="w-8 h-8 bg-gradient-to-br from-blue-600 to-purple-600 rounded-full flex items-center justify-center">
+                        <span className="text-white font-bold text-sm">
+                          {userName.charAt(0).toUpperCase()}
+                        </span>
+                      </div>
+                      <span className="text-gray-700 font-medium">{userName}</span>
+                    </div>
+                    
+                    <button
+                      onClick={handleLogout}
+                      className="text-red-600 border border-red-600 px-4 py-2 rounded-full font-medium transition-all duration-300 hover:bg-red-600 hover:text-white flex items-center space-x-2"
+                    >
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+                      </svg>
+                      <span>Logout</span>
+                    </button>
+                  </div>
+                </>
+              )}
             </div>
 
             {/* Mobile menu button */}
@@ -106,41 +243,95 @@ export default function Navbar() {
           {/* Mobile Navigation */}
           <div
             className={`md:hidden transition-all duration-300 ease-in-out ${
-              isMenuOpen ? "max-h-64 opacity-100" : "max-h-0 opacity-0"
+              isMenuOpen ? "max-h-96 opacity-100" : "max-h-0 opacity-0"
             } overflow-hidden`}
           >
             <div className="py-4 space-y-4 border-t border-gray-100">
-              <Link
-                href="/"
-                className="block text-gray-600 hover:text-blue-600 font-medium transition-colors duration-300 py-2"
-                onClick={() => setIsMenuOpen(false)}
-              >
-                Home
-              </Link>
+              {!isLoggedIn ? (
+                <>
+                  <Link
+                    href="/"
+                    className="block text-gray-600 hover:text-blue-600 font-medium transition-colors duration-300 py-2"
+                    onClick={() => setIsMenuOpen(false)}
+                  >
+                    Home
+                  </Link>
 
-              <Link
-                href="/services"
-                className="block text-gray-600 hover:text-blue-600 font-medium transition-colors duration-300 py-2"
-                onClick={() => setIsMenuOpen(false)}
-              >
-                Services
-              </Link>
+                  <Link
+                    href="/services"
+                    className="block text-gray-600 hover:text-blue-600 font-medium transition-colors duration-300 py-2"
+                    onClick={() => setIsMenuOpen(false)}
+                  >
+                    Services
+                  </Link>
 
-              {/* ✅ Mobile Login Button */}
-              <button
-                onClick={openLoginModal}
-                className="block w-full text-center text-blue-600 border border-blue-600 px-6 py-2.5 rounded-full font-medium transition-all duration-300 hover:bg-blue-600 hover:text-white"
-              >
-                Login
-              </button>
+                  {/* Mobile Login Button */}
+                  <button
+                    onClick={openLoginModal}
+                    className="block w-full text-center text-blue-600 border border-blue-600 px-6 py-2.5 rounded-full font-medium transition-all duration-300 hover:bg-blue-600 hover:text-white"
+                  >
+                    Login
+                  </button>
 
-              {/* Partner Registration Button */}
-              <button
-                onClick={openRegistrationModal}
-                className="bg-gradient-to-r from-blue-500 to-purple-600 text-white px-6 py-2.5 rounded-full font-medium transition-all duration-300 hover:shadow-lg hover:shadow-blue-500/25 mt-2"
-              >
-                Partner Registration
-              </button>
+                  {/* Partner Registration Button */}
+                  <button
+                    onClick={openRegistrationModal}
+                    className="bg-gradient-to-r from-blue-500 to-purple-600 text-white px-6 py-2.5 rounded-full font-medium transition-all duration-300 hover:shadow-lg hover:shadow-blue-500/25 mt-2"
+                  >
+                    Partner Registration
+                  </button>
+                </>
+              ) : (
+                <>
+                  {[{
+                    label: 'Dashboard',
+                    href: '/dashboard'
+                  }, {
+                    label: 'Bookings',
+                    href: '/dashboard/bookings'
+                  }, {
+                    label: 'Manage Services',
+                    href: '/dashboard/services'
+                  }, {
+                    label: 'Profile',
+                    href: '/dashboard/profile'
+                  }, {
+                    label: 'Earnings',
+                    href: '/dashboard/earnings'
+                  }, {
+                    label: 'Support',
+                    href: '/support'
+                  }].map((item) => (
+                    <Link
+                      key={item.href}
+                      href={item.href}
+                      className="block text-gray-600 hover:text-blue-600 font-medium transition-colors duration-300 py-2"
+                      onClick={() => setIsMenuOpen(false)}
+                    >
+                      {item.label}
+                    </Link>
+                  ))}
+
+                  <div className="flex items-center space-x-2 bg-gradient-to-r from-blue-50 to-purple-50 px-4 py-3 rounded-xl">
+                    <div className="w-10 h-10 bg-gradient-to-br from-blue-600 to-purple-600 rounded-full flex items-center justify-center">
+                      <span className="text-white font-bold">
+                        {userName.charAt(0).toUpperCase()}
+                      </span>
+                    </div>
+                    <span className="text-gray-700 font-medium">{userName}</span>
+                  </div>
+
+                  <button
+                    onClick={() => {
+                      handleLogout();
+                      setIsMenuOpen(false);
+                    }}
+                    className="block w-full text-center text-red-600 border border-red-600 px-6 py-2.5 rounded-full font-medium transition-all duration-300 hover:bg-red-600 hover:text-white"
+                  >
+                    Logout
+                  </button>
+                </>
+              )}
             </div>
           </div>
         </div>
@@ -159,7 +350,13 @@ export default function Navbar() {
       {/* ✅ Login Modal */}
       {isLoginModalOpen && (
         <div className="fixed inset-0 z-50">
-          <LoginModal isOpen={isLoginModalOpen} onClose={closeLoginModal} />
+          <LoginModal
+            isOpen={isLoginModalOpen}
+            onClose={closeLoginModal}
+            onLoginSuccess={() => {
+              fetchSession();
+            }}
+          />
         </div>
       )}
     </>

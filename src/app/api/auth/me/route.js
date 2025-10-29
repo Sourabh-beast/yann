@@ -1,49 +1,71 @@
-import jwt from 'jsonwebtoken';
-import connectDB from '@/lib/connectDB';
-import ServiceProvider from '@/models/ServiceProvider';
-import dotenv from 'dotenv';
+import jwt from "jsonwebtoken";
+import { cookies } from "next/headers";
+import { NextResponse } from "next/server";
+import connectDB from "@/lib/connectDB";
+import ServiceProvider from "@/models/ServiceProvider";
 
-dotenv.config();
+const TOKEN_COOKIE_NAME = "yann_session";
 
-export async function GET(req) {
+const clearSessionResponse = (message) => {
+  const response = NextResponse.json({ success: false, message }, { status: 401 });
+  response.cookies.set({
+    name: TOKEN_COOKIE_NAME,
+    value: "",
+    httpOnly: true,
+    secure: process.env.NODE_ENV === "production",
+    sameSite: "lax",
+    maxAge: 0,
+    expires: new Date(0),
+    path: "/",
+  });
+  return response;
+};
+
+const sanitizeProvider = (provider) => ({
+  id: provider._id.toString(),
+  name: provider.name,
+  email: provider.email,
+  services: provider.services,
+  status: provider.status,
+  rating: provider.rating,
+  totalReviews: provider.totalReviews,
+  experience: provider.experience,
+  phone: provider.phone,
+  workingHours: provider.workingHours || null,
+});
+
+export async function GET() {
   try {
     await connectDB();
 
-    const authHeader = req.headers.get('authorization');
-    if (!authHeader) {
-      return new Response(
-        JSON.stringify({ message: 'No token provided' }),
-        { status: 401 }
-      );
-    }
+    const token = cookies().get(TOKEN_COOKIE_NAME)?.value;
 
-    const token = authHeader.split(' ')[1];
     if (!token) {
-      return new Response(
-        JSON.stringify({ message: 'Invalid token format' }),
-        { status: 401 }
-      );
+      return clearSessionResponse("Session not found");
     }
 
-    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    if (!process.env.JWT_SECRET) {
+      console.error("JWT secret is not configured");
+      return NextResponse.json({ success: false, message: "Server configuration error" }, { status: 500 });
+    }
+
+    let decoded;
+    try {
+      decoded = jwt.verify(token, process.env.JWT_SECRET);
+    } catch (error) {
+      console.error("Error verifying token:", error);
+      return clearSessionResponse("Invalid or expired session");
+    }
+
     const provider = await ServiceProvider.findOne({ email: decoded.email });
 
     if (!provider) {
-      return new Response(
-        JSON.stringify({ message: 'User not found' }),
-        { status: 404 }
-      );
+      return clearSessionResponse("User not found");
     }
 
-    return new Response(
-      JSON.stringify({ provider }),
-      { status: 200 }
-    );
-  } catch (err) {
-    console.error('Error verifying token:', err);
-    return new Response(
-      JSON.stringify({ message: 'Invalid or expired token' }),
-      { status: 401 }
-    );
+    return NextResponse.json({ success: true, provider: sanitizeProvider(provider) });
+  } catch (error) {
+    console.error("Error fetching session:", error);
+    return NextResponse.json({ success: false, message: "Unable to fetch session" }, { status: 500 });
   }
 }
