@@ -4,14 +4,28 @@ import { Search, Star, Clock, MapPin, Filter, Heart, ChevronDown, X, CheckCircle
 
 /* ------------------------------ sample data ------------------------------ */
 const useServicesData = () => useMemo(() => ([
-  { id: 1, name: 'Deep House Cleaning', category: 'cleaning', price: 1200, duration: '3-4 hours', rating: 4.8, reviews: 1247, image: 'https://images.unsplash.com/photo-1581578731548-c64695cc6952?w=400&h=300&fit=crop', description: 'Complete deep cleaning of your entire house including bathrooms, kitchen, and all rooms', popular: true, badge: 'Bestseller' },
-  { id: 2, name: 'Regular House Cleaning', category: 'cleaning', price: 800, duration: '2-3 hours', rating: 4.6, reviews: 892, image: 'https://images.unsplash.com/photo-1527515637462-cff94eecc1ac?w=400&h=300&fit=crop', description: 'Regular maintenance cleaning for your home on weekly or monthly basis', popular: true, badge: 'Popular' },
-  { id: 3, name: 'Bathroom Deep Clean', category: 'cleaning', price: 400, duration: '1-2 hours', rating: 4.7, reviews: 634, image: 'https://images.unsplash.com/photo-1584622650111-993a426fbf0a?w=400&h=300&fit=crop', description: 'Specialized bathroom cleaning with sanitization and deep scrubbing' },
-  { id: 4, name: 'Kitchen Deep Clean', category: 'cleaning', price: 600, duration: '2-3 hours', rating: 4.5, reviews: 445, image: 'https://images.unsplash.com/photo-1556909114-f6e7ad7d3136?w=400&h=300&fit=crop', description: 'Complete kitchen cleaning including appliances, cabinets, and countertops' },
-  { id: 5, name: 'Laundry & Ironing', category: 'laundry', price: 300, duration: '2-4 hours', rating: 4.4, reviews: 321, image: 'https://images.unsplash.com/photo-1517677208171-0bc6725a3e60?w=400&h=300&fit=crop', description: 'Professional laundry service with washing, drying, and ironing', badge: 'New' },
-  { id: 6, name: 'Carpet Cleaning', category: 'specialty', price: 500, duration: '1-2 hours', rating: 4.6, reviews: 278, image: 'https://images.unsplash.com/photo-1558618666-fcd25c85cd64?w=400&h=300&fit=crop', description: 'Deep carpet cleaning with stain removal and sanitization' },
-  { id: 7, name: 'Window Cleaning', category: 'specialty', price: 350, duration: '1-2 hours', rating: 4.3, reviews: 189, image: 'https://images.unsplash.com/photo-1581578731548-c64695cc6952?w=400&h=300&fit=crop', description: 'Interior and exterior window cleaning for crystal clear views' },
-  { id: 8, name: 'Move-in/Move-out Cleaning', category: 'specialty', price: 1500, duration: '4-6 hours', rating: 4.9, reviews: 567, image: 'https://images.unsplash.com/photo-1527515637462-cff94eecc1ac?w=400&h=300&fit=crop', description: 'Comprehensive cleaning for moving in or out of a property', badge: 'Premium' }
+  // Cleaning Services
+  { id: 1, name: 'Deep House Cleaning', category: 'deep-clean', price: 1200, duration: '3-4 hours', rating: 4.8, reviews: 1247, image: 'https://images.unsplash.com/photo-1581578731548-c64695cc6952?w=400&h=300&fit=crop', description: 'Complete deep cleaning of your entire house including bathrooms, kitchen, and all rooms', popular: true },
+  { id: 2, name: 'Regular House Cleaning', category: 'cleaning', price: 800, duration: '2-3 hours', rating: 4.6, reviews: 892, image: 'https://images.unsplash.com/photo-1527515637462-cff94eecc1ac?w=400&h=300&fit=crop', description: 'Regular maintenance cleaning for your home on weekly or monthly basis', popular: true },
+  { id: 3, name: 'Bathroom Deep Clean', category: 'bathroom', price: 400, duration: '1-2 hours', rating: 4.7, reviews: 634, image: 'https://images.unsplash.com/photo-1584622650111-993a426fbf0a?w=400&h=300&fit=crop', description: 'Specialized bathroom cleaning with sanitization and deep scrubbing' },
+  { id: 4, name: 'Kitchen Deep Clean', category: 'kitchen', price: 600, duration: '2-3 hours', rating: 4.5, reviews: 445, image: 'https://images.unsplash.com/photo-1556909114-f6e7ad7d3136?w=400&h=300&fit=crop', description: 'Complete kitchen cleaning including appliances, cabinets, and countertops' },
+  
+  // Laundry Services
+  { id: 5, name: 'Laundry & Ironing', category: 'laundry', price: 300, duration: '2-4 hours', rating: 4.4, reviews: 321, image: 'https://images.unsplash.com/photo-1517677208171-0bc6725a3e60?w=400&h=300&fit=crop', description: 'Professional laundry service with washing, drying, and ironing' },
+  { id: 6, name: 'Dry Cleaning Service', category: 'laundry', price: 450, duration: '1 day', rating: 4.5, reviews: 278, image: 'https://images.unsplash.com/photo-1582735689369-4fe89db7114c?w=400&h=300&fit=crop', description: 'Professional dry cleaning for delicate and formal wear' },
+  
+  // Carpet & Window Services
+  { id: 7, name: 'Carpet Cleaning', category: 'carpet', price: 500, duration: '1-2 hours', rating: 4.6, reviews: 278, image: 'https://images.unsplash.com/photo-1558618666-fcd25c85cd64?w=400&h=300&fit=crop', description: 'Deep carpet cleaning with stain removal and sanitization' },
+  { id: 8, name: 'Sofa & Upholstery Clean', category: 'carpet', price: 650, duration: '2-3 hours', rating: 4.7, reviews: 312, image: 'https://images.unsplash.com/photo-1555041469-a586c61ea9bc?w=400&h=300&fit=crop', description: 'Professional sofa and upholstery deep cleaning service' },
+  { id: 9, name: 'Window Cleaning', category: 'window', price: 350, duration: '1-2 hours', rating: 4.3, reviews: 189, image: 'https://images.unsplash.com/photo-1581578731548-c64695cc6952?w=400&h=300&fit=crop', description: 'Interior and exterior window cleaning for crystal clear views' },
+  
+  // Specialty Services
+  { id: 10, name: 'Move-in/Move-out Cleaning', category: 'move', price: 1500, duration: '4-6 hours', rating: 4.9, reviews: 567, image: 'https://images.unsplash.com/photo-1527515637462-cff94eecc1ac?w=400&h=300&fit=crop', description: 'Comprehensive cleaning for moving in or out of a property' },
+  { id: 11, name: 'Office Cleaning', category: 'specialty', price: 900, duration: '2-4 hours', rating: 4.6, reviews: 423, image: 'https://images.unsplash.com/photo-1497366216548-37526070297c?w=400&h=300&fit=crop', description: 'Professional office and commercial space cleaning services' },
+  { id: 12, name: 'Post-Construction Cleaning', category: 'specialty', price: 1800, duration: '5-7 hours', rating: 4.8, reviews: 289, image: 'https://images.unsplash.com/photo-1504307651254-35680f356dfd?w=400&h=300&fit=crop', description: 'Detailed cleaning after construction or renovation work' },
+  { id: 13, name: 'Balcony Cleaning', category: 'specialty', price: 250, duration: '1 hour', rating: 4.4, reviews: 156, image: 'https://images.unsplash.com/photo-1600585154340-be6161a56a0c?w=400&h=300&fit=crop', description: 'Complete balcony and terrace cleaning service' },
+  { id: 14, name: 'Chimney & Exhaust Cleaning', category: 'kitchen', price: 550, duration: '1-2 hours', rating: 4.5, reviews: 234, image: 'https://images.unsplash.com/photo-1556909114-f6e7ad7d3136?w=400&h=300&fit=crop', description: 'Deep cleaning of kitchen chimneys and exhaust systems' },
+  { id: 15, name: 'Water Tank Cleaning', category: 'specialty', price: 800, duration: '2-3 hours', rating: 4.7, reviews: 198, image: 'https://images.unsplash.com/photo-1584622650111-993a426fbf0a?w=400&h=300&fit=crop', description: 'Professional water tank cleaning and sanitization' }
 ]), []);
 
 const currency = new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 });
@@ -480,12 +494,18 @@ const ServicesPage = () => {
   const categories = useMemo(() => ([
     { id: 'all', name: 'All Services', count: services.length, icon: Sparkles },
     { id: 'cleaning', name: 'House Cleaning', count: services.filter(s => s.category === 'cleaning').length, icon: Star },
-    { id: 'laundry', name: 'Laundry', count: services.filter(s => s.category === 'laundry').length, icon: Zap },
-    { id: 'specialty', name: 'Specialty', count: services.filter(s => s.category === 'specialty').length, icon: Award },
+    { id: 'deep-clean', name: 'Deep Cleaning', count: services.filter(s => s.category === 'deep-clean').length, icon: Award },
+    { id: 'bathroom', name: 'Bathroom Cleaning', count: services.filter(s => s.category === 'bathroom').length, icon: Shield },
+    { id: 'kitchen', name: 'Kitchen Cleaning', count: services.filter(s => s.category === 'kitchen').length, icon: Zap },
+    { id: 'laundry', name: 'Laundry Services', count: services.filter(s => s.category === 'laundry').length, icon: Heart },
+    { id: 'carpet', name: 'Carpet & Upholstery', count: services.filter(s => s.category === 'carpet').length, icon: Star },
+    { id: 'window', name: 'Window Cleaning', count: services.filter(s => s.category === 'window').length, icon: Sparkles },
+    { id: 'move', name: 'Move In/Out', count: services.filter(s => s.category === 'move').length, icon: Award },
+    { id: 'specialty', name: 'Specialty Services', count: services.filter(s => s.category === 'specialty').length, icon: Zap },
   ]), [services]);
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-50 via-blue-50/30 to-indigo-50/50">
+    <div className="min-h-screen bg-gradient-to-br from-gray-50 via-blue-50/30 to-indigo-50/50 pt-16">
       {/* Hero Header */}
       <div className="bg-gradient-to-r from-blue-600 via-blue-700 to-indigo-700 text-white relative overflow-hidden">
         <div className="absolute inset-0 bg-white/5 backdrop-blur-3xl" />
