@@ -13,6 +13,97 @@ const BLOCK_DURATION_MS = 15 * 60 * 1000;
 
 const emailRegex = /^[\w-.]+@([\w-]+\.)+[\w-]{2,}$/;
 
+const COMPANY_NAME = "YANN Home Services";
+const COMPANY_SUPPORT_EMAIL = process.env.SUPPORT_EMAIL || "support@yannservices.com";
+const COMPANY_WEBSITE = process.env.NEXT_PUBLIC_APP_URL || "https://yann-care.vercel.app";
+const COMPANY_ADDRESS = process.env.COMPANY_ADDRESS || "YANN Services, Gurugram, India";
+
+const buildOtpEmail = (otpCode, recipientName = "") => {
+  const safeName = recipientName ? recipientName.trim() : "";
+  const greetingName = safeName ? safeName.split(" ")[0] : "there";
+  const text = [
+    `${COMPANY_NAME} Login Verification`,
+    ``,
+    `Hello ${greetingName},`,
+    ``,
+    `Your one-time password is: ${otpCode}`,
+    `This code will expire in 10 minutes. If you did not request this, please ignore this email.`,
+    ``,
+    `Warm regards,`,
+    `${COMPANY_NAME}`,
+    `Need help? Contact ${COMPANY_SUPPORT_EMAIL}`,
+  ].join("\n");
+
+  const html = `<!DOCTYPE html>
+  <html lang="en">
+    <head>
+      <meta charset="UTF-8" />
+      <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+      <title>${COMPANY_NAME} OTP</title>
+      <style>
+        body { margin: 0; padding: 0; background-color: #f5f7fb; font-family: 'Segoe UI', Arial, sans-serif; color: #1f2933; }
+        a { color: #2563eb; text-decoration: none; }
+      </style>
+    </head>
+    <body>
+      <table width="100%" cellpadding="0" cellspacing="0" role="presentation" style="background-color: #f5f7fb; padding: 24px 0;">
+        <tr>
+          <td align="center">
+            <table width="600" cellpadding="0" cellspacing="0" role="presentation" style="background-color: #ffffff; border-radius: 16px; overflow: hidden; box-shadow: 0 25px 50px -12px rgba(15, 23, 42, 0.15);">
+              <tr>
+                <td style="background: linear-gradient(135deg, #2563eb, #7c3aed); padding: 32px;">
+                  <h1 style="margin: 0; font-size: 28px; font-weight: 700; color: #ffffff; letter-spacing: 0.5px;">${COMPANY_NAME}</h1>
+                  <p style="margin: 8px 0 0; font-size: 16px; color: rgba(255, 255, 255, 0.85);">Secure login verification</p>
+                </td>
+              </tr>
+              <tr>
+                <td style="padding: 32px 40px;">
+                  <p style="margin: 0 0 16px; font-size: 18px; font-weight: 600;">Hello ${greetingName},</p>
+                  <p style="margin: 0 0 16px; line-height: 1.6; font-size: 15px; color: #4b5563;">
+                    Use the one-time password below to complete your login. This code is valid for the next <strong>10 minutes</strong>.
+                  </p>
+                  <div style="margin: 24px 0; text-align: center;">
+                    <div style="display: inline-block; padding: 16px 32px; border-radius: 12px; background: linear-gradient(135deg, #2563eb, #7c3aed); color: #ffffff; font-size: 32px; font-weight: 700; letter-spacing: 6px;">
+                      ${otpCode}
+                    </div>
+                  </div>
+                  <table width="100%" cellpadding="0" cellspacing="0" role="presentation" style="margin: 24px 0;">
+                    <tr>
+                      <td style="background-color: #f8fafc; border-radius: 12px; padding: 20px;">
+                        <p style="margin: 0 0 12px; font-size: 15px; font-weight: 600; color: #1f2937;">What happens next?</p>
+                        <ul style="margin: 0; padding-left: 20px; line-height: 1.6; color: #4b5563;">
+                          <li>Enter this code on the login screen to verify your identity.</li>
+                          <li>Do not share this code with anyone. Our team will never ask for it.</li>
+                          <li>If you did not request a code, please ignore this email.</li>
+                        </ul>
+                      </td>
+                    </tr>
+                  </table>
+                  <p style="margin: 0 0 16px; font-size: 15px; color: #4b5563;">
+                    Need help? Reach us anytime at <a href="mailto:${COMPANY_SUPPORT_EMAIL}">${COMPANY_SUPPORT_EMAIL}</a>.
+                  </p>
+                  <p style="margin: 0; font-size: 15px; color: #4b5563;">Warm regards,<br/><strong>${COMPANY_NAME}</strong></p>
+                </td>
+              </tr>
+              <tr>
+                <td style="background-color: #0f172a; padding: 20px 32px; text-align: center;">
+                  <p style="margin: 0 0 8px; font-size: 13px; color: rgba(148, 163, 184, 0.9);">${COMPANY_NAME}</p>
+                  <p style="margin: 0 0 8px; font-size: 12px; color: rgba(148, 163, 184, 0.75);">${COMPANY_ADDRESS}</p>
+                  <p style="margin: 0; font-size: 12px;">
+                    <a href="${COMPANY_WEBSITE}" style="color: rgba(96, 165, 250, 0.95);">Visit our website</a>
+                  </p>
+                </td>
+              </tr>
+            </table>
+          </td>
+        </tr>
+      </table>
+    </body>
+  </html>`;
+
+  return { text, html };
+};
+
 const createTransporter = () => {
   const user = process.env.EMAIL_USER;
   const pass = process.env.EMAIL_PASS;
@@ -106,12 +197,15 @@ export async function POST(req) {
     );
 
     const transporter = createTransporter();
+    const { text, html } = buildOtpEmail(otpCode, user?.name);
 
     await transporter.sendMail({
-      from: process.env.EMAIL_USER,
+      from: `${COMPANY_NAME} <${process.env.EMAIL_USER}>`,
       to: email,
-      subject: "Your Login OTP - Yann Services",
-  text: `Your OTP is ${otpCode}. It is valid for 10 minutes.`,
+      subject: `Your Verification Code | ${COMPANY_NAME}`,
+      text,
+      html,
+      replyTo: COMPANY_SUPPORT_EMAIL,
     });
 
     return NextResponse.json({ success: true, message: "OTP sent successfully" });
