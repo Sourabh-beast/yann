@@ -1,8 +1,6 @@
 'use client';
 import React, { useEffect, useState, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
-import Link from 'next/link';
-import Image from 'next/image';
 
 export default function Dashboard() {
   const router = useRouter();
@@ -10,7 +8,6 @@ export default function Dashboard() {
   const [mousePosition, setMousePosition] = useState({ x: 0, y: 0 });
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [isAddServiceModalOpen, setIsAddServiceModalOpen] = useState(false);
-  const [isMenuOpen, setIsMenuOpen] = useState(false);
 
   const fetchProvider = useCallback(async () => {
     try {
@@ -42,24 +39,6 @@ export default function Dashboard() {
     window.addEventListener('mousemove', handleMouseMove);
     return () => window.removeEventListener('mousemove', handleMouseMove);
   }, [fetchProvider]);
-
-  const handleLogout = async () => {
-    try {
-      await fetch('/api/auth/logout', {
-        method: 'POST',
-        credentials: 'include',
-        cache: 'no-store',
-      });
-    } catch (err) {
-      console.error('Error during logout:', err);
-    }
-
-    window.dispatchEvent(new Event('auth:logout'));
-    router.push('/');
-    router.refresh();
-  };
-
-  const toggleMenu = () => setIsMenuOpen((prev) => !prev);
 
   const handleEditProfile = () => {
     setIsEditModalOpen(true);
@@ -199,151 +178,6 @@ export default function Dashboard() {
           }}
         ></div>
       </div>
-
-      {/* Top Navigation Bar - Matches homepage styling */}
-      <nav className="fixed top-0 left-0 w-full bg-white/95 backdrop-blur-md shadow-sm z-50 transition-all duration-300">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center h-16">
-            {/* Logo */}
-            <Link
-              href="/"
-              className="flex items-center transition-all duration-300 hover:scale-105"
-              onClick={() => setIsMenuOpen(false)}
-            >
-              <Image
-                src="/logo.svg"
-                alt="YANN - Your Ride, Your Way"
-                width={787}
-                height={262}
-                className="h-12 w-auto"
-                priority
-              />
-            </Link>
-
-            {/* Desktop Navigation */}
-            <div className="hidden md:flex items-center space-x-8">
-              <Link
-                href="/"
-                className="text-gray-600 hover:text-blue-600 font-medium transition-colors duration-300 relative group"
-              >
-                Home
-                <span className="absolute -bottom-1 left-0 w-0 h-0.5 bg-gradient-to-r from-blue-500 to-purple-500 group-hover:w-full transition-all duration-300"></span>
-              </Link>
-
-              <Link
-                href="/services"
-                className="text-gray-600 hover:text-blue-600 font-medium transition-colors duration-300 relative group"
-              >
-                Services
-                <span className="absolute -bottom-1 left-0 w-0 h-0.5 bg-gradient-to-r from-blue-500 to-purple-500 group-hover:w-full transition-all duration-300"></span>
-              </Link>
-
-              <Link
-                href="/dashboard"
-                className="text-gray-600 hover:text-blue-600 font-medium transition-colors duration-300 relative group"
-              >
-                Dashboard
-                <span className="absolute -bottom-1 left-0 w-0 h-0.5 bg-gradient-to-r from-blue-500 to-purple-500 group-hover:w-full transition-all duration-300"></span>
-              </Link>
-
-              <div className="flex items-center space-x-4">
-                <div className="flex items-center space-x-2 bg-gradient-to-r from-blue-50 to-purple-50 px-4 py-2 rounded-full">
-                  <div className="w-8 h-8 bg-gradient-to-br from-blue-600 to-purple-600 rounded-full flex items-center justify-center">
-                    <span className="text-white font-bold text-sm">
-                      {provider.name.charAt(0).toUpperCase()}
-                    </span>
-                  </div>
-                  <span className="text-gray-700 font-medium">{provider.name}</span>
-                </div>
-
-                <button
-                  onClick={handleLogout}
-                  className="text-red-600 border border-red-600 px-4 py-2 rounded-full font-medium transition-all duration-300 hover:bg-red-600 hover:text-white flex items-center space-x-2"
-                >
-                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
-                  </svg>
-                  <span>Logout</span>
-                </button>
-              </div>
-            </div>
-
-            {/* Mobile menu button */}
-            <button
-              onClick={toggleMenu}
-              className="md:hidden flex flex-col justify-center items-center w-8 h-8 space-y-1.5"
-            >
-              <span
-                className={`w-6 h-0.5 bg-gray-600 transition-all duration-300 ${
-                  isMenuOpen ? 'rotate-45 translate-y-2' : ''
-                }`}
-              ></span>
-              <span
-                className={`w-6 h-0.5 bg-gray-600 transition-all duration-300 ${
-                  isMenuOpen ? 'opacity-0' : ''
-                }`}
-              ></span>
-              <span
-                className={`w-6 h-0.5 bg-gray-600 transition-all duration-300 ${
-                  isMenuOpen ? '-rotate-45 -translate-y-2' : ''
-                }`}
-              ></span>
-            </button>
-          </div>
-
-          {/* Mobile Navigation */}
-          <div
-            className={`md:hidden transition-all duration-300 ease-in-out ${
-              isMenuOpen ? 'max-h-96 opacity-100' : 'max-h-0 opacity-0'
-            } overflow-hidden`}
-          >
-            <div className="py-4 space-y-4 border-t border-gray-100">
-              <Link
-                href="/"
-                className="block text-gray-600 hover:text-blue-600 font-medium transition-colors duration-300 py-2"
-                onClick={() => setIsMenuOpen(false)}
-              >
-                Home
-              </Link>
-
-              <Link
-                href="/services"
-                className="block text-gray-600 hover:text-blue-600 font-medium transition-colors duration-300 py-2"
-                onClick={() => setIsMenuOpen(false)}
-              >
-                Services
-              </Link>
-
-              <Link
-                href="/dashboard"
-                className="block text-gray-600 hover:text-blue-600 font-medium transition-colors duration-300 py-2"
-                onClick={() => setIsMenuOpen(false)}
-              >
-                Dashboard
-              </Link>
-
-              <div className="flex items-center space-x-2 bg-gradient-to-r from-blue-50 to-purple-50 px-4 py-3 rounded-xl">
-                <div className="w-10 h-10 bg-gradient-to-br from-blue-600 to-purple-600 rounded-full flex items-center justify-center">
-                  <span className="text-white font-bold">
-                    {provider.name.charAt(0).toUpperCase()}
-                  </span>
-                </div>
-                <span className="text-gray-700 font-medium">{provider.name}</span>
-              </div>
-
-              <button
-                onClick={() => {
-                  setIsMenuOpen(false);
-                  handleLogout();
-                }}
-                className="block w-full text-center text-red-600 border border-red-600 px-6 py-2.5 rounded-full font-medium transition-all duration-300 hover:bg-red-600 hover:text-white"
-              >
-                Logout
-              </button>
-            </div>
-          </div>
-        </div>
-      </nav>
 
       {/* Main Content */}
       <div className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
