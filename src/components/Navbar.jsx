@@ -3,18 +3,30 @@
 import Link from "next/link";
 import Image from "next/image";
 import { useState, useEffect, useCallback, useRef } from "react";
-import { useRouter } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import ServiceProviderRegistration from "./registration/Modal";
 import LoginModal from "./LoginModal";
 
 export default function Navbar() {
   const router = useRouter();
+  const pathname = usePathname();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isRegistrationModalOpen, setIsRegistrationModalOpen] = useState(false);
   const [isLoginModalOpen, setIsLoginModalOpen] = useState(false);
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [userName, setUserName] = useState("");
   const sessionRequestIdRef = useRef(0);
+  const isActiveLink = useCallback((href, options = {}) => {
+    const { exact = false } = options;
+    if (!pathname) return false;
+    if (href === '/') {
+      return pathname === '/';
+    }
+    if (exact) {
+      return pathname === href;
+    }
+    return pathname === href || pathname.startsWith(`${href}/`);
+  }, [pathname]);
 
   const fetchSession = useCallback(async () => {
     const requestId = ++sessionRequestIdRef.current;
@@ -131,18 +143,18 @@ export default function Navbar() {
                 <>
                   <Link
                     href="/"
-                    className="text-gray-600 hover:text-blue-600 font-medium transition-colors duration-300 relative group"
+                    className={`relative group font-medium transition-colors duration-300 ${isActiveLink('/') ? 'text-blue-600' : 'text-gray-600 hover:text-blue-600'}`}
                   >
                     Home
-                    <span className="absolute -bottom-1 left-0 w-0 h-0.5 bg-gradient-to-r from-blue-500 to-purple-500 group-hover:w-full transition-all duration-300"></span>
+                    <span className={`absolute -bottom-1 left-0 h-0.5 bg-gradient-to-r from-blue-500 to-purple-500 transition-all duration-300 ${isActiveLink('/') ? 'w-full' : 'w-0 group-hover:w-full'}`}></span>
                   </Link>
 
                   <Link
                     href="/services"
-                    className="text-gray-600 hover:text-blue-600 font-medium transition-colors duration-300 relative group"
+                    className={`relative group font-medium transition-colors duration-300 ${isActiveLink('/services') ? 'text-blue-600' : 'text-gray-600 hover:text-blue-600'}`}
                   >
                     Services
-                    <span className="absolute -bottom-1 left-0 w-0 h-0.5 bg-gradient-to-r from-blue-500 to-purple-500 group-hover:w-full transition-all duration-300"></span>
+                    <span className={`absolute -bottom-1 left-0 h-0.5 bg-gradient-to-r from-blue-500 to-purple-500 transition-all duration-300 ${isActiveLink('/services') ? 'w-full' : 'w-0 group-hover:w-full'}`}></span>
                   </Link>
 
                   {/* Login Button */}
@@ -165,7 +177,8 @@ export default function Navbar() {
                 <>
                   {[{
                     label: 'Dashboard',
-                    href: '/dashboard'
+                    href: '/dashboard',
+                    exactMatch: true
                   }, {
                     label: 'Bookings',
                     href: '/dashboard/bookings'
@@ -181,16 +194,19 @@ export default function Navbar() {
                   }, {
                     label: 'Support',
                     href: '/support'
-                  }].map((item) => (
-                    <Link
-                      key={item.href}
-                      href={item.href}
-                      className="text-gray-600 hover:text-blue-600 font-medium transition-colors duration-300 relative group"
-                    >
-                      {item.label}
-                      <span className="absolute -bottom-1 left-0 w-0 h-0.5 bg-gradient-to-r from-blue-500 to-purple-500 group-hover:w-full transition-all duration-300"></span>
-                    </Link>
-                  ))}
+                  }].map((item) => {
+                    const active = isActiveLink(item.href, { exact: item.exactMatch });
+                    return (
+                      <Link
+                        key={item.href}
+                        href={item.href}
+                        className={`relative group font-medium transition-colors duration-300 ${active ? 'text-blue-600' : 'text-gray-600 hover:text-blue-600'}`}
+                      >
+                        {item.label}
+                        <span className={`absolute -bottom-1 left-0 h-0.5 bg-gradient-to-r from-blue-500 to-purple-500 transition-all duration-300 ${active ? 'w-full' : 'w-0 group-hover:w-full'}`}></span>
+                      </Link>
+                    );
+                  })}
 
                   {/* User Menu */}
                   <div className="flex items-center space-x-3">
@@ -251,7 +267,7 @@ export default function Navbar() {
                 <>
                   <Link
                     href="/"
-                    className="block text-gray-600 hover:text-blue-600 font-medium transition-colors duration-300 py-2"
+                    className={`block font-medium transition-colors duration-300 py-2 ${isActiveLink('/') ? 'text-blue-600' : 'text-gray-600 hover:text-blue-600'}`}
                     onClick={() => setIsMenuOpen(false)}
                   >
                     Home
@@ -259,7 +275,7 @@ export default function Navbar() {
 
                   <Link
                     href="/services"
-                    className="block text-gray-600 hover:text-blue-600 font-medium transition-colors duration-300 py-2"
+                    className={`block font-medium transition-colors duration-300 py-2 ${isActiveLink('/services') ? 'text-blue-600' : 'text-gray-600 hover:text-blue-600'}`}
                     onClick={() => setIsMenuOpen(false)}
                   >
                     Services
@@ -285,7 +301,8 @@ export default function Navbar() {
                 <>
                   {[{
                     label: 'Dashboard',
-                    href: '/dashboard'
+                    href: '/dashboard',
+                    exactMatch: true
                   }, {
                     label: 'Bookings',
                     href: '/dashboard/bookings'
@@ -301,16 +318,19 @@ export default function Navbar() {
                   }, {
                     label: 'Support',
                     href: '/support'
-                  }].map((item) => (
-                    <Link
-                      key={item.href}
-                      href={item.href}
-                      className="block text-gray-600 hover:text-blue-600 font-medium transition-colors duration-300 py-2"
-                      onClick={() => setIsMenuOpen(false)}
-                    >
-                      {item.label}
-                    </Link>
-                  ))}
+                  }].map((item) => {
+                    const active = isActiveLink(item.href, { exact: item.exactMatch });
+                    return (
+                      <Link
+                        key={item.href}
+                        href={item.href}
+                        className={`block font-medium transition-colors duration-300 py-2 ${active ? 'text-blue-600' : 'text-gray-600 hover:text-blue-600'}`}
+                        onClick={() => setIsMenuOpen(false)}
+                      >
+                        {item.label}
+                      </Link>
+                    );
+                  })}
 
                   <div className="flex items-center space-x-2 bg-gradient-to-r from-blue-50 to-purple-50 px-4 py-3 rounded-xl">
                     <div className="w-10 h-10 bg-gradient-to-br from-blue-600 to-purple-600 rounded-full flex items-center justify-center">
