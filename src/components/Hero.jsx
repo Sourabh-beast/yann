@@ -143,7 +143,7 @@ const Hero = () => {
                 </svg>
               </Link>
               <Link
-                href="/how-it-works"
+                href="/#how-it-works"
                 className="px-8 py-4 bg-white text-gray-900 rounded-xl font-semibold shadow-md hover:shadow-lg transform hover:scale-105 transition-all duration-300 border-2 border-gray-200 hover:border-blue-600"
               >
                 How It Works
