@@ -185,11 +185,21 @@ export default function Dashboard() {
         <div className="mb-8">
           <div className="flex items-center justify-between mb-6">
             <div className="flex items-center space-x-6">
-              {/* User Avatar - Simplified */}
-              <div className="w-20 h-20 bg-gradient-to-br from-blue-600 to-purple-600 rounded-2xl flex items-center justify-center shadow-lg">
-                <span className="text-white text-3xl font-bold">
-                  {provider.name.charAt(0).toUpperCase()}
-                </span>
+              {/* User Avatar - shows uploaded profile image if available */}
+              <div className="w-20 h-20 rounded-2xl shadow-lg overflow-hidden border-4 border-white">
+                {provider.profileImage ? (
+                  <img
+                    src={provider.profileImage}
+                    alt={`${provider.name}'s profile`}
+                    className="h-full w-full object-cover"
+                  />
+                ) : (
+                  <div className="flex h-full w-full items-center justify-center bg-gradient-to-br from-blue-600 to-purple-600">
+                    <span className="text-white text-3xl font-bold">
+                      {provider.name.charAt(0).toUpperCase()}
+                    </span>
+                  </div>
+                )}
               </div>
 
               <div>
@@ -277,6 +287,26 @@ export default function Dashboard() {
               </div>
               
               <div className="space-y-5">
+                {/* Avatar preview row */}
+                <div className="flex items-center space-x-4 p-4 bg-purple-50 rounded-xl border border-purple-100">
+                  <div className="w-16 h-16 rounded-xl overflow-hidden border-2 border-white shadow-sm">
+                    {provider.profileImage ? (
+                      <img
+                        src={provider.profileImage}
+                        alt={`${provider.name}'s profile`}
+                        className="h-full w-full object-cover"
+                      />
+                    ) : (
+                      <div className="flex h-full w-full items-center justify-center bg-gradient-to-br from-purple-500 to-blue-500 text-white text-2xl font-bold">
+                        {provider.name.charAt(0).toUpperCase()}
+                      </div>
+                    )}
+                  </div>
+                  <div className="flex-1">
+                    <p className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-1">Profile picture</p>
+                    <p className="text-sm text-gray-600">Update via the navbar menu to keep your profile personal and trusted.</p>
+                  </div>
+                </div>
                 {/* Name */}
                 <div className="flex items-center space-x-4 p-4 bg-blue-50 rounded-xl border border-blue-100">
                   <div className="w-12 h-12 bg-gradient-to-br from-blue-600 to-cyan-600 rounded-lg flex items-center justify-center flex-shrink-0 shadow-md">

@@ -36,6 +36,11 @@ const serviceProviderSchema = new mongoose.Schema({
     match: [/^[0-9]{10}$/, 'Please enter a valid 10-digit phone number']
   },
 
+  profileImage: {
+    type: String,
+    default: ''
+  },
+
   // Work Experience
   experience: {
     type: Number,
@@ -104,6 +109,7 @@ serviceProviderSchema.index({ status: 1 });
 
 // Virtual for working hours display
 serviceProviderSchema.virtual('workingHoursDisplay').get(function () {
+  if (!this.workingHours) return '';
   return `${this.workingHours.startTime} - ${this.workingHours.endTime}`;
 });
 
