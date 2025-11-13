@@ -3,6 +3,7 @@ import nodemailer from "nodemailer";
 import { NextResponse } from "next/server";
 import connectDB from "@/lib/connectDB";
 import ServiceProvider from "@/models/ServiceProvider";
+import Homeowner from "@/models/Homeowner";
 import Otp from "@/models/Otp";
 
 const OTP_EXPIRY_MS = 10 * 60 * 1000;
@@ -18,16 +19,24 @@ const COMPANY_SUPPORT_EMAIL = process.env.SUPPORT_EMAIL || "support@yannservices
 const COMPANY_WEBSITE = process.env.NEXT_PUBLIC_APP_URL || "https://yann-care.vercel.app";
 const COMPANY_ADDRESS = process.env.COMPANY_ADDRESS || "YANN Services, Gurugram, India";
 
-const buildOtpEmail = (otpCode, recipientName = "") => {
+const buildOtpEmail = (otpCode, recipientName = "", { audience = "provider", intent = "login" } = {}) => {
   const safeName = recipientName ? recipientName.trim() : "";
   const greetingName = safeName ? safeName.split(" ")[0] : "there";
+  const audienceLabel = audience === "homeowner" ? "Resident" : "Partner";
+  const intentCopy = intent === "signup" ? "complete your new account setup" : "sign in securely";
+  const headline = audience === "homeowner" ? 'Resident access verification' : 'Partner login verification';
+  const supportingCopy = audience === "homeowner"
+    ? "Use this verification code to manage your bookings, track requests, and connect with verified home service experts."
+    : "Use this verification code to manage your services, track bookings, and stay connected with your clients.";
+
   const text = [
-    `${COMPANY_NAME} Login Verification`,
+    `${COMPANY_NAME} ${audienceLabel} Verification`,
     ``,
     `Hello ${greetingName},`,
     ``,
     `Your one-time password is: ${otpCode}`,
-    `This code will expire in 10 minutes. If you did not request this, please ignore this email.`,
+    `This code will expire in 10 minutes. Use it to ${intentCopy}.`,
+    `If you did not request this, please ignore this email.`,
     ``,
     `Warm regards,`,
     `${COMPANY_NAME}`,
@@ -53,14 +62,15 @@ const buildOtpEmail = (otpCode, recipientName = "") => {
               <tr>
                 <td style="background: linear-gradient(135deg, #2563eb, #7c3aed); padding: 32px;">
                   <h1 style="margin: 0; font-size: 28px; font-weight: 700; color: #ffffff; letter-spacing: 0.5px;">${COMPANY_NAME}</h1>
-                  <p style="margin: 8px 0 0; font-size: 16px; color: rgba(255, 255, 255, 0.85);">Secure login verification</p>
+                  <p style="margin: 8px 0 0; font-size: 16px; color: rgba(255, 255, 255, 0.85); text-transform: uppercase; letter-spacing: 0.4px;">${audienceLabel} verification</p>
                 </td>
               </tr>
               <tr>
                 <td style="padding: 32px 40px;">
                   <p style="margin: 0 0 16px; font-size: 18px; font-weight: 600;">Hello ${greetingName},</p>
+                  <p style="margin: 0 0 12px; text-transform: uppercase; font-size: 13px; font-weight: 700; letter-spacing: 1px; color: #6366f1;">${headline}</p>
                   <p style="margin: 0 0 16px; line-height: 1.6; font-size: 15px; color: #4b5563;">
-                    Use the one-time password below to complete your login. This code is valid for the next <strong>10 minutes</strong>.
+                    ${supportingCopy} This code is valid for the next <strong>10 minutes</strong>.
                   </p>
                   <div style="margin: 24px 0; text-align: center;">
                     <div style="display: inline-block; padding: 16px 32px; border-radius: 12px; background: linear-gradient(135deg, #2563eb, #7c3aed); color: #ffffff; font-size: 32px; font-weight: 700; letter-spacing: 6px;">
@@ -101,7 +111,11 @@ const buildOtpEmail = (otpCode, recipientName = "") => {
     </body>
   </html>`;
 
-  return { text, html };
+  const subject = audience === "homeowner"
+    ? `Your Resident Access Code | ${COMPANY_NAME}`
+    : `Your Partner Verification Code | ${COMPANY_NAME}`;
+
+  return { text, html, subject };
 };
 
 const createTransporter = () => {
@@ -130,21 +144,50 @@ export async function POST(req) {
     }
 
     const email = payload?.email?.trim().toLowerCase();
+    const requestedAudience = payload?.audience === "homeowner" ? "homeowner" : "provider";
+    const rawIntent = payload?.intent === "signup" ? "signup" : "login";
+    const intent = requestedAudience === "provider" ? "login" : rawIntent;
+    const metadata = payload?.metadata && typeof payload.metadata === "object" ? payload.metadata : {};
 
     if (!email || !emailRegex.test(email)) {
       return NextResponse.json({ success: false, message: "Valid email is required" }, { status: 400 });
     }
 
-    const user = await ServiceProvider.findOne({ email });
-    if (!user) {
-      return NextResponse.json({ success: false, message: "Email not registered" }, { status: 404 });
+    let audienceName = "";
+    let recipientName = "";
+
+    if (requestedAudience === "provider") {
+      const user = await ServiceProvider.findOne({ email });
+      if (!user) {
+        return NextResponse.json({ success: false, message: "Email not registered as a partner" }, { status: 404 });
+      }
+      audienceName = "provider";
+      recipientName = user?.name || "";
+    } else {
+      const homeowner = await Homeowner.findOne({ email });
+      audienceName = "homeowner";
+
+      if (intent === "login") {
+        if (!homeowner) {
+          return NextResponse.json({ success: false, message: "We could not find a resident account with this email" }, { status: 404 });
+        }
+        recipientName = homeowner?.name || "";
+      } else {
+        if (homeowner) {
+          return NextResponse.json({ success: false, message: "An account already exists with this email. Try logging in." }, { status: 409 });
+        }
+        if (!metadata?.name || typeof metadata.name !== "string") {
+          return NextResponse.json({ success: false, message: "Please share your name to create the account" }, { status: 400 });
+        }
+        recipientName = metadata.name;
+      }
     }
 
     const ipHeader = req.headers.get("x-forwarded-for") || req.headers.get("x-real-ip") || "unknown";
     const requesterIp = ipHeader.split(",")[0].trim();
     const now = new Date();
 
-    const existingOtp = await Otp.findOne({ email });
+    const existingOtp = await Otp.findOne({ email, audience: audienceName });
 
     if (existingOtp?.blockedUntil && existingOtp.blockedUntil > now) {
       return NextResponse.json({ success: false, message: "Too many attempts. Try again later." }, { status: 429 });
@@ -179,10 +222,13 @@ export async function POST(req) {
     const expiresAt = new Date(now.getTime() + OTP_EXPIRY_MS);
 
     await Otp.findOneAndUpdate(
-      { email },
+      { email, audience: audienceName },
       {
         $set: {
           email,
+          audience: audienceName,
+          intent,
+          metadata,
           otpHash,
           expiresAt,
           attempts: 0,
@@ -197,18 +243,22 @@ export async function POST(req) {
     );
 
     const transporter = createTransporter();
-    const { text, html } = buildOtpEmail(otpCode, user?.name);
+    const { text, html, subject } = buildOtpEmail(otpCode, recipientName, {
+      audience: audienceName,
+      intent,
+    });
 
     await transporter.sendMail({
       from: `${COMPANY_NAME} <${process.env.EMAIL_USER}>`,
       to: email,
-      subject: `Your Verification Code | ${COMPANY_NAME}`,
+      subject,
       text,
       html,
       replyTo: COMPANY_SUPPORT_EMAIL,
     });
 
-    return NextResponse.json({ success: true, message: "OTP sent successfully" });
+    const humanAudience = audienceName === "homeowner" ? "resident" : "partner";
+    return NextResponse.json({ success: true, message: `OTP sent successfully for your ${humanAudience} account` });
   } catch (error) {
     console.error("Send OTP Error:", error);
     return NextResponse.json({ success: false, message: "Unable to send OTP" }, { status: 500 });

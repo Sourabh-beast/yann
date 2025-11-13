@@ -66,23 +66,61 @@ export default function ProfileOverview() {
     <div className="min-h-screen bg-gradient-to-br from-blue-50 via-purple-50 to-pink-50 pt-24 pb-16">
       <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
         <header className="mb-10">
-          <p className="text-sm font-semibold text-blue-600 uppercase tracking-wide">Partner identity</p>
-          <h1 className="text-3xl sm:text-4xl font-bold text-gray-900 mb-3">
-            {provider?.name ? `${provider.name}'s profile` : "Your partner profile"}
-          </h1>
-          <p className="text-gray-600 max-w-3xl">
-            Maintain complete, compliant records so payouts stay uninterrupted and clients trust your brand. Update
-            credentials, communication preferences, and internal notes right here.
-          </p>
+          <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+            <div>
+              <p className="text-sm font-semibold text-blue-600 uppercase tracking-wide">Partner identity</p>
+              <h1 className="text-3xl sm:text-4xl font-bold text-gray-900 mb-3">
+                {provider?.name ? `${provider.name}'s profile` : "Your partner profile"}
+              </h1>
+              <p className="text-gray-600 max-w-3xl">
+                Maintain complete, compliant records so payouts stay uninterrupted and clients trust your brand. Update
+                credentials, communication preferences, and internal notes right here.
+              </p>
+            </div>
+            <div className="flex items-center gap-3 rounded-2xl border border-blue-100 bg-blue-50/60 px-4 py-3 shadow-sm">
+              <div className="h-14 w-14 overflow-hidden rounded-2xl border-2 border-white shadow">
+                {provider?.profileImage ? (
+                  <img
+                    src={provider.profileImage}
+                    alt={`${provider.name}'s profile`}
+                    className="h-full w-full object-cover"
+                  />
+                ) : (
+                  <div className="flex h-full w-full items-center justify-center bg-gradient-to-br from-blue-600 to-purple-600 text-xl font-bold text-white">
+                    {provider?.name?.charAt(0)?.toUpperCase() ?? "Y"}
+                  </div>
+                )}
+              </div>
+              <div className="text-sm text-gray-600">
+                <p className="text-xs font-semibold uppercase tracking-widest text-blue-600">Profile picture</p>
+                <p>Update photo from the navbar menu to strengthen trust with clients.</p>
+              </div>
+            </div>
+          </div>
         </header>
 
         <section className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-10">
           <article className="lg:col-span-2 bg-white border border-gray-100 rounded-2xl shadow-sm p-6">
             <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-6">
-              <div>
-                <p className="text-xs font-semibold text-blue-600 uppercase tracking-widest">Primary partner</p>
-                <h2 className="text-2xl font-semibold text-gray-900 mt-2">{provider?.name ?? "—"}</h2>
-                <p className="text-sm text-gray-500">Registered email • {provider?.email ?? "Not available"}</p>
+              <div className="flex items-start gap-4">
+                <div className="h-16 w-16 overflow-hidden rounded-2xl border border-blue-100 shadow">
+                  {provider?.profileImage ? (
+                    <img
+                      src={provider.profileImage}
+                      alt={`${provider.name}'s profile`}
+                      className="h-full w-full object-cover"
+                    />
+                  ) : (
+                    <div className="flex h-full w-full items-center justify-center bg-gradient-to-br from-blue-600 to-purple-600 text-2xl font-bold text-white">
+                      {provider?.name?.charAt(0)?.toUpperCase() ?? "Y"}
+                    </div>
+                  )}
+                </div>
+                <div>
+                  <p className="text-xs font-semibold text-blue-600 uppercase tracking-widest">Primary partner</p>
+                  <h2 className="text-2xl font-semibold text-gray-900 mt-2">{provider?.name ?? "—"}</h2>
+                  <p className="text-sm text-gray-500">Registered email • {provider?.email ?? "Not available"}</p>
+                </div>
               </div>
               <div className="flex flex-col gap-2 text-sm text-gray-600">
                 <span className="font-semibold text-gray-900">Account status</span>

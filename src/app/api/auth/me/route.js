@@ -32,6 +32,7 @@ const sanitizeProvider = (provider) => ({
   experience: provider.experience,
   phone: provider.phone,
   workingHours: provider.workingHours || null,
+  profileImage: provider.profileImage || '',
 });
 
 export async function GET() {
@@ -55,6 +56,10 @@ export async function GET() {
     } catch (error) {
       console.error("Error verifying token:", error);
       return clearSessionResponse("Invalid or expired session");
+    }
+
+    if (decoded?.audience && decoded.audience !== "provider") {
+      return clearSessionResponse("Invalid session scope");
     }
 
     const provider = await ServiceProvider.findOne({ email: decoded.email });
