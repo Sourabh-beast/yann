@@ -1,17 +1,18 @@
 'use client'
 import React, { useState, useMemo, useEffect } from 'react';
-import { Search, Star, Clock, MapPin, Filter, Heart, ChevronDown, X, CheckCircle, Sparkles, TrendingUp, Award, Shield, Zap, Calendar } from 'lucide-react';
+import { Search, Star, Clock, MapPin, Filter, Heart, ChevronDown, X, CheckCircle, Sparkles, TrendingUp, Award, Shield, Zap, Calendar, Lock } from 'lucide-react';
+import { useAuth } from '@/hooks/useAuth';
 
 /* ------------------------------ sample data ------------------------------ */
 const useServicesData = () => useMemo(() => ([
   // Cleaning Services
-  { id: 1, name: 'Deep House Cleaning', category: 'deep-clean', price: 1200, duration: '3-4 hours', rating: 4.8, reviews: 1247, image: 'https://images.unsplash.com/photo-1581578731548-c64695cc6952?w=400&h=300&fit=crop', description: 'Complete deep cleaning of your entire house including bathrooms, kitchen, and all rooms', popular: true },
-  { id: 2, name: 'Regular House Cleaning', category: 'cleaning', price: 800, duration: '2-3 hours', rating: 4.6, reviews: 892, image: 'https://images.unsplash.com/photo-1527515637462-cff94eecc1ac?w=400&h=300&fit=crop', description: 'Regular maintenance cleaning for your home on weekly or monthly basis', popular: true },
-  { id: 3, name: 'Bathroom Deep Clean', category: 'bathroom', price: 400, duration: '1-2 hours', rating: 4.7, reviews: 634, image: 'https://images.unsplash.com/photo-1584622650111-993a426fbf0a?w=400&h=300&fit=crop', description: 'Specialized bathroom cleaning with sanitization and deep scrubbing' },
+  { id: 1, name: 'Deep House Cleaning', category: 'deep-clean', price: 1200, duration: '3-4 hours', rating: 4.8, reviews: 1247, image: 'https://images.unsplash.com/photo-1628177142898-93e36e4e3a50?w=400&h=300&fit=crop', description: 'Complete deep cleaning of your entire house including bathrooms, kitchen, and all rooms', popular: true },
+  { id: 2, name: 'Regular House Cleaning', category: 'cleaning', price: 800, duration: '2-3 hours', rating: 4.6, reviews: 892, image: 'https://images.unsplash.com/photo-1585421514284-efb74c2b69ba?w=400&h=300&fit=crop', description: 'Regular maintenance cleaning for your home on weekly or monthly basis', popular: true },
+  { id: 3, name: 'Bathroom Deep Clean', category: 'bathroom', price: 400, duration: '1-2 hours', rating: 4.7, reviews: 634, image: 'https://images.unsplash.com/photo-1620626011761-996317b8d101?w=400&h=300&fit=crop', description: 'Specialized bathroom cleaning with sanitization and deep scrubbing' },
   { id: 4, name: 'Kitchen Deep Clean', category: 'kitchen', price: 600, duration: '2-3 hours', rating: 4.5, reviews: 445, image: 'https://images.unsplash.com/photo-1556909114-f6e7ad7d3136?w=400&h=300&fit=crop', description: 'Complete kitchen cleaning including appliances, cabinets, and countertops' },
   
   // Laundry Services
-  { id: 5, name: 'Laundry & Ironing', category: 'laundry', price: 300, duration: '2-4 hours', rating: 4.4, reviews: 321, image: 'https://images.unsplash.com/photo-1517677208171-0bc6725a3e60?w=400&h=300&fit=crop', description: 'Professional laundry service with washing, drying, and ironing' },
+  { id: 5, name: 'Laundry & Ironing', category: 'laundry', price: 300, duration: '2-4 hours', rating: 4.4, reviews: 321, image: 'https://images.unsplash.com/photo-1545173168-9f1947eebb7f?w=400&h=300&fit=crop', description: 'Professional laundry service with washing, drying, and ironing' },
   { id: 6, name: 'Dry Cleaning Service', category: 'laundry', price: 450, duration: '1 day', rating: 4.5, reviews: 278, image: 'https://images.unsplash.com/photo-1582735689369-4fe89db7114c?w=400&h=300&fit=crop', description: 'Professional dry cleaning for delicate and formal wear' },
   
   // Carpet & Window Services
@@ -20,12 +21,21 @@ const useServicesData = () => useMemo(() => ([
   { id: 9, name: 'Window Cleaning', category: 'window', price: 350, duration: '1-2 hours', rating: 4.3, reviews: 189, image: 'https://images.unsplash.com/photo-1581578731548-c64695cc6952?w=400&h=300&fit=crop', description: 'Interior and exterior window cleaning for crystal clear views' },
   
   // Specialty Services
-  { id: 10, name: 'Move-in/Move-out Cleaning', category: 'move', price: 1500, duration: '4-6 hours', rating: 4.9, reviews: 567, image: 'https://images.unsplash.com/photo-1527515637462-cff94eecc1ac?w=400&h=300&fit=crop', description: 'Comprehensive cleaning for moving in or out of a property' },
+  { id: 10, name: 'Move-in/Move-out Cleaning', category: 'move', price: 1500, duration: '4-6 hours', rating: 4.9, reviews: 567, image: 'https://images.unsplash.com/photo-1600585154526-990dced4db0d?w=400&h=300&fit=crop', description: 'Comprehensive cleaning for moving in or out of a property' },
   { id: 11, name: 'Office Cleaning', category: 'specialty', price: 900, duration: '2-4 hours', rating: 4.6, reviews: 423, image: 'https://images.unsplash.com/photo-1497366216548-37526070297c?w=400&h=300&fit=crop', description: 'Professional office and commercial space cleaning services' },
-  { id: 12, name: 'Post-Construction Cleaning', category: 'specialty', price: 1800, duration: '5-7 hours', rating: 4.8, reviews: 289, image: 'https://images.unsplash.com/photo-1504307651254-35680f356dfd?w=400&h=300&fit=crop', description: 'Detailed cleaning after construction or renovation work' },
+  { id: 12, name: 'Post-Construction Cleaning', category: 'specialty', price: 1800, duration: '5-7 hours', rating: 4.8, reviews: 289, image: 'https://images.unsplash.com/photo-1581578731548-c64695cc6952?w=400&h=300&fit=crop', description: 'Detailed cleaning after construction or renovation work' },
   { id: 13, name: 'Balcony Cleaning', category: 'specialty', price: 250, duration: '1 hour', rating: 4.4, reviews: 156, image: 'https://images.unsplash.com/photo-1600585154340-be6161a56a0c?w=400&h=300&fit=crop', description: 'Complete balcony and terrace cleaning service' },
-  { id: 14, name: 'Chimney & Exhaust Cleaning', category: 'kitchen', price: 550, duration: '1-2 hours', rating: 4.5, reviews: 234, image: 'https://images.unsplash.com/photo-1556909114-f6e7ad7d3136?w=400&h=300&fit=crop', description: 'Deep cleaning of kitchen chimneys and exhaust systems' },
-  { id: 15, name: 'Water Tank Cleaning', category: 'specialty', price: 800, duration: '2-3 hours', rating: 4.7, reviews: 198, image: 'https://images.unsplash.com/photo-1584622650111-993a426fbf0a?w=400&h=300&fit=crop', description: 'Professional water tank cleaning and sanitization' }
+  { id: 14, name: 'Chimney & Exhaust Cleaning', category: 'kitchen', price: 550, duration: '1-2 hours', rating: 4.5, reviews: 234, image: 'https://images.unsplash.com/photo-1600566753086-00f18fb6b3ea?w=400&h=300&fit=crop', description: 'Deep cleaning of kitchen chimneys and exhaust systems' },
+  { id: 15, name: 'Water Tank Cleaning', category: 'specialty', price: 800, duration: '2-3 hours', rating: 4.7, reviews: 198, image: 'https://images.unsplash.com/photo-1625246333195-78d9c38ad449?w=400&h=300&fit=crop', description: 'Professional water tank cleaning and sanitization' },
+
+  // Pujari Services
+  { id: 16, name: 'Ganesh Puja at Home', category: 'pujari', price: 2100, duration: '2-3 hours', rating: 4.9, reviews: 432, image: 'https://images.unsplash.com/photo-1578632292335-df3abbb0d586?w=400&h=300&fit=crop', description: 'Traditional Ganesh puja conducted by experienced pujari with all rituals and samagri included' },
+  { id: 17, name: 'Griha Pravesh Puja', category: 'pujari', price: 3500, duration: '3-4 hours', rating: 4.8, reviews: 287, image: 'https://images.unsplash.com/photo-1609220136736-443140cffec6?w=400&h=300&fit=crop', description: 'Complete housewarming ceremony with Vastu puja and traditional rituals for new home' },
+  { id: 18, name: 'Satyanarayan Katha', category: 'pujari', price: 2800, duration: '3-4 hours', rating: 4.9, reviews: 521, image: 'https://images.unsplash.com/photo-1603048674-cfdf1e52ec7f?w=400&h=300&fit=crop', description: 'Sacred Satyanarayan katha with puja, prasad preparation, and complete puja samagri', popular: true },
+  { id: 19, name: 'Havan / Yagna Ceremony', category: 'pujari', price: 4200, duration: '4-5 hours', rating: 4.8, reviews: 198, image: 'https://static.toiimg.com/thumb/msid-116430332,width-1280,height-720,resizemode-4/116430332.jpg', description: 'Traditional havan ceremony for peace, prosperity, and positive energy at your premises' },
+  { id: 20, name: 'Lakshmi Puja (Diwali Special)', category: 'pujari', price: 2500, duration: '2-3 hours', rating: 4.9, reviews: 612, image: 'https://images.unsplash.com/photo-1605100804763-247f67b3557e?w=400&h=300&fit=crop', description: 'Auspicious Lakshmi puja for wealth and prosperity, ideal for Diwali and special occasions', popular: true },
+  { id: 21, name: 'Rudrabhishek Puja', category: 'pujari', price: 3200, duration: '3-4 hours', rating: 4.7, reviews: 156, image: 'https://images.unsplash.com/photo-1592364395653-83e648b20cc2?w=400&h=300&fit=crop', description: 'Sacred Shiva puja with abhishek, mantra chanting, and complete Vedic rituals' },
+  { id: 22, name: 'Vastu Shanti Puja', category: 'pujari', price: 3800, duration: '4-5 hours', rating: 4.8, reviews: 234, image: 'https://images.unsplash.com/photo-1606119174478-d2a0a9c2c91f?w=400&h=300&fit=crop', description: 'Comprehensive Vastu Shanti ceremony to remove doshas and bring harmony to your space' },
 ]), []);
 
 const currency = new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 });
@@ -35,7 +45,8 @@ const BookingModal = ({ open, onClose, baseService, servicesList = [], onConfirm
   const [date, setDate] = useState(() => new Date().toISOString().slice(0, 10));
   const [time, setTime] = useState('09:00');
   const [selectedExtras, setSelectedExtras] = useState([]);
-  const [months, setMonths] = useState(1);
+  const [billingType, setBillingType] = useState('hourly');
+  const [quantity, setQuantity] = useState(1);
   const [notes, setNotes] = useState('');
   const [status, setStatus] = useState('idle');
   const [errorMsg, setErrorMsg] = useState('');
@@ -45,7 +56,8 @@ const BookingModal = ({ open, onClose, baseService, servicesList = [], onConfirm
       setDate(new Date().toISOString().slice(0, 10));
       setTime('09:00');
       setSelectedExtras([]);
-      setMonths(1);
+      setBillingType('hourly');
+      setQuantity(1);
       setNotes('');
       setStatus('idle');
       setErrorMsg('');
@@ -77,7 +89,9 @@ const BookingModal = ({ open, onClose, baseService, servicesList = [], onConfirm
   }, 0);
 
   const basePrice = baseService?.price || 0;
-  const totalPrice = (basePrice + extrasTotal) * (months || 1);
+  const unitPrice = basePrice + extrasTotal;
+  const multiplier = billingType === 'hourly' ? quantity : billingType === 'daily' ? quantity : quantity;
+  const totalPrice = unitPrice * multiplier;
 
   const handleConfirm = async () => {
     setStatus('submitting');
@@ -88,7 +102,8 @@ const BookingModal = ({ open, onClose, baseService, servicesList = [], onConfirm
       serviceName: baseService?.name || null,
       date,
       time,
-      months,
+      billingType,
+      quantity,
       extras: selectedExtras,
       notes,
       totalPrice
@@ -266,32 +281,50 @@ const BookingModal = ({ open, onClose, baseService, servicesList = [], onConfirm
               </div>
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
+            <div className="space-y-5">
               <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-2">Service Duration</label>
-                <select 
-                  value={months} 
-                  onChange={e => setMonths(Number(e.target.value))} 
-                  className="w-full border-2 border-gray-300 rounded-xl px-4 py-3.5 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-300 hover:border-gray-400"
-                >
-                  {Array.from({ length: 12 }).map((_, i) => {
-                    const val = i + 1;
-                    return (
-                      <option key={val} value={val}>
-                        {val} {val === 1 ? 'month' : 'months'}
-                      </option>
-                    );
-                  })}
-                </select>
+                <label className="block text-sm font-semibold text-gray-700 mb-2">Billing Type</label>
+                <div className="grid grid-cols-3 gap-3">
+                  {['hourly', 'daily', 'monthly'].map(type => (
+                    <button
+                      key={type}
+                      type="button"
+                      onClick={() => setBillingType(type)}
+                      className={`px-4 py-3 rounded-xl font-semibold transition-all duration-300 ${
+                        billingType === type
+                          ? 'bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow-lg'
+                          : 'border-2 border-gray-300 text-gray-700 hover:border-blue-400'
+                      }`}
+                    >
+                      {type.charAt(0).toUpperCase() + type.slice(1)}
+                    </button>
+                  ))}
+                </div>
               </div>
-              <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-2">Special Instructions</label>
-                <input 
-                  value={notes} 
-                  onChange={e => setNotes(e.target.value)} 
-                  placeholder="Any special requests..."
-                  className="w-full border-2 border-gray-300 rounded-xl px-4 py-3.5 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-300 hover:border-gray-400"
-                />
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">
+                    Quantity ({billingType === 'hourly' ? 'Hours' : billingType === 'daily' ? 'Days' : 'Months'})
+                  </label>
+                  <input
+                    type="number"
+                    min="1"
+                    max={billingType === 'hourly' ? '24' : billingType === 'daily' ? '90' : '12'}
+                    value={quantity}
+                    onChange={e => setQuantity(Math.max(1, Number(e.target.value)))}
+                    className="w-full border-2 border-gray-300 rounded-xl px-4 py-3.5 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-300 hover:border-gray-400"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">Special Instructions</label>
+                  <input
+                    value={notes}
+                    onChange={e => setNotes(e.target.value)}
+                    placeholder="Any special requests..."
+                    className="w-full border-2 border-gray-300 rounded-xl px-4 py-3.5 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-300 hover:border-gray-400"
+                  />
+                </div>
               </div>
             </div>
           </div>
@@ -310,8 +343,12 @@ const BookingModal = ({ open, onClose, baseService, servicesList = [], onConfirm
               </div>
             )}
             <div className="flex items-center justify-between text-sm">
-              <span className="text-gray-600 font-medium">Duration</span>
-              <span className="font-semibold text-gray-900">{months} {months === 1 ? 'month' : 'months'}</span>
+              <span className="text-gray-600 font-medium">Billing Type</span>
+              <span className="font-semibold text-gray-900">{billingType.charAt(0).toUpperCase() + billingType.slice(1)}</span>
+            </div>
+            <div className="flex items-center justify-between text-sm">
+              <span className="text-gray-600 font-medium">Quantity</span>
+              <span className="font-semibold text-gray-900">{quantity} {billingType === 'hourly' ? (quantity === 1 ? 'hour' : 'hours') : billingType === 'daily' ? (quantity === 1 ? 'day' : 'days') : (quantity === 1 ? 'month' : 'months')}</span>
             </div>
             <div className="border-t-2 border-gray-300 pt-4">
               <div className="flex items-center justify-between">
@@ -364,7 +401,7 @@ const BookingModal = ({ open, onClose, baseService, servicesList = [], onConfirm
 };
 
 /* ------------------------------ ServiceCard ------------------------------ */
-const ServiceCard = ({ service, onBook, isFavorite, onToggleFavorite }) => {
+const ServiceCard = ({ service, onBook, isFavorite, onToggleFavorite, isLoggedIn }) => {
   const [isHovered, setIsHovered] = useState(false);
 
   return (
@@ -408,30 +445,60 @@ const ServiceCard = ({ service, onBook, isFavorite, onToggleFavorite }) => {
         <h3 className="font-bold text-xl mb-2 text-gray-900 group-hover:text-blue-600 transition-colors duration-300">{service.name}</h3>
         <p className="text-gray-600 text-sm mb-4 line-clamp-2 leading-relaxed">{service.description}</p>
 
-        <div className="flex items-center justify-between mb-4 pb-4 border-b border-gray-200">
-          <div className="flex items-center gap-1">
-            <Star className="w-5 h-5 text-yellow-500 fill-yellow-500" />
-            <span className="font-bold text-gray-900">{service.rating ?? '-'}</span>
-            <span className="text-sm text-gray-500">({service.reviews ?? 0})</span>
-          </div>
-          <div className="flex items-center text-gray-600">
-            <Clock className="w-4 h-4 mr-1.5" />
-            <span className="text-sm font-medium">{service.duration}</span>
-          </div>
-        </div>
+        {isLoggedIn ? (
+          <>
+            <div className="flex items-center justify-between mb-4 pb-4 border-b border-gray-200">
+              <div className="flex items-center gap-1">
+                <Star className="w-5 h-5 text-yellow-500 fill-yellow-500" />
+                <span className="font-bold text-gray-900">{service.rating ?? '-'}</span>
+                <span className="text-sm text-gray-500">({service.reviews ?? 0})</span>
+              </div>
+              <div className="flex items-center text-gray-600">
+                <Clock className="w-4 h-4 mr-1.5" />
+                <span className="text-sm font-medium">{service.duration}</span>
+              </div>
+            </div>
 
-        <div className="flex items-center justify-between">
-          <div>
-            <div className="text-3xl font-bold bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">{currency.format(service.price)}</div>
-            <p className="text-xs text-gray-500 mt-0.5">per session</p>
-          </div>
-          <button 
-            onClick={() => onBook(service)} 
-            className="bg-gradient-to-r from-blue-600 to-indigo-600 text-white px-6 py-3 rounded-xl hover:from-blue-700 hover:to-indigo-700 transition-all duration-300 font-semibold shadow-lg shadow-blue-500/30 hover:shadow-xl hover:shadow-blue-500/40 hover:-translate-y-0.5"
-          >
-            Book Now
-          </button>
-        </div>
+            <div className="flex items-center justify-between">
+              <div>
+                <div className="text-3xl font-bold bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">{currency.format(service.price)}</div>
+                <p className="text-xs text-gray-500 mt-0.5">per session</p>
+              </div>
+              <button
+                onClick={() => onBook(service)}
+                className="bg-gradient-to-r from-blue-600 to-indigo-600 text-white px-6 py-3 rounded-xl hover:from-blue-700 hover:to-indigo-700 transition-all duration-300 font-semibold shadow-lg shadow-blue-500/30 hover:shadow-xl hover:shadow-blue-500/40 hover:-translate-y-0.5"
+              >
+                Book Now
+              </button>
+            </div>
+          </>
+        ) : (
+          <>
+            <div className="flex items-center justify-between mb-4 pb-4 border-b border-gray-200">
+              <div className="flex items-center gap-1">
+                <Star className="w-5 h-5 text-yellow-500 fill-yellow-500" />
+                <span className="font-bold text-gray-900">{service.rating ?? '-'}</span>
+              </div>
+              <div className="flex items-center text-gray-500">
+                <Lock className="w-4 h-4 mr-1" />
+                <span className="text-xs font-medium">Login for details</span>
+              </div>
+            </div>
+
+            <div className="flex items-center justify-between">
+              <div>
+                <div className="text-lg font-semibold text-gray-600">Starting from</div>
+                <div className="text-2xl font-bold bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">{currency.format(service.price)}</div>
+              </div>
+              <button
+                onClick={() => onBook(service)}
+                className="bg-gradient-to-r from-gray-600 to-gray-700 text-white px-6 py-3 rounded-xl hover:from-gray-700 hover:to-gray-800 transition-all duration-300 font-semibold shadow-lg"
+              >
+                Login to Book
+              </button>
+            </div>
+          </>
+        )}
       </div>
     </div>
   );
@@ -439,9 +506,11 @@ const ServiceCard = ({ service, onBook, isFavorite, onToggleFavorite }) => {
 
 /* ------------------------------ ServicesPage ------------------------------ */
 const ServicesPage = () => {
+  const { isLoggedIn } = useAuth();
   const services = useServicesData();
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('all');
+  const [selectedLocation, setSelectedLocation] = useState('gurugram');
   const [sortBy, setSortBy] = useState('popular');
   const [priceRange, setPriceRange] = useState('all');
   const [favorites, setFavorites] = useState([]);
@@ -459,6 +528,14 @@ const ServicesPage = () => {
 
   const toggleFavorite = (id) => {
     setFavorites(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]);
+  };
+
+  const handleLocationChange = (newLocation) => {
+    setSelectedLocation(newLocation);
+    setSearchTerm('');
+    setSelectedCategory('all');
+    setPriceRange('all');
+    setSortBy('popular');
   };
 
   const filteredServices = useMemo(() => {
@@ -501,6 +578,7 @@ const ServicesPage = () => {
     { id: 'carpet', name: 'Carpet & Upholstery', count: services.filter(s => s.category === 'carpet').length, icon: Star },
     { id: 'window', name: 'Window Cleaning', count: services.filter(s => s.category === 'window').length, icon: Sparkles },
     { id: 'move', name: 'Move In/Out', count: services.filter(s => s.category === 'move').length, icon: Award },
+    { id: 'pujari', name: 'Pujari Services', count: services.filter(s => s.category === 'pujari').length, icon: Sparkles },
     { id: 'specialty', name: 'Specialty Services', count: services.filter(s => s.category === 'specialty').length, icon: Zap },
   ]), [services]);
 
@@ -538,9 +616,20 @@ const ServicesPage = () => {
               </div>
             </div>
             
-            <div className="flex items-center text-blue-100 bg-white/10 backdrop-blur-sm rounded-2xl px-6 py-4 border border-white/20">
-              <MapPin className="w-5 h-5 mr-2" />
-              <span className="font-medium">Gurugram, Haryana</span>
+            <div className="relative">
+              <select
+                value={selectedLocation}
+                onChange={e => handleLocationChange(e.target.value)}
+                className="w-full appearance-none text-blue-100 bg-white/10 backdrop-blur-sm rounded-2xl pl-12 pr-12 py-4 border border-white/20 font-medium cursor-pointer hover:bg-white/20 transition-all duration-300 focus:outline-none focus:ring-2 focus:ring-white/50"
+              >
+                <option value="gurugram" className="bg-blue-700 text-white">Gurugram, Haryana</option>
+                <option value="delhi" className="bg-blue-700 text-white">Delhi NCR</option>
+                <option value="noida" className="bg-blue-700 text-white">Noida, UP</option>
+                <option value="ghaziabad" className="bg-blue-700 text-white">Ghaziabad, UP</option>
+                <option value="faridabad" className="bg-blue-700 text-white">Faridabad, Haryana</option>
+              </select>
+              <MapPin className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-blue-100 pointer-events-none" />
+              <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 w-5 h-5 text-blue-100 pointer-events-none" />
             </div>
           </div>
         </div>
@@ -695,6 +784,7 @@ const ServicesPage = () => {
                     onBook={handleBook}
                     isFavorite={favorites.includes(s.id)}
                     onToggleFavorite={toggleFavorite}
+                    isLoggedIn={isLoggedIn}
                   />
                 ))}
               </div>
