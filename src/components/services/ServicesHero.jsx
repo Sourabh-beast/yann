@@ -2,6 +2,7 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { Search, Star, Clock, MapPin, Filter, Heart, ChevronDown, X, CheckCircle, Sparkles, TrendingUp, Award, Shield, Zap, Calendar, Lock } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
+import LoginModal from '@/components/LoginModal';
 
 /* ------------------------------ sample data ------------------------------ */
 const useServicesData = () => useMemo(() => ([
@@ -516,10 +517,28 @@ const ServicesPage = () => {
   const [favorites, setFavorites] = useState([]);
   const [bookingOpen, setBookingOpen] = useState(false);
   const [bookingService, setBookingService] = useState(null);
+  const [loginModalOpen, setLoginModalOpen] = useState(false);
+  const [pendingBookingService, setPendingBookingService] = useState(null);
 
   const handleBook = (service) => {
-    setBookingService(service);
-    setBookingOpen(true);
+    if (!isLoggedIn) {
+      // Store the service for booking after login
+      setPendingBookingService(service);
+      setLoginModalOpen(true);
+    } else {
+      setBookingService(service);
+      setBookingOpen(true);
+    }
+  };
+
+  const handleLoginSuccess = () => {
+    setLoginModalOpen(false);
+    // After successful login, open booking modal with the pending service
+    if (pendingBookingService) {
+      setBookingService(pendingBookingService);
+      setBookingOpen(true);
+      setPendingBookingService(null);
+    }
   };
 
   const handleConfirmBooking = async (booking) => {
@@ -814,6 +833,17 @@ const ServicesPage = () => {
         baseService={bookingService}
         servicesList={services}
         onConfirm={handleConfirmBooking}
+      />
+
+      {/* Login Modal */}
+      <LoginModal
+        isOpen={loginModalOpen}
+        onClose={() => {
+          setLoginModalOpen(false);
+          setPendingBookingService(null);
+        }}
+        onLoginSuccess={handleLoginSuccess}
+        defaultPanel="resident"
       />
     </div>
   );

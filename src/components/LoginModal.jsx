@@ -31,19 +31,19 @@ const formatTimer = (seconds) => {
   return `${minutes}:${remainingSeconds}`;
 };
 
-export default function LoginModal({ isOpen, onClose, onLoginSuccess }) {
+export default function LoginModal({ isOpen, onClose, onLoginSuccess, defaultPanel = "partner" }) {
   const router = useRouter();
   const [partnerForm, setPartnerForm] = useState(partnerInitialState);
   const [residentForm, setResidentForm] = useState(residentInitialState);
-  const [activePanel, setActivePanel] = useState("partner");
+  const [activePanel, setActivePanel] = useState(defaultPanel);
 
   useEffect(() => {
     if (!isOpen) {
       setPartnerForm(partnerInitialState());
       setResidentForm(residentInitialState());
-      setActivePanel("partner");
+      setActivePanel(defaultPanel);
     }
-  }, [isOpen]);
+  }, [isOpen, defaultPanel]);
 
   useEffect(() => {
     if (partnerForm.timer <= 0) return;
@@ -256,20 +256,28 @@ export default function LoginModal({ isOpen, onClose, onLoginSuccess }) {
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/70 backdrop-blur-sm px-4 py-6">
-      <div className="relative w-full max-w-5xl overflow-hidden rounded-3xl border border-white/10 bg-white shadow-2xl">
+    <div 
+      className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/70 backdrop-blur-sm px-4 py-6"
+      onClick={closeModal}
+    >
+      <div 
+        className={`relative w-full ${defaultPanel === "resident" ? "max-w-xl" : "max-w-5xl"} overflow-hidden rounded-3xl border border-white/10 bg-white shadow-2xl`}
+        onClick={(e) => e.stopPropagation()}
+      >
         <button
           type="button"
           onClick={closeModal}
-          className="absolute right-5 top-5 flex h-10 w-10 items-center justify-center rounded-full bg-white/80 text-slate-500 shadow-md transition hover:scale-105 hover:text-slate-700"
+          className="absolute right-5 top-5 z-10 flex h-10 w-10 items-center justify-center rounded-full bg-white/80 text-slate-500 shadow-md transition hover:scale-105 hover:text-slate-700 hover:bg-white"
+          aria-label="Close modal"
         >
           <svg className="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
             <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
           </svg>
         </button>
 
-        <div className="grid grid-cols-1 lg:grid-cols-2">
-          <section className={`relative flex flex-col gap-6 p-8 lg:p-10 ${activePanel === "partner" ? "bg-gradient-to-b from-slate-900 via-slate-900 to-slate-800 text-white" : "bg-slate-900 text-white/80"}`}>
+        <div className={`grid ${defaultPanel === "resident" ? "grid-cols-1" : "grid-cols-1 lg:grid-cols-2"}`}>
+          {defaultPanel !== "resident" && (
+            <section className={`relative flex flex-col gap-6 p-8 lg:p-10 ${activePanel === "partner" ? "bg-gradient-to-b from-slate-900 via-slate-900 to-slate-800 text-white" : "bg-slate-900 text-white/80"}`}>
             <header className="space-y-3">
               <span className="inline-flex items-center gap-2 rounded-full bg-white/10 px-3 py-1 text-xs font-semibold uppercase tracking-widest text-indigo-200">
                 Service Partner
@@ -366,6 +374,7 @@ export default function LoginModal({ isOpen, onClose, onLoginSuccess }) {
               </ul>
             </footer>
           </section>
+          )}
 
           <section className={`relative flex flex-col gap-6 bg-white p-8 lg:p-10 ${activePanel === "resident" ? "shadow-[inset_0_0_0_1px_rgba(79,70,229,0.2)]" : ""}`}>
             <header className="space-y-3">

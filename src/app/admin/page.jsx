@@ -1,7 +1,7 @@
 'use client'
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { Users, Briefcase, ClipboardList, TrendingUp, Activity, CheckCircle, Clock, XCircle, Menu, X, LogOut } from 'lucide-react';
+import { Users, Briefcase, ClipboardList, TrendingUp, Activity, CheckCircle, Clock, XCircle, Menu, X, LogOut, AlertTriangle } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 
 export default function AdminPage() {
@@ -9,6 +9,7 @@ export default function AdminPage() {
   const [stats, setStats] = useState(null);
   const [loading, setLoading] = useState(true);
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
 
   useEffect(() => {
     fetchStats();
@@ -36,6 +37,11 @@ export default function AdminPage() {
     } catch (error) {
       console.error('Logout error:', error);
     }
+  };
+
+  const confirmLogout = () => {
+    setShowLogoutConfirm(false);
+    handleLogout();
   };
 
   const sidebarItems = [
@@ -87,7 +93,7 @@ export default function AdminPage() {
         {/* Logout Button */}
         <div className="absolute bottom-0 left-0 right-0 p-4 border-t border-gray-200 bg-white">
           <button
-            onClick={handleLogout}
+            onClick={() => setShowLogoutConfirm(true)}
             className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-red-600 hover:bg-red-50 transition-all duration-300 font-medium"
           >
             <LogOut className="w-5 h-5" />
@@ -223,6 +229,39 @@ export default function AdminPage() {
           </>
         )}
       </main>
+
+      {/* Logout Confirmation Popup */}
+      {showLogoutConfirm && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm px-4">
+          <div className="w-full max-w-md rounded-3xl bg-white p-8 shadow-2xl">
+            <div className="flex items-start gap-3">
+              <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-red-100 text-red-600">
+                <AlertTriangle className="h-6 w-6" />
+              </div>
+              <div>
+                <h3 className="text-lg font-semibold text-gray-900">Logout Confirmation</h3>
+                <p className="mt-1 text-sm text-gray-600">Are you sure you want to logout from admin panel?</p>
+              </div>
+            </div>
+            <div className="mt-8 flex justify-end gap-3">
+              <button
+                type="button"
+                onClick={() => setShowLogoutConfirm(false)}
+                className="rounded-full border border-gray-200 px-5 py-2 text-sm font-semibold text-gray-600 transition hover:bg-gray-100"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={confirmLogout}
+                className="rounded-full bg-red-600 px-6 py-2 text-sm font-semibold text-white shadow-lg shadow-red-500/30 transition hover:bg-red-700"
+              >
+                Yes, Logout
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
