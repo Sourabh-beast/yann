@@ -211,11 +211,8 @@ export default function Navbar() {
       <nav className="fixed top-0 left-0 w-full bg-white/95 backdrop-blur-md shadow-sm z-50 border-b border-gray-200">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center h-16">
-            {/* Logo */}
-            <Link
-              href="/"
-              className="flex items-center transition-all duration-300 hover:scale-105"
-            >
+            {/* Logo - Non-clickable */}
+            <div className="flex items-center">
               <Image
                 src="/logo.svg"
                 alt="YANN - Your Ride, Your Way"
@@ -224,7 +221,7 @@ export default function Navbar() {
                 className="h-15 w-auto position-absolute z-1"
                 priority
               />
-            </Link>
+            </div>
 
             {/* Admin Badge Only */}
             <div className="px-4 py-2 bg-gradient-to-r from-blue-100 to-purple-100 rounded-full">
