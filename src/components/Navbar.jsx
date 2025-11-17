@@ -205,18 +205,7 @@ export default function Navbar() {
 
   const currentNavItems = userRole === 'resident' ? residentNavItems : partnerNavItems;
 
-  // Admin navbar handler
-  const handleAdminLogout = async () => {
-    try {
-      await fetch('/api/admin/logout', { method: 'POST' });
-      router.push('/');
-      router.refresh();
-    } catch (error) {
-      console.error('Admin logout error:', error);
-    }
-  };
-
-  // Render admin navbar
+  // Render admin navbar (minimal, no buttons)
   if (isAdminRoute) {
     return (
       <nav className="fixed top-0 left-0 w-full bg-white/95 backdrop-blur-md shadow-sm z-50 border-b border-gray-200">
@@ -237,19 +226,11 @@ export default function Navbar() {
               />
             </Link>
 
-            {/* Admin Badge & Logout */}
-            <div className="flex items-center gap-4">
-              <div className="px-4 py-2 bg-gradient-to-r from-blue-100 to-purple-100 rounded-full">
-                <span className="text-sm font-semibold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
-                  Admin Panel
-                </span>
-              </div>
-              <button
-                onClick={handleAdminLogout}
-                className="bg-gradient-to-r from-blue-600 to-purple-600 text-white px-6 py-2.5 rounded-full font-medium transition-all duration-300 hover:shadow-lg hover:shadow-blue-500/25 hover:-translate-y-0.5"
-              >
-                Back to Website
-              </button>
+            {/* Admin Badge Only */}
+            <div className="px-4 py-2 bg-gradient-to-r from-blue-100 to-purple-100 rounded-full">
+              <span className="text-sm font-semibold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
+                Admin Panel
+              </span>
             </div>
           </div>
         </div>
