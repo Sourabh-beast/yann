@@ -43,7 +43,7 @@ const Services = () => {
       ),
       gradient: "from-green-500 to-teal-500",
       features: ["Same-day Delivery", "Package Tracking", "Grocery Delivery"],
-      price: "Starting at $9",
+      price: "Starting at ₹99",
       popular: false,
     },
     {
@@ -71,7 +71,7 @@ const Services = () => {
       ),
       gradient: "from-indigo-500 to-purple-500",
       features: ["Errand Running", "Appointment Scheduling", "Personal Shopping"],
-      price: "Starting at $39",
+      price: "Starting at ₹399",
       popular: false,
     },
     {
