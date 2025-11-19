@@ -1,6 +1,6 @@
 'use client';
 import React, { useState, useEffect } from 'react';
-import { X, User, Briefcase, Clock, CheckCircle, Award, Shield, Sparkles } from 'lucide-react';
+import { X, User, Briefcase, Clock, CheckCircle, Award, Shield, Sparkles, ChevronDown, ChevronUp } from 'lucide-react';
 
 /**
  * @typedef {Object} ServiceProviderRegistrationProps
@@ -14,41 +14,51 @@ import { X, User, Briefcase, Clock, CheckCircle, Award, Shield, Sparkles } from 
 export default function ServiceProviderRegistration({ isOpen, onClose }) {
   const [loading, setLoading] = useState(false);
   const [submitted, setSubmitted] = useState(false);
+  const [expandedCategories, setExpandedCategories] = useState([]);
   const [formData, setFormData] = useState({
     name: '',
     email: '',
     phone: '',
     experience: '',
+    selectedCategories: [],
     services: [],
     startTime: '09:00',
     endTime: '17:00'
   });
 
-  const serviceOptions = [
-    'Deep House Cleaning',
-    'Regular House Cleaning', 
-    'Bathroom Deep Clean',
-    'Kitchen Deep Clean',
-    'Laundry & Ironing',
-    'Dry Cleaning Service',
-    'Carpet Cleaning',
-    'Sofa & Upholstery Clean',
-    'Window Cleaning',
-    'Move-in/Move-out Cleaning',
-    'Office Cleaning',
-    'Post-Construction Cleaning',
-    'Balcony Cleaning',
-    'Chimney & Exhaust Cleaning',
-    'Water Tank Cleaning',
-    'Ganesh Puja at Home',
-    'Griha Pravesh Puja',
-    'Satyanarayan Katha',
-    'Havan / Yagna Ceremony',
-    'Lakshmi Puja (Diwali Special)',
-    'Rudrabhishek Puja',
-    'Vastu Shanti Puja',
-    'Other'
-  ];
+  const categorizedServices = {
+    'Cleaning Services': [
+      'Deep House Cleaning',
+      'Regular House Cleaning',
+      'Bathroom Deep Clean',
+      'Kitchen Deep Clean',
+      'Carpet Cleaning',
+      'Sofa & Upholstery Clean',
+      'Window Cleaning',
+      'Move-in/Move-out Cleaning',
+      'Office Cleaning',
+      'Post-Construction Cleaning',
+      'Balcony Cleaning',
+      'Chimney & Exhaust Cleaning',
+      'Water Tank Cleaning',
+    ],
+    'Laundry Services': [
+      'Laundry & Ironing',
+      'Dry Cleaning Service',
+    ],
+    'Pujari Services': [
+      'Ganesh Puja at Home',
+      'Griha Pravesh Puja',
+      'Satyanarayan Katha',
+      'Havan Ceremony',
+      'Lakshmi Puja (Diwali Special)',
+      'Rudrabhishek Puja',
+      'Vastu Shanti Puja',
+    ],
+    'Other Services': [
+      'Other',
+    ]
+  };
 
   // Close modal on Escape key press
   useEffect(() => {
@@ -92,6 +102,33 @@ export default function ServiceProviderRegistration({ isOpen, onClose }) {
     }));
   };
 
+  const toggleCategory = (category) => {
+    setFormData(prev => {
+      const isSelected = prev.selectedCategories.includes(category);
+      const newCategories = isSelected
+        ? prev.selectedCategories.filter(c => c !== category)
+        : [...prev.selectedCategories, category];
+      
+      // Remove services from deselected category
+      const newServices = isSelected
+        ? prev.services.filter(s => !categorizedServices[category].includes(s))
+        : prev.services;
+
+      return {
+        ...prev,
+        selectedCategories: newCategories,
+        services: newServices
+      };
+    });
+
+    // Toggle expanded state
+    setExpandedCategories(prev => 
+      prev.includes(category)
+        ? prev.filter(c => c !== category)
+        : [...prev, category]
+    );
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
 
@@ -119,6 +156,7 @@ export default function ServiceProviderRegistration({ isOpen, onClose }) {
             email: '',
             phone: '',
             experience: '',
+            selectedCategories: [],
             services: [],
             startTime: '09:00',
             endTime: '17:00'
@@ -307,40 +345,95 @@ export default function ServiceProviderRegistration({ isOpen, onClose }) {
                 </div>
                 <div className="flex-1">
                   <h3 className="text-2xl font-bold text-gray-900">Services You Provide</h3>
-                  <p className="text-sm text-gray-600 mt-1">Select all services you can offer to customers</p>
+                  <p className="text-sm text-gray-600 mt-1">Select categories and services you can offer</p>
                 </div>
               </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-                {serviceOptions.map(service => (
-                  <label 
-                    key={service} 
-                    className={`group flex items-center gap-3 p-4 border-2 rounded-xl cursor-pointer transition-all duration-300 ${
-                      formData.services.includes(service)
-                        ? 'border-blue-500 bg-gradient-to-br from-blue-50 to-indigo-50 shadow-md shadow-blue-500/20'
-                        : 'border-gray-300 hover:border-blue-400 hover:bg-gray-50'
-                    }`}
-                  >
-                    <input
-                      type="checkbox"
-                      checked={formData.services.includes(service)}
-                      onChange={() => handleServiceChange(service)}
-                      className="w-5 h-5 rounded-md border-gray-300 text-blue-600 focus:ring-blue-500 transition-transform duration-300 hover:scale-110"
-                    />
-                    <span className={`text-sm font-medium ${
-                      formData.services.includes(service) ? 'text-blue-700' : 'text-gray-700'
-                    }`}>
-                      {service}
-                    </span>
-                  </label>
-                ))}
+              <div className="space-y-3">
+                {Object.entries(categorizedServices).map(([category, services]) => {
+                  const isExpanded = expandedCategories.includes(category);
+                  const isSelected = formData.selectedCategories.includes(category);
+                  const selectedServicesCount = services.filter(s => formData.services.includes(s)).length;
+
+                  return (
+                    <div key={category} className="bg-white rounded-xl border-2 border-gray-200 overflow-hidden shadow-sm hover:shadow-md transition-all duration-300">
+                      {/* Category Header */}
+                      <div 
+                        onClick={() => toggleCategory(category)}
+                        className={`flex items-center justify-between p-4 cursor-pointer transition-all duration-300 ${
+                          isSelected 
+                            ? 'bg-gradient-to-r from-green-50 to-emerald-50 hover:from-green-100 hover:to-emerald-100' 
+                            : 'bg-gray-50 hover:bg-gray-100'
+                        }`}
+                      >
+                        <div className="flex items-center space-x-3">
+                          <input
+                            type="checkbox"
+                            checked={isSelected}
+                            onChange={(e) => {
+                              e.stopPropagation();
+                              toggleCategory(category);
+                            }}
+                            className="w-5 h-5 text-green-600 border-gray-300 rounded focus:ring-green-500 transition-transform duration-300 hover:scale-110"
+                          />
+                          <span className={`font-bold text-lg ${isSelected ? 'text-green-700' : 'text-gray-700'}`}>
+                            {category}
+                          </span>
+                          {selectedServicesCount > 0 && (
+                            <span className="text-xs bg-green-600 text-white px-2.5 py-1 rounded-full font-semibold">
+                              {selectedServicesCount} selected
+                            </span>
+                          )}
+                        </div>
+                        {isExpanded ? (
+                          <ChevronUp className={`w-6 h-6 transition-colors ${isSelected ? 'text-green-600' : 'text-gray-500'}`} />
+                        ) : (
+                          <ChevronDown className={`w-6 h-6 transition-colors ${isSelected ? 'text-green-600' : 'text-gray-500'}`} />
+                        )}
+                      </div>
+
+                      {/* Services List */}
+                      {isExpanded && isSelected && (
+                        <div className="p-4 bg-gradient-to-br from-green-25 to-emerald-25 border-t-2 border-green-100">
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                            {services.map((service) => (
+                              <label 
+                                key={service} 
+                                className={`group flex items-center gap-3 p-3 rounded-lg cursor-pointer transition-all duration-300 ${
+                                  formData.services.includes(service)
+                                    ? 'bg-gradient-to-br from-green-100 to-emerald-100 shadow-sm'
+                                    : 'bg-white/80 hover:bg-white hover:shadow-sm'
+                                }`}
+                              >
+                                <input
+                                  type="checkbox"
+                                  checked={formData.services.includes(service)}
+                                  onChange={() => handleServiceChange(service)}
+                                  className="w-4 h-4 text-green-600 border-gray-300 rounded focus:ring-green-500 transition-transform duration-300 hover:scale-110"
+                                />
+                                <span className={`text-sm font-medium transition-colors ${
+                                  formData.services.includes(service) ? 'text-green-700' : 'text-gray-700 group-hover:text-green-700'
+                                }`}>
+                                  {service}
+                                </span>
+                              </label>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
               </div>
               
-              <div className="bg-gradient-to-br from-blue-50 to-indigo-50 p-4 rounded-xl border-2 border-blue-200">
-                <p className="text-sm font-semibold text-blue-700">
-                  <CheckCircle className="w-4 h-4 inline mr-2" />
-                  Selected: <span className="text-lg">{formData.services.length}</span> service(s)
-                </p>
+              <div className="bg-gradient-to-br from-green-50 to-emerald-50 p-5 rounded-xl border-2 border-green-200">
+                <div className="flex items-center justify-between">
+                  <p className="text-sm font-semibold text-green-700">
+                    <CheckCircle className="w-5 h-5 inline mr-2" />
+                    Total Selected Services
+                  </p>
+                  <span className="text-2xl font-bold text-green-700">{formData.services.length}</span>
+                </div>
               </div>
             </div>
 
