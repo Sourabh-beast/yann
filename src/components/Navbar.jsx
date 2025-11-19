@@ -198,6 +198,7 @@ export default function Navbar() {
 
   const residentNavItems = [
     { label: 'Resident Hub', href: '/resident', exactMatch: true },
+    { label: 'Browse Services', href: '/my-services' },
     { label: 'Requests', href: '/resident/requests' },
     { label: 'Saved Pros', href: '/resident/favorites' },
     { label: 'Support', href: '/support' },
