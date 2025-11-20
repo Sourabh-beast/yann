@@ -139,10 +139,25 @@ export default function ServiceProviderRegistration({ isOpen, onClose }) {
 
     try {
       setLoading(true);
+      
+      // Format data to match ServiceProvider schema
+      const payload = {
+        name: formData.name,
+        email: formData.email,
+        phone: formData.phone,
+        experience: Number(formData.experience),
+        services: formData.services,
+        selectedCategories: formData.selectedCategories,
+        workingHours: {
+          startTime: formData.startTime,
+          endTime: formData.endTime
+        }
+      };
+
       const res = await fetch('/api/register', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(formData)
+        body: JSON.stringify(payload)
       });
 
       const data = await res.json();
