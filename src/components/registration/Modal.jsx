@@ -164,6 +164,9 @@ export default function ServiceProviderRegistration({ isOpen, onClose }) {
       if (res.ok) {
         setSubmitted(true);
         
+        // Save provider email to localStorage for dashboard access
+        localStorage.setItem('providerEmail', formData.email);
+        
         // Reset form after 3 seconds
         setTimeout(() => {
           setFormData({

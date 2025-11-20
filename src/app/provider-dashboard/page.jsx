@@ -1,30 +1,53 @@
 'use client';
 import { useState, useEffect } from 'react';
-import { CheckCircle, XCircle, Clock, Phone, MapPin, Calendar, DollarSign, TrendingUp, Package, AlertCircle } from 'lucide-react';
+import { useRouter } from 'next/navigation';
+import { CheckCircle, XCircle, Clock, Phone, MapPin, Calendar, DollarSign, TrendingUp, Package, AlertCircle, LogOut } from 'lucide-react';
 
 export default function ProviderDashboard() {
+  const router = useRouter();
   const [loading, setLoading] = useState(true);
   const [providerData, setProviderData] = useState(null);
   const [activeTab, setActiveTab] = useState('pending');
   const [processingId, setProcessingId] = useState(null);
 
   useEffect(() => {
+    // Check if provider is logged in
+    const providerEmail = localStorage.getItem('providerEmail');
+    if (!providerEmail) {
+      router.push('/provider-login');
+      return;
+    }
+    
     fetchProviderData();
   }, []);
+
+  const handleLogout = () => {
+    localStorage.removeItem('providerEmail');
+    localStorage.removeItem('providerName');
+    localStorage.removeItem('providerId');
+    router.push('/provider-login');
+  };
 
   const fetchProviderData = async () => {
     try {
       setLoading(true);
-      // TODO: Get actual provider email from session/auth
-      const email = 'provider@example.com'; // Replace with actual auth
       
-      const response = await fetch(`/api/provider/requests?email=${email}`);
+      // Get provider email from localStorage (set during registration/login)
+      const providerEmail = localStorage.getItem('providerEmail');
+      
+      if (!providerEmail) {
+        console.error('No provider email found. Please login first.');
+        setLoading(false);
+        return;
+      }
+      
+      const response = await fetch(`/api/provider/requests?email=${providerEmail}`);
       const data = await response.json();
 
       if (data.success) {
         setProviderData(data);
       } else {
-        console.error('Failed to fetch provider data');
+        console.error('Failed to fetch provider data:', data.message);
       }
     } catch (error) {
       console.error('Error fetching provider data:', error);
@@ -135,8 +158,19 @@ export default function ProviderDashboard() {
       {/* Header */}
       <div className="bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-600 text-white py-8 px-4">
         <div className="max-w-7xl mx-auto">
-          <h1 className="text-4xl font-bold mb-2">Provider Dashboard</h1>
-          <p className="text-blue-100 text-lg">Welcome back, {provider.name}! 👋</p>
+          <div className="flex items-start justify-between mb-6">
+            <div>
+              <h1 className="text-4xl font-bold mb-2">Provider Dashboard</h1>
+              <p className="text-blue-100 text-lg">Welcome back, {provider.name}!</p>
+            </div>
+            <button
+              onClick={handleLogout}
+              className="flex items-center gap-2 px-6 py-3 bg-white/10 hover:bg-white/20 backdrop-blur-sm rounded-xl transition-all font-semibold"
+            >
+              <LogOut className="w-5 h-5" />
+              Logout
+            </button>
+          </div>
           
           {/* Stats Cards */}
           <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mt-8">

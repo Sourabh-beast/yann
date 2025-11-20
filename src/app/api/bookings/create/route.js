@@ -44,13 +44,26 @@ export async function POST(request) {
 
     // Find all service providers who offer this service
     const serviceName = bookingData.serviceName;
+    
+    console.log('🔍 Searching for providers with service:', serviceName);
+    
+    // Find providers whose services array contains this service name (exact match)
     const availableProviders = await ServiceProvider.find({
-      services: serviceName,
+      services: { $in: [serviceName] }, // Check if serviceName exists in services array
       status: 'active'
     }).select('_id name email phone services');
 
-    // Store notification info (in real app, send emails/SMS here)
-    console.log(`📢 Booking created! Notifying ${availableProviders.length} providers for ${serviceName}`);
+    console.log(`📢 Booking created! Found ${availableProviders.length} providers for "${serviceName}"`);
+    
+    if (availableProviders.length > 0) {
+      console.log('✅ Providers who will receive this booking:');
+      availableProviders.forEach(p => {
+        console.log(`   - ${p.name} (${p.email}) - Services: [${p.services.join(', ')}]`);
+      });
+    } else {
+      console.log('⚠️ WARNING: No providers found for this service!');
+      console.log('💡 Tip: Make sure providers register with exact service name:', serviceName);
+    }
     
     // In production, you would:
     // - Send email notifications to all providers

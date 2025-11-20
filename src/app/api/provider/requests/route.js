@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import connectDB from '@/lib/connectDB';
+import connectDB from '@/lib/mongodb';
 import Booking from '@/models/Booking';
 import ServiceProvider from '@/models/ServiceProvider';
 
@@ -34,14 +34,34 @@ export async function GET(request) {
       );
     }
 
+    console.log('🔍 Provider found:', provider.name);
+    console.log('📋 Provider services:', provider.services);
+    console.log('✅ Provider status:', provider.status);
+
     // Get all pending bookings for services this provider offers
     const pendingBookings = await Booking.find({
-      serviceName: { $in: provider.services },
+      serviceName: { $in: provider.services }, // Exact match with provider's services
       status: 'pending',
       'providerResponses.providerId': { $ne: provider._id } // Haven't responded yet
     })
     .sort({ createdAt: -1 })
     .select('-providerResponses');
+
+    console.log(`📢 Found ${pendingBookings.length} pending bookings for provider ${provider.name}`);
+    if (pendingBookings.length > 0) {
+      pendingBookings.forEach(b => {
+        console.log(`   - ${b.serviceName} (${b.customerName}) - ${b.formattedDate}`);
+      });
+    } else {
+      console.log('💡 Tip: Make sure bookings have exact service names matching provider services');
+      console.log('   Provider services:', provider.services);
+      
+      // Check all pending bookings to see what's available
+      const allPending = await Booking.find({ status: 'pending' }).select('serviceName');
+      if (allPending.length > 0) {
+        console.log('   All pending booking services:', allPending.map(b => b.serviceName));
+      }
+    }
 
     // Get accepted bookings by this provider
     const acceptedBookings = await Booking.find({

@@ -2,60 +2,22 @@
 
 import useProviderSession from "@/hooks/useProviderSession";
 
-const verificationSteps = [
-  {
-    title: "Identity verification",
-    detail: "Aadhaar/KYC on file and matched with GST details.",
-    status: "Completed",
-  },
-  {
-    title: "Address proof",
-    detail: "Upload latest utility bill for studio location.",
-    status: "Pending",
-  },
-  {
-    title: "Bank account",
-    detail: "IFSC and beneficiary name verified on 03 Jun 2024.",
-    status: "Active",
-  },
-  {
-    title: "Portfolio quality",
-    detail: "Need five recent before/after uploads for premium badge.",
-    status: "Action required",
-  },
-];
-
-const supportContacts = [
-  {
-    name: "Account Manager",
-    contact: "Sakshi Rao",
-    email: "sakshi@yannsupport.com",
-    phone: "+91 98102 33445",
-  },
-  {
-    name: "Escalations",
-    contact: "Partner Success Desk",
-    email: "partners@yannsupport.com",
-    phone: "+91 93152 77890",
-  },
-];
-
 const quickLinks = [
   {
-    label: "Update availability calendar",
+    label: "Manage your services",
     href: "/dashboard/services",
   },
   {
-    label: "Download latest invoices",
+    label: "View earnings",
     href: "/dashboard/earnings",
   },
   {
-    label: "Edit team access",
-    href: "#",
+    label: "Check bookings",
+    href: "/dashboard/bookings",
   },
   {
-    label: "View rating insights",
-    href: "#",
+    label: "Provider dashboard",
+    href: "/provider-dashboard",
   },
 ];
 
@@ -134,20 +96,20 @@ export default function ProfileOverview() {
 
             <dl className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-8 text-sm text-gray-600">
               <div>
-                <dt className="font-semibold text-gray-900">Primary city</dt>
-                <dd>Delhi NCR • Update for hyperlocal promos</dd>
+                <dt className="font-semibold text-gray-900">Phone Number</dt>
+                <dd>{provider?.phone || 'Not provided'}</dd>
               </div>
               <div>
-                <dt className="font-semibold text-gray-900">Languages you serve in</dt>
-                <dd>English, Hindi • Add Punjabi to attract more bookings</dd>
+                <dt className="font-semibold text-gray-900">Experience</dt>
+                <dd>{provider?.experience ? `${provider.experience} years` : 'Not specified'}</dd>
               </div>
               <div>
-                <dt className="font-semibold text-gray-900">GST / Business ID</dt>
-                <dd>27AAACX1234R1Z7 • Verified on 02 May 2024</dd>
+                <dt className="font-semibold text-gray-900">Total Services</dt>
+                <dd>{provider?.services?.length || 0} active services</dd>
               </div>
               <div>
-                <dt className="font-semibold text-gray-900">Emergency contact</dt>
-                <dd>Rohit Malhotra (+91 98998 44122)</dd>
+                <dt className="font-semibold text-gray-900">Working Hours</dt>
+                <dd>{provider?.workingHours ? `${provider.workingHours.startTime} - ${provider.workingHours.endTime}` : 'Not set'}</dd>
               </div>
             </dl>
 
@@ -177,53 +139,58 @@ export default function ProfileOverview() {
 
         <section className="bg-white border border-gray-100 rounded-2xl shadow-sm p-6 mb-10">
           <div className="flex items-center justify-between mb-4">
-            <h3 className="text-lg font-semibold text-gray-900">Verification checklist</h3>
-            <button type="button" className="text-sm font-semibold text-blue-600 hover:text-blue-700">Refresh status</button>
+            <h3 className="text-lg font-semibold text-gray-900">Your Services</h3>
           </div>
-          <ul className="space-y-4">
-            {verificationSteps.map((step) => (
-              <li key={step.title} className="border border-gray-100 rounded-xl p-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-                <div>
-                  <p className="text-sm font-semibold text-gray-900">{step.title}</p>
-                  <p className="text-sm text-gray-500">{step.detail}</p>
+          {provider?.services && provider.services.length > 0 ? (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {provider.services.map((service) => (
+                <div key={service} className="border border-gray-100 rounded-xl p-4 bg-gradient-to-br from-blue-50 to-purple-50">
+                  <p className="text-sm font-semibold text-gray-900 capitalize">{service}</p>
+                  <p className="text-xs text-gray-500 mt-1">Active service</p>
                 </div>
-                <span className="text-xs font-semibold text-gray-500 uppercase tracking-widest">{step.status}</span>
-              </li>
-            ))}
-          </ul>
+              ))}
+            </div>
+          ) : (
+            <div className="text-center py-8 text-gray-500">
+              <p>No services added yet</p>
+              <p className="text-sm mt-1">Add services to start receiving bookings</p>
+            </div>
+          )}
           {loading && (
             <div className="mt-5 p-3 text-xs text-blue-700 bg-blue-50 border border-blue-100 rounded-lg">
-              Revalidating compliance details with your latest session…
+              Loading your profile data…
             </div>
           )}
         </section>
 
         <section className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           <article className="bg-white border border-gray-100 rounded-2xl shadow-sm p-6">
-            <h3 className="text-lg font-semibold text-gray-900 mb-4">Bank & payouts</h3>
+            <h3 className="text-lg font-semibold text-gray-900 mb-4">Account Information</h3>
             <div className="space-y-3 text-sm text-gray-600">
-              <p><span className="font-semibold text-gray-900">Bank name:</span> Axis Bank</p>
-              <p><span className="font-semibold text-gray-900">Account ending:</span> 8842</p>
-              <p><span className="font-semibold text-gray-900">Settlement cadence:</span> Every Tuesday & Friday</p>
-              <p><span className="font-semibold text-gray-900">Payout notifications:</span> Email & SMS enabled</p>
+              <p><span className="font-semibold text-gray-900">Account Status:</span> {provider?.status || 'Pending'}</p>
+              <p><span className="font-semibold text-gray-900">Rating:</span> {provider?.rating || 0} / 5</p>
+              <p><span className="font-semibold text-gray-900">Total Reviews:</span> {provider?.totalReviews || 0}</p>
+              <p><span className="font-semibold text-gray-900">Member Since:</span> {provider?.createdAt ? new Date(provider.createdAt).toLocaleDateString() : 'N/A'}</p>
             </div>
-            <button type="button" className="mt-4 text-sm font-semibold text-blue-600 hover:text-blue-700">
-              Update payout destination
-            </button>
           </article>
 
           <article className="bg-white border border-gray-100 rounded-2xl shadow-sm p-6">
-            <h3 className="text-lg font-semibold text-gray-900 mb-4">Partner success contacts</h3>
-            <ul className="space-y-4 text-sm text-gray-600">
-              {supportContacts.map((contact) => (
-                <li key={contact.name} className="border border-gray-100 rounded-xl p-4">
-                  <p className="text-sm font-semibold text-gray-900">{contact.name}</p>
-                  <p>{contact.contact}</p>
-                  <p>{contact.email}</p>
-                  <p>{contact.phone}</p>
-                </li>
-              ))}
-            </ul>
+            <h3 className="text-lg font-semibold text-gray-900 mb-4">Support</h3>
+            <div className="space-y-3">
+              <div className="border border-gray-100 rounded-xl p-4">
+                <p className="text-sm font-semibold text-gray-900">Need Help?</p>
+                <p className="text-sm text-gray-600 mt-1">Contact support for any assistance</p>
+                <p className="text-sm text-blue-600 mt-2">support@yann.com</p>
+              </div>
+              <div className="border border-gray-100 rounded-xl p-4">
+                <p className="text-sm font-semibold text-gray-900">Quick Actions</p>
+                <div className="flex flex-col gap-2 mt-2">
+                  <a href="/dashboard/bookings" className="text-sm text-blue-600 hover:underline">View Bookings</a>
+                  <a href="/dashboard/earnings" className="text-sm text-blue-600 hover:underline">Check Earnings</a>
+                  <a href="/provider-dashboard" className="text-sm text-blue-600 hover:underline">Provider Dashboard</a>
+                </div>
+              </div>
+            </div>
           </article>
         </section>
       </div>
