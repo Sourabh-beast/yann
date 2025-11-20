@@ -542,7 +542,61 @@ const ServicesPage = () => {
   };
 
   const handleConfirmBooking = async (booking) => {
-    console.log('Booking confirmed:', booking);
+    try {
+      // Get customer phone from auth or prompt
+      const customerPhone = prompt('Please enter your contact number (10 digits):');
+      
+      if (!customerPhone || !/^[0-9]{10}$/.test(customerPhone)) {
+        throw new Error('Please enter a valid 10-digit phone number');
+      }
+
+      const customerAddress = prompt('Please enter your complete address:');
+      
+      if (!customerAddress || customerAddress.trim().length < 10) {
+        throw new Error('Please enter a complete address');
+      }
+
+      // Prepare booking data
+      const bookingPayload = {
+        serviceId: booking.serviceId,
+        serviceName: booking.serviceName,
+        serviceCategory: bookingService?.category || 'general',
+        customerPhone: customerPhone.trim(),
+        customerAddress: customerAddress.trim(),
+        bookingDate: booking.date,
+        bookingTime: booking.time,
+        basePrice: bookingService?.price || 0,
+        extras: booking.extras || [],
+        totalPrice: booking.totalPrice,
+        paymentMethod: bookingService?.category === 'pujari' ? 'cash' : 'online',
+        billingType: booking.billingType || 'one-time',
+        quantity: booking.quantity || 1,
+        notes: booking.notes || ''
+      };
+
+      console.log('Creating booking:', bookingPayload);
+
+      const response = await fetch('/api/bookings/create', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(bookingPayload)
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.message || 'Failed to create booking');
+      }
+
+      console.log('Booking created successfully:', data);
+      alert(`Booking confirmed! ${data.notifiedProviders} service providers have been notified.`);
+      
+    } catch (error) {
+      console.error('Booking error:', error);
+      throw error; // Re-throw to show error in modal
+    }
   };
 
   const toggleFavorite = (id) => {

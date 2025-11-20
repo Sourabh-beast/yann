@@ -5,6 +5,8 @@ import { useRouter } from 'next/navigation';
 export default function Dashboard() {
   const router = useRouter();
   const [provider, setProvider] = useState(null);
+  const [stats, setStats] = useState(null);
+  const [recentActivity, setRecentActivity] = useState([]);
   const [mousePosition, setMousePosition] = useState({ x: 0, y: 0 });
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [isAddServiceModalOpen, setIsAddServiceModalOpen] = useState(false);
@@ -16,6 +18,7 @@ export default function Dashboard() {
       if (res.ok) {
         const data = await res.json();
         setProvider(data.provider);
+        fetchDashboardStats(data.provider.email);
       } else {
         router.push('/');
       }
@@ -24,6 +27,64 @@ export default function Dashboard() {
       router.push('/');
     }
   }, [router]);
+
+  const fetchDashboardStats = async (email) => {
+    try {
+      const res = await fetch(`/api/provider/requests?email=${email}`);
+      if (res.ok) {
+        const data = await res.json();
+        
+        const totalBookings = data.bookings?.length || 0;
+        const acceptedBookings = data.bookings?.filter(b => b.status === 'accepted').length || 0;
+        const completedBookings = data.bookings?.filter(b => b.status === 'completed').length || 0;
+        const totalEarnings = data.stats?.totalEarnings || 0;
+        
+        setStats({
+          totalBookings,
+          acceptedBookings,
+          completedBookings,
+          totalEarnings
+        });
+
+        // Recent activity from bookings
+        const activities = [];
+        if (data.bookings && data.bookings.length > 0) {
+          data.bookings.slice(0, 4).forEach(booking => {
+            const createdDate = new Date(booking.createdAt);
+            const now = new Date();
+            const diffHours = Math.floor((now - createdDate) / (1000 * 60 * 60));
+            const timeAgo = diffHours < 24 ? `${diffHours} hours ago` : `${Math.floor(diffHours / 24)} days ago`;
+            
+            if (booking.status === 'pending') {
+              activities.push({ 
+                action: `New booking received for ${booking.service}`, 
+                time: timeAgo, 
+                icon: '📅', 
+                gradient: 'from-blue-500 to-cyan-500' 
+              });
+            } else if (booking.status === 'accepted') {
+              activities.push({ 
+                action: `Booking accepted for ${booking.service}`, 
+                time: timeAgo, 
+                icon: '✅', 
+                gradient: 'from-green-500 to-teal-500' 
+              });
+            } else if (booking.status === 'completed') {
+              activities.push({ 
+                action: `Service completed: ${booking.service}`, 
+                time: timeAgo, 
+                icon: '💰', 
+                gradient: 'from-yellow-500 to-orange-500' 
+              });
+            }
+          });
+        }
+        setRecentActivity(activities);
+      }
+    } catch (err) {
+      console.error('Error fetching dashboard stats:', err);
+    }
+  };
 
   useEffect(() => {
     fetchProvider();
@@ -101,11 +162,11 @@ export default function Dashboard() {
     );
   }
 
-  const stats = [
+  const statsConfig = [
     {
       title: 'Total Bookings',
-      value: '24',
-      change: '+12%',
+      getValue: () => stats?.totalBookings || 0,
+      change: stats?.totalBookings > 0 ? 'All time' : 'No bookings yet',
       icon: (
         <svg className="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
@@ -115,21 +176,21 @@ export default function Dashboard() {
       shadowColor: 'shadow-blue-500/50',
     },
     {
-      title: 'Active Services',
-      value: provider.services.length,
-      change: '+8%',
+      title: 'Accepted Bookings',
+      getValue: () => stats?.acceptedBookings || 0,
+      change: stats?.acceptedBookings > 0 ? 'In progress' : 'Start accepting',
       icon: (
         <svg className="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 13.255A23.931 23.931 0 0112 15c-3.183 0-6.22-.62-9-1.745M16 6V4a2 2 0 00-2-2h-4a2 2 0 00-2 2v2m4 6h.01M5 20h14a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
         </svg>
       ),
       gradient: 'from-purple-500 via-purple-600 to-pink-600',
       shadowColor: 'shadow-purple-500/50',
     },
     {
-      title: 'Experience',
-      value: `${provider.experience} Yrs`,
-      change: 'Professional',
+      title: 'Completed',
+      getValue: () => stats?.completedBookings || 0,
+      change: stats?.completedBookings > 0 ? 'Finished jobs' : 'No completed yet',
       icon: (
         <svg className="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4M7.835 4.697a3.42 3.42 0 001.946-.806 3.42 3.42 0 014.438 0 3.42 3.42 0 001.946.806 3.42 3.42 0 013.138 3.138 3.42 3.42 0 00.806 1.946 3.42 3.42 0 010 4.438 3.42 3.42 0 00-.806 1.946 3.42 3.42 0 01-3.138 3.138 3.42 3.42 0 00-1.946.806 3.42 3.42 0 01-4.438 0 3.42 3.42 0 00-1.946-.806 3.42 3.42 0 01-3.138-3.138 3.42 3.42 0 00-.806-1.946 3.42 3.42 0 010-4.438 3.42 3.42 0 00.806-1.946 3.42 3.42 0 013.138-3.138z" />
@@ -139,12 +200,12 @@ export default function Dashboard() {
       shadowColor: 'shadow-green-500/50',
     },
     {
-      title: 'Rating',
-      value: '4.8',
-      change: '★★★★★',
+      title: 'Total Earnings',
+      getValue: () => stats?.totalEarnings ? `₹${stats.totalEarnings}` : '₹0',
+      change: stats?.totalEarnings > 0 ? 'All time' : 'Start earning',
       icon: (
         <svg className="w-7 h-7" fill="currentColor" viewBox="0 0 24 24">
-          <path d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z" />
+          <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8zm.31-8.86c-1.77-.45-2.34-.94-2.34-1.67 0-.84.79-1.43 2.1-1.43 1.38 0 1.9.66 1.94 1.64h1.71c-.05-1.34-.87-2.57-2.49-2.97V5H10.9v1.69c-1.51.32-2.72 1.3-2.72 2.81 0 1.79 1.49 2.69 3.66 3.21 1.95.46 2.34 1.15 2.34 1.87 0 .53-.39 1.39-2.1 1.39-1.6 0-2.23-.72-2.32-1.64H8.04c.1 1.7 1.36 2.66 2.86 2.97V19h2.34v-1.67c1.52-.29 2.72-1.16 2.73-2.77-.01-2.2-1.9-2.96-3.66-3.42z" />
         </svg>
       ),
       gradient: 'from-yellow-500 via-orange-500 to-red-500',
@@ -232,42 +293,44 @@ export default function Dashboard() {
 
         {/* Stats Grid - Cleaner design */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-10">
-          {stats.map((stat, index) => (
-            <div
-              key={index}
-              className="group relative bg-white rounded-2xl p-6 shadow-md hover:shadow-lg border border-gray-100 transform transition-all duration-300 hover:-translate-y-1"
-            >
-              {/* Icon with gradient background */}
-              <div className={`w-14 h-14 bg-gradient-to-br ${stat.gradient} rounded-xl flex items-center justify-center mb-4 text-white shadow-md`}>
-                {stat.icon}
+          {!stats ? (
+            // Loading skeleton
+            [...Array(4)].map((_, index) => (
+              <div key={index} className="bg-white rounded-2xl p-6 shadow-md border border-gray-100 animate-pulse">
+                <div className="w-14 h-14 bg-gray-200 rounded-xl mb-4"></div>
+                <div className="h-3 bg-gray-200 rounded w-24 mb-2"></div>
+                <div className="h-8 bg-gray-200 rounded w-16 mb-3"></div>
+                <div className="h-3 bg-gray-200 rounded w-20"></div>
               </div>
-              
-              {/* Title */}
-              <h3 className="text-gray-500 text-xs font-bold mb-2 uppercase tracking-wider">
-                {stat.title}
-              </h3>
-              
-              {/* Value */}
-              <p className={`text-3xl font-bold bg-gradient-to-r ${stat.gradient} bg-clip-text text-transparent mb-3`}>
-                {stat.value}
-              </p>
-              
-              {/* Change Indicator */}
-              <div className="flex items-center space-x-2">
-                {stat.change.includes('%') ? (
-                  <>
-                    <svg className="w-4 h-4 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
-                    </svg>
-                    <span className="text-sm font-bold text-green-600">{stat.change}</span>
-                    <span className="text-xs text-gray-500">this month</span>
-                  </>
-                ) : (
+            ))
+          ) : (
+            statsConfig.map((stat, index) => (
+              <div
+                key={index}
+                className="group relative bg-white rounded-2xl p-6 shadow-md hover:shadow-lg border border-gray-100 transform transition-all duration-300 hover:-translate-y-1"
+              >
+                {/* Icon with gradient background */}
+                <div className={`w-14 h-14 bg-gradient-to-br ${stat.gradient} rounded-xl flex items-center justify-center mb-4 text-white shadow-md`}>
+                  {stat.icon}
+                </div>
+                
+                {/* Title */}
+                <h3 className="text-gray-500 text-xs font-bold mb-2 uppercase tracking-wider">
+                  {stat.title}
+                </h3>
+                
+                {/* Value */}
+                <p className={`text-3xl font-bold bg-gradient-to-r ${stat.gradient} bg-clip-text text-transparent mb-3`}>
+                  {stat.getValue()}
+                </p>
+                
+                {/* Change Indicator */}
+                <div className="flex items-center space-x-2">
                   <span className="text-sm font-semibold text-gray-600">{stat.change}</span>
-                )}
+                </div>
               </div>
-            </div>
-          ))}
+            ))
+          )}
         </div>
 
         {/* Main Content Grid */}
@@ -421,25 +484,43 @@ export default function Dashboard() {
                 </div>
                 
                 <div className="space-y-4">
-                  {[
-                    { action: 'New booking received', time: '2 hours ago', icon: '📅', gradient: 'from-blue-500 to-cyan-500' },
-                    { action: 'Service completed', time: '5 hours ago', icon: '✅', gradient: 'from-green-500 to-teal-500' },
-                    { action: 'Payment received', time: '1 day ago', icon: '💰', gradient: 'from-yellow-500 to-orange-500' },
-                    { action: 'Profile updated', time: '2 days ago', icon: '👤', gradient: 'from-purple-500 to-pink-500' },
-                  ].map((activity, index) => (
-                    <div key={index} className="flex items-center p-4 bg-gray-50 rounded-xl border border-gray-100 hover:shadow-md transition-all duration-300 transform hover:-translate-y-0.5">
-                      <div className={`w-12 h-12 bg-gradient-to-br ${activity.gradient} rounded-lg flex items-center justify-center shadow-md`}>
-                        <span className="text-2xl">{activity.icon}</span>
+                  {!stats ? (
+                    // Loading skeleton
+                    [...Array(4)].map((_, index) => (
+                      <div key={index} className="flex items-center p-4 bg-gray-50 rounded-xl border border-gray-100 animate-pulse">
+                        <div className="w-12 h-12 bg-gray-200 rounded-lg"></div>
+                        <div className="ml-4 flex-1">
+                          <div className="h-4 bg-gray-200 rounded w-32 mb-2"></div>
+                          <div className="h-3 bg-gray-200 rounded w-20"></div>
+                        </div>
                       </div>
-                      <div className="ml-4 flex-1">
-                        <p className="font-bold text-gray-900">{activity.action}</p>
-                        <p className="text-sm text-gray-500">{activity.time}</p>
+                    ))
+                  ) : recentActivity.length > 0 ? (
+                    recentActivity.map((activity, index) => (
+                      <div key={index} className="flex items-center p-4 bg-gray-50 rounded-xl border border-gray-100 hover:shadow-md transition-all duration-300 transform hover:-translate-y-0.5">
+                        <div className={`w-12 h-12 bg-gradient-to-br ${activity.gradient} rounded-lg flex items-center justify-center shadow-md`}>
+                          <span className="text-2xl">{activity.icon}</span>
+                        </div>
+                        <div className="ml-4 flex-1">
+                          <p className="font-bold text-gray-900">{activity.action}</p>
+                          <p className="text-sm text-gray-500">{activity.time}</p>
+                        </div>
+                        <svg className="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                        </svg>
                       </div>
-                      <svg className="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                      </svg>
+                    ))
+                  ) : (
+                    <div className="text-center py-12">
+                      <div className="w-20 h-20 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                        <svg className="w-10 h-10 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                        </svg>
+                      </div>
+                      <p className="text-gray-500 font-medium">No recent activity</p>
+                      <p className="text-sm text-gray-400 mt-1">Your booking activities will appear here</p>
                     </div>
-                  ))}
+                  )}
                 </div>
               </div>
             </div>

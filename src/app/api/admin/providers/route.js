@@ -8,10 +8,11 @@ export async function GET(request) {
 
     const { searchParams } = new URL(request.url);
     const page = parseInt(searchParams.get('page')) || 1;
-    const limit = parseInt(searchParams.get('limit')) || 20;
+    const limit = parseInt(searchParams.get('limit')) || 100; // Increased for admin panel
     const status = searchParams.get('status');
     const search = searchParams.get('search');
     const service = searchParams.get('service');
+    const simple = searchParams.get('simple'); // For admin panel simple view
 
     // Build query
     const query = {};
@@ -34,6 +35,24 @@ export async function GET(request) {
       .skip((page - 1) * limit)
       .limit(limit)
       .select('-__v');
+
+    // Simple format for admin panel
+    if (simple === 'true') {
+      return NextResponse.json({
+        success: true,
+        providers: providers.map(p => ({
+          _id: p._id.toString(),
+          name: p.name,
+          email: p.email,
+          phone: p.phone,
+          services: p.services,
+          experience: p.experience,
+          status: p.status,
+          rating: p.rating,
+          totalReviews: p.totalReviews
+        }))
+      });
+    }
 
     return NextResponse.json({
       success: true,

@@ -1,99 +1,25 @@
 'use client';
 
-import { useMemo, useState } from "react";
+import { useMemo, useState, useEffect } from "react";
 import useProviderSession from "@/hooks/useProviderSession";
-
-const bookingsDataset = [
-  {
-    id: "BK-1032",
-    customer: "Anjali Sharma",
-    service: "Luxury Bridal Makeup",
-    date: "2024-06-18",
-    slot: "10:00 AM – 12:00 PM",
-    status: "upcoming",
-    value: 4800,
-    address: "DLF Phase 3, Gurugram",
-    channel: "App",
-    notes: "Allergic to standard foundation – carry hypoallergenic kit",
-  },
-  {
-    id: "BK-1031",
-    customer: "Mehul Rao",
-    service: "Men's Sangeet Styling",
-    date: "2024-06-17",
-    slot: "05:00 PM – 07:00 PM",
-    status: "in_progress",
-    value: 2200,
-    address: "Sector 46, Gurugram",
-    channel: "Web",
-    notes: "Add express hairstyling add-on",
-  },
-  {
-    id: "BK-1027",
-    customer: "Sana Iqbal",
-    service: "Pre-Wedding Shoot Makeup",
-    date: "2024-06-15",
-    slot: "07:00 AM – 09:00 AM",
-    status: "completed",
-    value: 3600,
-    address: "Noida Film City",
-    channel: "Partner",
-    notes: "Completed – add portfolio photos",
-  },
-  {
-    id: "BK-1025",
-    customer: "Ritika Jain",
-    service: "Haldi Minimal Glam",
-    date: "2024-06-14",
-    slot: "08:30 AM – 10:00 AM",
-    status: "completed",
-    value: 1900,
-    address: "Dwarka Sector 10",
-    channel: "App",
-    notes: "Customer tipped ₹250 in cash",
-  },
-  {
-    id: "BK-1024",
-    customer: "Kabir Malhotra",
-    service: "Cocktail Party Styling",
-    date: "2024-06-13",
-    slot: "06:00 PM – 08:30 PM",
-    status: "cancelled",
-    value: 0,
-    address: "Saket, New Delhi",
-    channel: "Web",
-    notes: "Cancelled – requested refund (processed)",
-  },
-  {
-    id: "BK-1020",
-    customer: "Tanya Khanna",
-    service: "Reception Grand Makeover",
-    date: "2024-06-22",
-    slot: "03:00 PM – 05:30 PM",
-    status: "upcoming",
-    value: 5250,
-    address: "Punjabi Bagh, New Delhi",
-    channel: "App",
-    notes: "Arrange travel buffer of 45 minutes",
-  },
-];
 
 const filterOptions = [
   { key: "all", label: "All" },
-  { key: "upcoming", label: "Upcoming" },
-  { key: "in_progress", label: "In Progress" },
+  { key: "pending", label: "Pending" },
+  { key: "accepted", label: "Accepted" },
   { key: "completed", label: "Completed" },
   { key: "cancelled", label: "Cancelled" },
+  { key: "rejected", label: "Rejected" },
 ];
 
 const statusMeta = {
-  upcoming: {
-    label: "Upcoming",
-    badgeClass: "bg-blue-50 text-blue-600 border-blue-100",
+  pending: {
+    label: "Pending",
+    badgeClass: "bg-yellow-50 text-yellow-600 border-yellow-100",
   },
-  in_progress: {
-    label: "In Progress",
-    badgeClass: "bg-purple-50 text-purple-600 border-purple-100",
+  accepted: {
+    label: "Accepted",
+    badgeClass: "bg-blue-50 text-blue-600 border-blue-100",
   },
   completed: {
     label: "Completed",
@@ -102,6 +28,10 @@ const statusMeta = {
   cancelled: {
     label: "Cancelled",
     badgeClass: "bg-red-50 text-red-600 border-red-100",
+  },
+  rejected: {
+    label: "Rejected",
+    badgeClass: "bg-gray-50 text-gray-600 border-gray-100",
   },
 };
 
@@ -121,63 +51,98 @@ function formatDate(date) {
 
 export default function BookingsHub() {
   const { provider, loading } = useProviderSession();
-  const [activeFilter, setActiveFilter] = useState("upcoming");
+  const [activeFilter, setActiveFilter] = useState("accepted");
+  const [bookingsData, setBookingsData] = useState([]);
+  const [fetchingBookings, setFetchingBookings] = useState(true);
+  
   const firstName = provider?.name?.split(" ")[0]?.trim();
   const heading = firstName ? `${firstName}'s booking schedule` : "Your booking schedule";
 
+  useEffect(() => {
+    fetchBookings();
+  }, []);
+
+  const fetchBookings = async () => {
+    try {
+      setFetchingBookings(true);
+      const providerEmail = localStorage.getItem('providerEmail');
+      
+      if (!providerEmail) {
+        console.error('No provider email found');
+        return;
+      }
+
+      const response = await fetch(`/api/provider/requests?email=${providerEmail}`);
+      const data = await response.json();
+
+      if (data.success) {
+        // Combine pending and accepted bookings
+        const allBookings = [
+          ...data.pendingRequests.map(b => ({ ...b, status: 'pending' })),
+          ...data.acceptedBookings.map(b => ({ ...b, status: b.status }))
+        ];
+        setBookingsData(allBookings);
+      }
+    } catch (error) {
+      console.error('Error fetching bookings:', error);
+    } finally {
+      setFetchingBookings(false);
+    }
+  };
+
   const filteredBookings = useMemo(() => {
     if (activeFilter === "all") {
-      return bookingsDataset;
+      return bookingsData;
     }
-    return bookingsDataset.filter((booking) => booking.status === activeFilter);
-  }, [activeFilter]);
+    return bookingsData.filter((booking) => booking.status === activeFilter);
+  }, [activeFilter, bookingsData]);
 
   const todaysBookings = useMemo(() => {
     const today = new Date().toISOString().slice(0, 10);
-    return bookingsDataset.filter((booking) => booking.date === today);
-  }, []);
+    return bookingsData.filter((booking) => booking.bookingDate?.slice(0, 10) === today);
+  }, [bookingsData]);
 
   const totalRevenue = useMemo(
     () =>
-      bookingsDataset
+      bookingsData
         .filter((booking) => booking.status === "completed")
-        .reduce((sum, booking) => sum + booking.value, 0),
-    []
+        .reduce((sum, booking) => sum + (booking.totalPrice || 0), 0),
+    [bookingsData]
   );
 
   const summaryCards = useMemo(
     () => [
       {
-        label: "Upcoming",
-        value: bookingsDataset.filter((b) => b.status === "upcoming").length,
-        helper: "Next 7 days",
+        label: "Pending",
+        value: bookingsData.filter((b) => b.status === "pending").length,
+        helper: "Awaiting response",
       },
       {
-        label: "In Progress",
-        value: bookingsDataset.filter((b) => b.status === "in_progress").length,
-        helper: "Currently active",
+        label: "Accepted",
+        value: bookingsData.filter((b) => b.status === "accepted").length,
+        helper: "Confirmed bookings",
       },
       {
-        label: "Completed this week",
-        value: bookingsDataset.filter((b) => b.status === "completed").length,
-        helper: currencyFormatter.format(totalRevenue) + " collected",
+        label: "Completed",
+        value: bookingsData.filter((b) => b.status === "completed").length,
+        helper: currencyFormatter.format(totalRevenue) + " earned",
       },
       {
         label: "Today",
         value: todaysBookings.length,
-        helper: todaysBookings.length ? "Prep kit ready" : "No bookings",
+        helper: todaysBookings.length ? "Schedule ready" : "No bookings",
       },
     ],
-    [todaysBookings.length, totalRevenue]
+    [bookingsData, todaysBookings.length, totalRevenue]
   );
 
   const workQueue = useMemo(
     () =>
-      bookingsDataset
-        .filter((booking) => booking.status === "upcoming" || booking.status === "in_progress")
-        .sort((a, b) => new Date(a.date) - new Date(b.date))
+      bookingsData
+        .filter((booking) => booking.status === "pending" || booking.status === "accepted")
+        .sort((a, b) => new Date(a.bookingDate) - new Date(b.bookingDate))
         .slice(0, 4),
-    []
+    [bookingsData]
   );
 
   return (
@@ -227,123 +192,146 @@ export default function BookingsHub() {
           </div>
 
           <div className="overflow-x-auto">
-            <table className="min-w-full divide-y divide-gray-100">
-              <thead className="bg-gray-50/60">
-                <tr>
-                  {["Booking", "Client", "Service", "Date", "Slot", "Value", "Channel", "Status"].map((heading) => (
-                    <th
-                      key={heading}
-                      scope="col"
-                      className="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider"
-                    >
-                      {heading}
-                    </th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody className="bg-white divide-y divide-gray-100">
-                {filteredBookings.map((booking) => (
-                  <tr key={booking.id} className="hover:bg-gray-50/70 transition">
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <p className="text-sm font-semibold text-gray-900">{booking.id}</p>
-                      <p className="text-xs text-gray-500">{booking.address}</p>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <p className="text-sm font-semibold text-gray-900">{booking.customer}</p>
-                      <p className="text-xs text-gray-500">{booking.notes}</p>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">{booking.service}</td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">{formatDate(booking.date)}</td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">{booking.slot}</td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm font-semibold text-gray-900">
-                      {booking.value ? currencyFormatter.format(booking.value) : "—"}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">{booking.channel}</td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <span
-                        className={`inline-flex items-center px-3 py-1 text-xs font-semibold border rounded-full ${
-                          statusMeta[booking.status].badgeClass
-                        }`}
+            {fetchingBookings ? (
+              <div className="flex items-center justify-center py-12">
+                <div className="w-12 h-12 border-4 border-blue-600 border-t-transparent rounded-full animate-spin"></div>
+              </div>
+            ) : filteredBookings.length === 0 ? (
+              <div className="text-center py-12">
+                <p className="text-gray-500 text-lg font-medium">No bookings found</p>
+                <p className="text-gray-400 text-sm mt-2">Bookings matching this filter will appear here</p>
+              </div>
+            ) : (
+              <table className="min-w-full divide-y divide-gray-100">
+                <thead className="bg-gray-50/60">
+                  <tr>
+                    {["Booking", "Client", "Service", "Date", "Time", "Value", "Payment", "Status"].map((heading) => (
+                      <th
+                        key={heading}
+                        scope="col"
+                        className="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider"
                       >
-                        {statusMeta[booking.status].label}
-                      </span>
-                    </td>
+                        {heading}
+                      </th>
+                    ))}
                   </tr>
-                ))}
-              </tbody>
-            </table>
+                </thead>
+                <tbody className="bg-white divide-y divide-gray-100">
+                  {filteredBookings.map((booking) => (
+                    <tr key={booking.id} className="hover:bg-gray-50/70 transition">
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <p className="text-sm font-semibold text-gray-900">{booking.id?.toString().slice(-6).toUpperCase()}</p>
+                        <p className="text-xs text-gray-500">{booking.customerAddress || 'Address not provided'}</p>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <p className="text-sm font-semibold text-gray-900">{booking.customerName}</p>
+                        <p className="text-xs text-gray-500">{booking.customerPhone}</p>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <p className="text-sm text-gray-600">{booking.serviceName}</p>
+                        {booking.serviceCategory && (
+                          <p className="text-xs text-gray-400 capitalize">{booking.serviceCategory}</p>
+                        )}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
+                        {booking.formattedDate || formatDate(booking.bookingDate)}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">{booking.bookingTime}</td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm font-semibold text-gray-900">
+                        {booking.totalPrice ? currencyFormatter.format(booking.totalPrice) : "—"}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600 capitalize">
+                        {booking.paymentMethod || 'Not specified'}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <span
+                          className={`inline-flex items-center px-3 py-1 text-xs font-semibold border rounded-full ${
+                            statusMeta[booking.status]?.badgeClass || 'bg-gray-50 text-gray-600 border-gray-100'
+                          }`}
+                        >
+                          {statusMeta[booking.status]?.label || booking.status}
+                        </span>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            )}
           </div>
         </section>
 
         <section className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           <div className="lg:col-span-2 bg-white border border-gray-100 rounded-2xl shadow-sm p-6">
             <div className="flex items-center justify-between mb-4">
-              <h3 className="text-lg font-semibold text-gray-900">Prep queue</h3>
-              <p className="text-xs font-medium text-gray-500 uppercase tracking-widest">Next four engagements</p>
+              <h3 className="text-lg font-semibold text-gray-900">Upcoming bookings</h3>
+              <p className="text-xs font-medium text-gray-500 uppercase tracking-widest">Next four bookings</p>
             </div>
-            <ul className="space-y-4">
-              {workQueue.map((booking) => (
-                <li key={booking.id} className="flex flex-col md:flex-row md:items-center md:justify-between gap-3 border border-gray-100 rounded-xl p-4">
-                  <div>
-                    <p className="text-sm font-semibold text-gray-900">
-                      {formatDate(booking.date)} • {booking.slot}
-                    </p>
-                    <p className="text-sm text-gray-600">
-                      {booking.service} for {booking.customer}
-                    </p>
-                  </div>
-                  <div className="flex flex-wrap gap-3 md:text-right">
-                    <div className="text-sm text-gray-500">
-                      <p className="font-semibold text-gray-900">Kit checklist</p>
-                      <p>{booking.notes}</p>
+            {workQueue.length === 0 ? (
+              <div className="text-center py-8">
+                <p className="text-gray-500">No upcoming bookings</p>
+              </div>
+            ) : (
+              <ul className="space-y-4">
+                {workQueue.map((booking) => (
+                  <li key={booking.id} className="flex flex-col md:flex-row md:items-center md:justify-between gap-3 border border-gray-100 rounded-xl p-4">
+                    <div>
+                      <p className="text-sm font-semibold text-gray-900">
+                        {booking.formattedDate || formatDate(booking.bookingDate)} • {booking.bookingTime}
+                      </p>
+                      <p className="text-sm text-gray-600">
+                        {booking.serviceName} for {booking.customerName}
+                      </p>
+                      <p className="text-xs text-gray-500 mt-1">{booking.customerAddress}</p>
                     </div>
-                    <div className="text-sm text-gray-500">
-                      <p className="font-semibold text-gray-900">Payment</p>
-                      <p>{booking.value ? currencyFormatter.format(booking.value) : "Collect on site"}</p>
+                    <div className="flex flex-wrap gap-3 md:text-right">
+                      <div className="text-sm text-gray-500">
+                        <p className="font-semibold text-gray-900">Contact</p>
+                        <p>{booking.customerPhone}</p>
+                      </div>
+                      <div className="text-sm text-gray-500">
+                        <p className="font-semibold text-gray-900">Payment</p>
+                        <p>{booking.totalPrice ? currencyFormatter.format(booking.totalPrice) : "—"}</p>
+                      </div>
                     </div>
-                  </div>
-                </li>
-              ))}
-            </ul>
+                  </li>
+                ))}
+              </ul>
+            )}
           </div>
 
           <aside className="bg-white border border-gray-100 rounded-2xl shadow-sm p-6 space-y-5">
             <div>
-              <h3 className="text-lg font-semibold text-gray-900 mb-1">Smart actions</h3>
-              <p className="text-sm text-gray-500">Quick tools to keep bookings healthy and clients reassured.</p>
+              <h3 className="text-lg font-semibold text-gray-900 mb-1">Quick stats</h3>
+              <p className="text-sm text-gray-500">Overview of your booking performance</p>
             </div>
             <div className="space-y-4">
-              {[{
-                title: "Confirm tomorrow's schedule",
-                description: "Send auto-confirmation to clients booked in the next 24 hours.",
-                action: "Send confirmations",
-              }, {
-                title: "Update travel buffer",
-                description: "Block transit time between Sector 46 and Punjabi Bagh appointments.",
-                action: "Add buffer",
-              }, {
-                title: "Log additional payment",
-                description: "Record the cash tip received for Haldi Minimal Glam.",
-                action: "Record now",
-              }].map((item) => (
-                <div key={item.title} className="border border-gray-100 rounded-xl p-4">
-                  <p className="text-sm font-semibold text-gray-900">{item.title}</p>
-                  <p className="text-sm text-gray-600 mt-1">{item.description}</p>
-                  <button
-                    type="button"
-                    className="mt-3 text-sm font-semibold text-blue-600 hover:text-blue-700"
-                  >
-                    {item.action}
-                  </button>
-                </div>
-              ))}
+              <div className="border border-gray-100 rounded-xl p-4">
+                <p className="text-sm font-semibold text-gray-900">Total Bookings</p>
+                <p className="text-3xl font-bold text-gray-900 mt-2">{bookingsData.length}</p>
+                <p className="text-sm text-gray-600 mt-1">All time bookings</p>
+              </div>
+              <div className="border border-gray-100 rounded-xl p-4">
+                <p className="text-sm font-semibold text-gray-900">Total Revenue</p>
+                <p className="text-3xl font-bold text-green-600 mt-2">{currencyFormatter.format(totalRevenue)}</p>
+                <p className="text-sm text-gray-600 mt-1">From completed bookings</p>
+              </div>
+              <div className="border border-gray-100 rounded-xl p-4">
+                <p className="text-sm font-semibold text-gray-900">Response Rate</p>
+                <p className="text-3xl font-bold text-blue-600 mt-2">
+                  {bookingsData.length > 0 
+                    ? Math.round((bookingsData.filter(b => b.status !== 'pending').length / bookingsData.length) * 100)
+                    : 0}%
+                </p>
+                <p className="text-sm text-gray-600 mt-1">Bookings responded to</p>
+              </div>
             </div>
           </aside>
         </section>
 
-        {loading && (
-          <div className="mt-10 p-4 bg-yellow-50 border border-yellow-100 rounded-xl text-sm text-yellow-800">
-            Syncing live data… this view will refresh automatically once your session is verified.
+        {(loading || fetchingBookings) && (
+          <div className="mt-10 p-4 bg-blue-50 border border-blue-100 rounded-xl text-sm text-blue-800 flex items-center gap-3">
+            <div className="w-5 h-5 border-2 border-blue-600 border-t-transparent rounded-full animate-spin"></div>
+            <span>Loading your bookings...</span>
           </div>
         )}
       </div>
