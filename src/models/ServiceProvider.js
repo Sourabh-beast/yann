@@ -53,25 +53,16 @@ const serviceProviderSchema = new mongoose.Schema({
   services: {
     type: [String],
     required: [true, 'At least one service is required'],
-    enum: [
-      'Home Cleaning',
-      'Plumbing',
-      'Electrical',
-      'Carpentry',
-      'Painting',
-      'AC Repair',
-      'Appliance Repair',
-      'Pest Control',
-      'Beauty & Wellness',
-      'Tutoring',
-      'Photography',
-      'Catering',
-      'Other'
-    ],
     validate: {
       validator: (arr) => arr.length > 0,
       message: 'At least one service is required'
     }
+  },
+
+  // Service Categories
+  selectedCategories: {
+    type: [String],
+    default: []
   },
 
   // Working Hours

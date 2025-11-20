@@ -125,22 +125,47 @@ const BookingModal = ({ open, onClose, baseService, servicesList = [], onConfirm
     const booking = {
       serviceId: baseService?.id || null,
       serviceName: baseService?.name || null,
-      date: selectedDate?.toISOString().split('T')[0],
-      time: selectedTime,
-      billingType,
-      quantity,
-      extras: selectedExtras,
-      address: address.trim(),
-      phone: phone.trim(),
-      notes: notes.trim(),
-      totalPrice
+      serviceCategory: baseService?.category || 'cleaning',
+      customerPhone: phone.trim(),
+      customerAddress: address.trim(),
+      bookingDate: selectedDate?.toISOString(),
+      bookingTime: selectedTime,
+      basePrice: basePrice,
+      extras: selectedExtras.map(extraId => {
+        const extra = servicesList.find(s => s.id === extraId);
+        return extra ? {
+          serviceId: extra.id,
+          serviceName: extra.name,
+          price: extra.price
+        } : null;
+      }).filter(Boolean),
+      totalPrice: totalPrice,
+      paymentMethod: billingType,
+      billingType: billingType,
+      quantity: quantity,
+      notes: notes.trim()
     };
 
     try {
+      // Save booking to database
+      const response = await fetch('/api/bookings/create', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(booking)
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.message || 'Failed to create booking');
+      }
+
+      // Call parent onConfirm if provided
       const result = onConfirm?.(booking);
       if (result && typeof result.then === 'function') {
         await result;
       }
+      
       setStatus('success');
     } catch (err) {
       console.error('Booking failed:', err);
