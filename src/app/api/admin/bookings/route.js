@@ -25,11 +25,15 @@ export async function GET(request) {
         basePrice: booking.basePrice,
         totalPrice: booking.totalPrice,
         paymentMethod: booking.paymentMethod,
+        billingType: booking.billingType,
+        quantity: booking.quantity,
         status: booking.status,
         assignedProvider: booking.assignedProvider,
         providerName: booking.providerName,
         notes: booking.notes,
-        createdAt: booking.createdAt
+        createdAt: booking.createdAt,
+        driverDetails: booking.driverDetails || null,
+        extras: booking.extras || []
       }))
     }, { status: 200 });
 

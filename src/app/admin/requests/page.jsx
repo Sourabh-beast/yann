@@ -2,7 +2,7 @@
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { Users, Briefcase, ClipboardList, Activity, Menu, X, Search, Filter, CheckCircle, XCircle, Clock, AlertCircle, LogOut, Calendar, Phone, MapPin, DollarSign, User } from 'lucide-react';
+import { Users, Briefcase, ClipboardList, Activity, Menu, X, Search, Filter, CheckCircle, XCircle, Clock, AlertCircle, LogOut, Calendar, Phone, MapPin, DollarSign, User, Car } from 'lucide-react';
 
 export default function RequestsPage() {
   const router = useRouter();
@@ -360,9 +360,23 @@ export default function RequestsPage() {
                         <Calendar className="w-5 h-5 text-gray-400" />
                         <div>
                           <p className="text-sm text-gray-600">Date & Time</p>
-                          <p className="font-semibold text-gray-900">
-                            {new Date(booking.bookingDate).toLocaleDateString('en-IN')} at {booking.bookingTime}
-                          </p>
+                          {booking.serviceCategory === 'driver' && booking.driverDetails ? (
+                            <div>
+                              <p className="font-semibold text-gray-900">
+                                {new Date(booking.bookingDate).toLocaleDateString('en-IN')}
+                              </p>
+                              <p className="text-sm text-blue-600 font-semibold">
+                                {booking.driverDetails.startTime} - {booking.driverDetails.endTime}
+                              </p>
+                              <p className="text-xs text-gray-500">
+                                {booking.driverDetails.totalHours} hrs • Overtime {booking.driverDetails.overtimeHours} hrs
+                              </p>
+                            </div>
+                          ) : (
+                            <p className="font-semibold text-gray-900">
+                              {new Date(booking.bookingDate).toLocaleDateString('en-IN')} at {booking.bookingTime}
+                            </p>
+                          )}
                         </div>
                       </div>
                       <div className="flex items-start gap-3">
@@ -373,6 +387,32 @@ export default function RequestsPage() {
                         </div>
                       </div>
                     </div>
+
+                    {booking.serviceCategory === 'driver' && booking.driverDetails && (
+                      <div className="mt-4 p-4 bg-blue-50 rounded-xl border border-blue-200">
+                        <p className="text-sm font-semibold text-blue-700 mb-2 flex items-center gap-2">
+                          <Car className="w-4 h-4" /> Driver Pricing Summary
+                        </p>
+                        <div className="grid grid-cols-2 gap-4 text-sm text-gray-700">
+                          <div>
+                            <p className="text-gray-500">Included Hours</p>
+                            <p className="font-semibold">{booking.driverDetails.baseHours} hrs</p>
+                          </div>
+                          <div>
+                            <p className="text-gray-500">Selected Hours</p>
+                            <p className="font-semibold">{booking.driverDetails.totalHours} hrs</p>
+                          </div>
+                          <div>
+                            <p className="text-gray-500">Overtime Hours</p>
+                            <p className="font-semibold">{booking.driverDetails.overtimeHours} hrs</p>
+                          </div>
+                          <div>
+                            <p className="text-gray-500">Overtime Rate</p>
+                            <p className="font-semibold">₹{Number(booking.driverDetails.overtimeRate || 0).toFixed(2)}/hr</p>
+                          </div>
+                        </div>
+                      </div>
+                    )}
 
                     {/* Provider Assignment */}
                     <div className="border-t pt-6">
@@ -528,6 +568,26 @@ export default function RequestsPage() {
                           <p className="font-bold text-lg text-gray-900 capitalize">{selectedBooking.paymentMethod}</p>
                         </div>
                       </div>
+                      {selectedBooking.serviceCategory === 'driver' && selectedBooking.driverDetails && (
+                        <div className="grid grid-cols-2 gap-4 mt-6">
+                          <div>
+                            <p className="text-sm text-gray-600">Included Hours</p>
+                            <p className="font-bold text-lg text-gray-900">{selectedBooking.driverDetails.baseHours} hrs</p>
+                          </div>
+                          <div>
+                            <p className="text-sm text-gray-600">Overtime Multiplier</p>
+                            <p className="font-bold text-lg text-gray-900">{selectedBooking.driverDetails.overtimeMultiplier}x</p>
+                          </div>
+                          <div>
+                            <p className="text-sm text-gray-600">Hourly Rate</p>
+                            <p className="font-bold text-lg text-gray-900">₹{Number(selectedBooking.driverDetails.hourlyRate || 0).toFixed(2)}/hr</p>
+                          </div>
+                          <div>
+                            <p className="text-sm text-gray-600">Overtime Rate</p>
+                            <p className="font-bold text-lg text-gray-900">₹{Number(selectedBooking.driverDetails.overtimeRate || 0).toFixed(2)}/hr</p>
+                          </div>
+                        </div>
+                      )}
                     </div>
 
                     {/* Schedule */}
@@ -550,7 +610,17 @@ export default function RequestsPage() {
                         </div>
                         <div>
                           <p className="text-sm text-gray-600">Time</p>
-                          <p className="font-bold text-lg text-gray-900">{selectedBooking.bookingTime}</p>
+                          {selectedBooking.serviceCategory === 'driver' && selectedBooking.driverDetails ? (
+                            <div>
+                              <p className="font-bold text-lg text-gray-900">
+                                {selectedBooking.driverDetails.startTime} - {selectedBooking.driverDetails.endTime}
+                              </p>
+                              <p className="text-sm text-gray-600">{selectedBooking.driverDetails.totalHours} hrs total</p>
+                              <p className="text-xs text-gray-500">Overtime {selectedBooking.driverDetails.overtimeHours} hrs</p>
+                            </div>
+                          ) : (
+                            <p className="font-bold text-lg text-gray-900">{selectedBooking.bookingTime}</p>
+                          )}
                         </div>
                       </div>
                     </div>

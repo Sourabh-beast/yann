@@ -38,13 +38,6 @@ const Hero = () => {
       gradient: "from-pink-600 to-purple-600",
       category: "maid"
     },
-    {
-      title: "Professional Drivers",
-      subtitle: "Safe Rides, Every Time",
-      description: "Verified drivers for your daily commute or special trips. Licensed, experienced, and committed to your safety and comfort.",
-      gradient: "from-indigo-600 to-blue-600",
-      category: "driver"
-    },
   ];
 
   useEffect(() => {
