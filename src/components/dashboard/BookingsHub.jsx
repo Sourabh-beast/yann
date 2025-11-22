@@ -236,7 +236,20 @@ export default function BookingsHub() {
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
                         {booking.formattedDate || formatDate(booking.bookingDate)}
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">{booking.bookingTime}</td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
+                        {booking.serviceCategory === 'driver' && booking.driverDetails ? (
+                          <div>
+                            <p className="font-semibold text-gray-900">
+                              {booking.driverDetails.startTime} - {booking.driverDetails.endTime}
+                            </p>
+                            <p className="text-xs text-gray-500">
+                              {booking.driverDetails.totalHours} hrs (OT {booking.driverDetails.overtimeHours} hrs)
+                            </p>
+                          </div>
+                        ) : (
+                          booking.bookingTime
+                        )}
+                      </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm font-semibold text-gray-900">
                         {booking.totalPrice ? currencyFormatter.format(booking.totalPrice) : "—"}
                       </td>
@@ -276,11 +289,18 @@ export default function BookingsHub() {
                   <li key={booking.id} className="flex flex-col md:flex-row md:items-center md:justify-between gap-3 border border-gray-100 rounded-xl p-4">
                     <div>
                       <p className="text-sm font-semibold text-gray-900">
-                        {booking.formattedDate || formatDate(booking.bookingDate)} • {booking.bookingTime}
+                        {booking.formattedDate || formatDate(booking.bookingDate)} • {booking.serviceCategory === 'driver' && booking.driverDetails
+                          ? `${booking.driverDetails.startTime} - ${booking.driverDetails.endTime}`
+                          : booking.bookingTime}
                       </p>
                       <p className="text-sm text-gray-600">
                         {booking.serviceName} for {booking.customerName}
                       </p>
+                      {booking.serviceCategory === 'driver' && booking.driverDetails && (
+                        <p className="text-xs text-blue-600 font-semibold">
+                          {booking.driverDetails.totalHours} hrs total • OT {booking.driverDetails.overtimeHours} hrs
+                        </p>
+                      )}
                       <p className="text-xs text-gray-500 mt-1">{booking.customerAddress}</p>
                     </div>
                     <div className="flex flex-wrap gap-3 md:text-right">

@@ -6,7 +6,7 @@ import useResidentSession from "@/hooks/useResidentSession";
 const EXPERT_LIBRARY = [
   {
     id: "pro-1",
-    name: "Neha's DeepClean Crew",
+    name: "Nehu's DeepClean Crew",
     category: "Home Cleaning",
     rating: 4.9,
     jobs: 186,

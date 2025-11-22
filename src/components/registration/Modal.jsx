@@ -55,6 +55,9 @@ export default function ServiceProviderRegistration({ isOpen, onClose }) {
       'Rudrabhishek Puja',
       'Vastu Shanti Puja',
     ],
+    'Driver Services': [
+      'Full-Day Personal Driver'
+    ],
     'Other Services': [
       'Other',
     ]

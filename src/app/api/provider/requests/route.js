@@ -119,7 +119,8 @@ export async function GET(request) {
         paymentMethod: booking.paymentMethod,
         notes: booking.notes,
         createdAt: booking.createdAt,
-        isPujari: booking.serviceCategory === 'pujari'
+        isPujari: booking.serviceCategory === 'pujari',
+        driverDetails: booking.driverDetails || null
       })),
       acceptedBookings: acceptedBookings.map(booking => ({
         id: booking._id,
@@ -130,7 +131,8 @@ export async function GET(request) {
         bookingTime: booking.bookingTime,
         formattedDate: booking.formattedDate,
         totalPrice: booking.totalPrice,
-        status: booking.status
+        status: booking.status,
+        driverDetails: booking.driverDetails || null
       }))
     }, { status: 200 });
 

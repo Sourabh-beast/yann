@@ -13,7 +13,20 @@ const bookingSchema = new mongoose.Schema({
   serviceCategory: {
     type: String,
     required: true,
-    enum: ['cleaning', 'laundry', 'pujari']
+    enum: [
+      'cleaning',
+      'deep-clean',
+      'bathroom',
+      'kitchen',
+      'laundry',
+      'carpet',
+      'window',
+      'move',
+      'pujari',
+      'specialty',
+      'driver',
+      'general'
+    ]
   },
   
   // Customer Details
@@ -64,7 +77,7 @@ const bookingSchema = new mongoose.Schema({
   // Payment Details (different for pujari vs others)
   paymentMethod: {
     type: String,
-    enum: ['cash', 'upi', 'card', 'one-time', 'monthly'],
+    enum: ['cash', 'upi', 'card', 'one-time', 'monthly', 'online'],
     default: 'cash'
   },
   paymentStatus: {
@@ -84,7 +97,7 @@ const bookingSchema = new mongoose.Schema({
   // Billing Type (for non-pujari services)
   billingType: {
     type: String,
-    enum: ['one-time', 'monthly', 'cash'],
+    enum: ['one-time', 'monthly', 'cash', 'hourly', 'daily'],
     default: 'one-time'
   },
   quantity: {
@@ -96,6 +109,20 @@ const bookingSchema = new mongoose.Schema({
   notes: {
     type: String,
     default: ''
+  },
+
+  // Driver specific metadata
+  driverDetails: {
+    startTime: String,
+    endTime: String,
+    totalHours: Number,
+    baseHours: Number,
+    hourlyRate: Number,
+    overtimeHours: Number,
+    overtimeRate: Number,
+    overtimeMultiplier: Number,
+    baseCost: Number,
+    overtimeCost: Number
   },
 
   // Provider Assignment
@@ -169,19 +196,28 @@ bookingSchema.methods.isPujariService = function() {
 
 // Method to calculate total with extras
 bookingSchema.methods.calculateTotal = function() {
-  let total = this.basePrice;
-  
-  if (this.extras && this.extras.length > 0) {
-    total += this.extras.reduce((sum, extra) => sum + extra.price, 0);
+  const extrasTotal = this.extras && this.extras.length > 0
+    ? this.extras.reduce((sum, extra) => sum + extra.price, 0)
+    : 0;
+
+  if (this.serviceCategory === 'driver' && this.driverDetails) {
+    const baseCost = this.driverDetails.baseCost || 0;
+    const overtimeCost = this.driverDetails.overtimeCost || 0;
+    return baseCost + overtimeCost + extrasTotal;
   }
-  
-  // Apply monthly multiplier for non-pujari services
+
+  let total = this.basePrice + extrasTotal;
+
   if (this.billingType === 'monthly' && !this.isPujariService()) {
     total *= 4;
   }
-  
+
+  if (this.billingType === 'daily' && !this.isPujariService()) {
+    total *= this.quantity;
+    return total;
+  }
+
   total *= this.quantity;
-  
   return total;
 };
 

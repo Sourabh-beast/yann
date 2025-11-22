@@ -37,6 +37,7 @@ const useServicesData = () => useMemo(() => ([
   { id: 20, name: 'Lakshmi Puja (Diwali Special)', category: 'pujari', price: 2500, duration: '2-3 hours', rating: 4.9, reviews: 612, image: 'https://images.unsplash.com/photo-1605100804763-247f67b3557e?w=400&h=300&fit=crop', description: 'Auspicious Lakshmi puja for wealth and prosperity, ideal for Diwali and special occasions', popular: true },
   { id: 21, name: 'Rudrabhishek Puja', category: 'pujari', price: 3200, duration: '3-4 hours', rating: 4.7, reviews: 156, image: 'https://images.unsplash.com/photo-1592364395653-83e648b20cc2?w=400&h=300&fit=crop', description: 'Sacred Shiva puja with abhishek, mantra chanting, and complete Vedic rituals' },
   { id: 22, name: 'Vastu Shanti Puja', category: 'pujari', price: 3800, duration: '4-5 hours', rating: 4.8, reviews: 234, image: 'https://images.unsplash.com/photo-1606119174478-d2a0a9c2c91f?w=400&h=300&fit=crop', description: 'Comprehensive Vastu Shanti ceremony to remove doshas and bring harmony to your space' },
+
 ]), []);
 
 const currency = new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 });
@@ -51,6 +52,9 @@ const BookingModal = ({ open, onClose, baseService, servicesList = [], onConfirm
   const [notes, setNotes] = useState('');
   const [status, setStatus] = useState('idle');
   const [errorMsg, setErrorMsg] = useState('');
+  const [driverStartTime, setDriverStartTime] = useState('09:00');
+  const [driverEndTime, setDriverEndTime] = useState('19:00');
+  const [driverError, setDriverError] = useState('');
 
   useEffect(() => {
     if (open) {
@@ -62,10 +66,74 @@ const BookingModal = ({ open, onClose, baseService, servicesList = [], onConfirm
       setNotes('');
       setStatus('idle');
       setErrorMsg('');
+      setDriverStartTime('09:00');
+      setDriverEndTime('19:00');
+      setDriverError('');
     }
   }, [open]);
 
   if (!open) return null;
+
+  const isDriverService = baseService?.category === 'driver';
+
+  const driverConfig = useMemo(() => {
+    if (!isDriverService) return null;
+    const baseHours = baseService?.driverConfig?.baseHours ?? 10;
+    const hourlyRate = baseService?.driverConfig?.hourlyRate ?? (((baseService?.price || 0) / baseHours) || 0);
+    const overtimeMultiplier = baseService?.driverConfig?.overtimeMultiplier ?? 2;
+    return { baseHours, hourlyRate, overtimeMultiplier };
+  }, [baseService, isDriverService]);
+
+  const timeToMinutes = (value) => {
+    if (!value || typeof value !== 'string' || !value.includes(':')) return null;
+    const [hours, minutes] = value.split(':').map(Number);
+    if (Number.isNaN(hours) || Number.isNaN(minutes)) return null;
+    return hours * 60 + minutes;
+  };
+
+  const driverPricing = useMemo(() => {
+    if (!isDriverService) return null;
+    const startMinutes = timeToMinutes(driverStartTime);
+    const endMinutes = timeToMinutes(driverEndTime);
+    if (startMinutes === null || endMinutes === null) {
+      return { error: 'Please select valid start and end times' };
+    }
+    if (endMinutes <= startMinutes) {
+      return { error: 'End time must be later than start time' };
+    }
+
+    const totalMinutes = endMinutes - startMinutes;
+    const totalHours = totalMinutes / 60;
+    const baseHours = driverConfig?.baseHours ?? 10;
+    const hourlyRate = driverConfig?.hourlyRate ?? (((baseService?.price || 0) / baseHours) || 0);
+    const overtimeMultiplier = driverConfig?.overtimeMultiplier ?? 2;
+    const overtimeHours = Math.max(0, totalHours - baseHours);
+    const billableBaseHours = Math.min(totalHours, baseHours);
+    const baseCost = billableBaseHours * hourlyRate;
+    const overtimeRate = hourlyRate * overtimeMultiplier;
+    const overtimeCost = overtimeHours * overtimeRate;
+
+    return {
+      totalPrice: baseCost + overtimeCost,
+      totalHours: Number(totalHours.toFixed(2)),
+      overtimeHours: Number(overtimeHours.toFixed(2)),
+      baseHours,
+      hourlyRate,
+      overtimeMultiplier,
+      overtimeRate,
+      baseCost,
+      overtimeCost
+    };
+  }, [baseService?.price, driverConfig, driverEndTime, driverStartTime, isDriverService]);
+
+  useEffect(() => {
+    if (!isDriverService) return;
+    if (driverPricing?.error) {
+      setDriverError(driverPricing.error);
+    } else {
+      setDriverError('');
+    }
+  }, [driverPricing, isDriverService]);
 
   const generateTimeSlots = () => {
     const slots = [];
@@ -92,22 +160,47 @@ const BookingModal = ({ open, onClose, baseService, servicesList = [], onConfirm
   const basePrice = baseService?.price || 0;
   const unitPrice = basePrice + extrasTotal;
   const multiplier = billingType === 'hourly' ? quantity : billingType === 'daily' ? quantity : quantity;
-  const totalPrice = unitPrice * multiplier;
+  const driverBaseAmount = isDriverService && driverPricing && !driverPricing.error ? driverPricing.totalPrice : 0;
+  const totalPrice = isDriverService ? driverBaseAmount + extrasTotal : unitPrice * multiplier;
+  const scheduleDisplay = isDriverService ? `${driverStartTime} - ${driverEndTime}` : time;
+  const driverBaseCost = isDriverService && driverPricing && !driverPricing.error ? driverPricing.baseCost : 0;
+  const driverOvertimeCost = isDriverService && driverPricing && !driverPricing.error ? driverPricing.overtimeCost : 0;
 
   const handleConfirm = async () => {
     setStatus('submitting');
     setErrorMsg('');
 
+    if (isDriverService) {
+      if (!driverPricing || driverPricing.error) {
+        const message = driverPricing?.error || 'Please select valid driver schedule';
+        setDriverError(message);
+        setErrorMsg(message);
+        setStatus('error');
+        return;
+      }
+    }
+
     const booking = {
       serviceId: baseService?.id || null,
       serviceName: baseService?.name || null,
       date,
-      time,
-      billingType,
-      quantity,
+      time: isDriverService ? driverStartTime : time,
+      billingType: isDriverService ? 'hourly' : billingType,
+      quantity: isDriverService ? (driverPricing?.totalHours || 1) : quantity,
       extras: selectedExtras,
       notes,
-      totalPrice
+      totalPrice,
+      ...(isDriverService && driverPricing && !driverPricing.error ? {
+        driverDetails: {
+          startTime: driverStartTime,
+          endTime: driverEndTime,
+          baseHours: driverPricing.baseHours,
+          hourlyRate: driverPricing.hourlyRate,
+          overtimeMultiplier: driverPricing.overtimeMultiplier,
+          totalHours: driverPricing.totalHours,
+          overtimeHours: driverPricing.overtimeHours
+        }
+      } : {})
     };
 
     try {
@@ -137,7 +230,7 @@ const BookingModal = ({ open, onClose, baseService, servicesList = [], onConfirm
           </div>
           
           <h3 className="text-3xl font-bold bg-gradient-to-r from-green-600 to-emerald-600 bg-clip-text text-transparent mb-2">Booking Confirmed!</h3>
-          <p className="text-gray-600 text-center mb-6 leading-relaxed">Your booking for <span className="font-semibold text-gray-800">{baseService?.name}</span> on <span className="font-medium text-green-600">{date}</span> at <span className="font-medium text-green-600">{time}</span> has been confirmed.</p>
+          <p className="text-gray-600 text-center mb-6 leading-relaxed">Your booking for <span className="font-semibold text-gray-800">{baseService?.name}</span> on <span className="font-medium text-green-600">{date}</span> at <span className="font-medium text-green-600">{scheduleDisplay}</span> has been confirmed.</p>
           
           <div className="w-full bg-gradient-to-r from-green-50 to-emerald-50 rounded-2xl p-4 mb-6 border border-green-200">
             <div className="flex items-center justify-between mb-2">
@@ -220,7 +313,7 @@ const BookingModal = ({ open, onClose, baseService, servicesList = [], onConfirm
                 <Calendar className="w-5 h-5 text-blue-600" />
                 <h4 className="text-xl font-bold text-gray-900">Select Date & Time</h4>
               </div>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
+              <div className="space-y-5">
                 <div>
                   <label className="block text-sm font-semibold text-gray-700 mb-2">Date</label>
                   <input 
@@ -230,22 +323,49 @@ const BookingModal = ({ open, onClose, baseService, servicesList = [], onConfirm
                     className="w-full border-2 border-gray-300 rounded-xl px-4 py-3.5 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-300 hover:border-gray-400"
                   />
                 </div>
-                <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-2">Time</label>
-                  <select 
-                    value={time} 
-                    onChange={e => setTime(e.target.value)} 
-                    className="w-full border-2 border-gray-300 rounded-xl px-4 py-3.5 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-300 hover:border-gray-400"
-                  >
-                    {timeSlots.map(slot => (
-                      <option key={slot} value={slot}>{slot}</option>
-                    ))}
-                  </select>
-                </div>
+                {isDriverService ? (
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
+                    <div>
+                      <label className="block text-sm font-semibold text-gray-700 mb-2">Start Time</label>
+                      <input
+                        type="time"
+                        value={driverStartTime}
+                        onChange={(e) => setDriverStartTime(e.target.value)}
+                        className="w-full border-2 border-gray-300 rounded-xl px-4 py-3.5 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-300 hover:border-gray-400"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-semibold text-gray-700 mb-2">End Time</label>
+                      <input
+                        type="time"
+                        value={driverEndTime}
+                        onChange={(e) => setDriverEndTime(e.target.value)}
+                        className="w-full border-2 border-gray-300 rounded-xl px-4 py-3.5 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-300 hover:border-gray-400"
+                      />
+                    </div>
+                  </div>
+                ) : (
+                  <div>
+                    <label className="block text-sm font-semibold text-gray-700 mb-2">Time</label>
+                    <select 
+                      value={time} 
+                      onChange={e => setTime(e.target.value)} 
+                      className="w-full border-2 border-gray-300 rounded-xl px-4 py-3.5 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-300 hover:border-gray-400"
+                    >
+                      {timeSlots.map(slot => (
+                        <option key={slot} value={slot}>{slot}</option>
+                      ))}
+                    </select>
+                  </div>
+                )}
+                {isDriverService && driverError && (
+                  <p className="text-sm text-red-600 font-medium">{driverError}</p>
+                )}
               </div>
             </div>
 
-            <div className="space-y-5">
+            {!isDriverService && (
+              <div className="space-y-5">
               <div className="flex items-center gap-2">
                 <Sparkles className="w-5 h-5 text-blue-600" />
                 <h4 className="text-xl font-bold text-gray-900">Additional Services</h4>
@@ -280,9 +400,11 @@ const BookingModal = ({ open, onClose, baseService, servicesList = [], onConfirm
                   </label>
                 ))}
               </div>
-            </div>
+              </div>
+            )}
 
-            <div className="space-y-5">
+            {!isDriverService && (
+              <div className="space-y-5">
               <div>
                 <label className="block text-sm font-semibold text-gray-700 mb-2">Billing Type</label>
                 <div className="grid grid-cols-3 gap-3">
@@ -327,7 +449,8 @@ const BookingModal = ({ open, onClose, baseService, servicesList = [], onConfirm
                   />
                 </div>
               </div>
-            </div>
+              </div>
+            )}
           </div>
         </div>
 
@@ -335,22 +458,49 @@ const BookingModal = ({ open, onClose, baseService, servicesList = [], onConfirm
           <div className="space-y-4 mb-6">
             <div className="flex items-center justify-between text-sm">
               <span className="text-gray-600 font-medium">Base Service</span>
-              <span className="font-semibold text-gray-900">{currency.format(basePrice)}</span>
+              <span className="font-semibold text-gray-900">
+                {isDriverService ? currency.format(driverBaseCost) : currency.format(basePrice)}
+              </span>
             </div>
-            {extrasTotal > 0 && (
-              <div className="flex items-center justify-between text-sm">
-                <span className="text-gray-600 font-medium">Additional Services</span>
-                <span className="font-semibold text-gray-900">{currency.format(extrasTotal)}</span>
-              </div>
+            {isDriverService ? (
+              <>
+                <div className="flex items-center justify-between text-sm">
+                  <span className="text-gray-600 font-medium">Included Hours</span>
+                  <span className="font-semibold text-gray-900">{driverPricing?.baseHours ?? driverConfig?.baseHours ?? 0} hrs</span>
+                </div>
+                <div className="flex items-center justify-between text-sm">
+                  <span className="text-gray-600 font-medium">Selected Hours</span>
+                  <span className="font-semibold text-gray-900">{driverPricing?.totalHours ?? 0} hrs</span>
+                </div>
+                <div className="flex items-center justify-between text-sm">
+                  <span className="text-gray-600 font-medium">Overtime Hours</span>
+                  <span className="font-semibold text-gray-900">{driverPricing?.overtimeHours ?? 0} hrs</span>
+                </div>
+                {driverOvertimeCost > 0 && (
+                  <div className="flex items-center justify-between text-sm">
+                    <span className="text-gray-600 font-medium">Overtime ({driverPricing?.overtimeMultiplier ?? 2}x)</span>
+                    <span className="font-semibold text-gray-900">{currency.format(driverOvertimeCost)}</span>
+                  </div>
+                )}
+              </>
+            ) : (
+              <>
+                {extrasTotal > 0 && (
+                  <div className="flex items-center justify-between text-sm">
+                    <span className="text-gray-600 font-medium">Additional Services</span>
+                    <span className="font-semibold text-gray-900">{currency.format(extrasTotal)}</span>
+                  </div>
+                )}
+                <div className="flex items-center justify-between text-sm">
+                  <span className="text-gray-600 font-medium">Billing Type</span>
+                  <span className="font-semibold text-gray-900">{billingType.charAt(0).toUpperCase() + billingType.slice(1)}</span>
+                </div>
+                <div className="flex items-center justify-between text-sm">
+                  <span className="text-gray-600 font-medium">Quantity</span>
+                  <span className="font-semibold text-gray-900">{quantity} {billingType === 'hourly' ? (quantity === 1 ? 'hour' : 'hours') : billingType === 'daily' ? (quantity === 1 ? 'day' : 'days') : (quantity === 1 ? 'month' : 'months')}</span>
+                </div>
+              </>
             )}
-            <div className="flex items-center justify-between text-sm">
-              <span className="text-gray-600 font-medium">Billing Type</span>
-              <span className="font-semibold text-gray-900">{billingType.charAt(0).toUpperCase() + billingType.slice(1)}</span>
-            </div>
-            <div className="flex items-center justify-between text-sm">
-              <span className="text-gray-600 font-medium">Quantity</span>
-              <span className="font-semibold text-gray-900">{quantity} {billingType === 'hourly' ? (quantity === 1 ? 'hour' : 'hours') : billingType === 'daily' ? (quantity === 1 ? 'day' : 'days') : (quantity === 1 ? 'month' : 'months')}</span>
-            </div>
             <div className="border-t-2 border-gray-300 pt-4">
               <div className="flex items-center justify-between">
                 <span className="text-xl font-bold text-gray-900">Total Amount</span>
@@ -573,6 +723,10 @@ const ServicesPage = () => {
         quantity: booking.quantity || 1,
         notes: booking.notes || ''
       };
+
+      if (booking.driverDetails) {
+        bookingPayload.driverDetails = booking.driverDetails;
+      }
 
       console.log('Creating booking:', bookingPayload);
 

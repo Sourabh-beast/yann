@@ -21,6 +21,58 @@ export async function POST(request) {
       }
     }
 
+    let driverDetails = null;
+
+    if (bookingData.serviceCategory === 'driver') {
+      const driverPayload = bookingData.driverDetails || {};
+      const parseToMinutes = (value) => {
+        if (!value || typeof value !== 'string' || !value.includes(':')) return null;
+        const [hours, minutes] = value.split(':').map(Number);
+        if (Number.isNaN(hours) || Number.isNaN(minutes)) return null;
+        return hours * 60 + minutes;
+      };
+
+      const startMinutes = parseToMinutes(driverPayload.startTime || bookingData.bookingTime);
+      const endMinutes = parseToMinutes(driverPayload.endTime || driverPayload.startTime);
+
+      if (startMinutes === null || endMinutes === null || endMinutes <= startMinutes) {
+        return NextResponse.json(
+          { success: false, message: 'Valid driver start and end time are required' },
+          { status: 400 }
+        );
+      }
+
+      const totalMinutes = endMinutes - startMinutes;
+      const totalHours = totalMinutes / 60;
+      const baseHours = driverPayload.baseHours || 10;
+      const hourlyRate = driverPayload.hourlyRate || (bookingData.basePrice / baseHours);
+      const overtimeMultiplier = driverPayload.overtimeMultiplier || 2;
+      const overtimeHours = Math.max(0, totalHours - baseHours);
+      const billableBaseHours = Math.min(totalHours, baseHours);
+      const baseCost = billableBaseHours * hourlyRate;
+      const overtimeRate = hourlyRate * overtimeMultiplier;
+      const overtimeCost = overtimeHours * overtimeRate;
+
+      const resolvedStartTime = driverPayload.startTime || bookingData.bookingTime;
+      const resolvedEndTime = driverPayload.endTime || driverPayload.startTime;
+
+      driverDetails = {
+        startTime: resolvedStartTime,
+        endTime: resolvedEndTime,
+        totalHours: Number(totalHours.toFixed(2)),
+        baseHours,
+        hourlyRate,
+        overtimeHours: Number(overtimeHours.toFixed(2)),
+        overtimeRate,
+        overtimeMultiplier,
+        baseCost,
+        overtimeCost
+      };
+
+      bookingData.bookingTime = resolvedStartTime;
+      bookingData.totalPrice = Number((baseCost + overtimeCost).toFixed(2));
+    }
+
     // Create new booking
     const booking = await Booking.create({
       serviceId: bookingData.serviceId,
@@ -39,7 +91,8 @@ export async function POST(request) {
       billingType: bookingData.billingType || 'one-time',
       quantity: bookingData.quantity || 1,
       notes: bookingData.notes || '',
-      status: 'pending'
+      status: 'pending',
+      driverDetails
     });
 
     // Find all service providers who offer this service
@@ -80,7 +133,8 @@ export async function POST(request) {
         bookingDate: booking.formattedDate,
         bookingTime: booking.bookingTime,
         totalPrice: booking.totalPrice,
-        status: booking.status
+        status: booking.status,
+        driverDetails: booking.driverDetails
       },
       notifiedProviders: availableProviders.length
     }, { status: 201 });
