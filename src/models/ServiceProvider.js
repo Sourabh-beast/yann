@@ -94,7 +94,6 @@ const serviceProviderSchema = new mongoose.Schema({
 });
 
 // Indexes for better query performance
-serviceProviderSchema.index({ email: 1 });
 serviceProviderSchema.index({ services: 1 });
 serviceProviderSchema.index({ status: 1 });
 

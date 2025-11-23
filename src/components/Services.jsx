@@ -15,6 +15,7 @@ const Services = () => {
       features: ["Deep Cleaning", "Regular Maintenance", "Move-in/Move-out"],
       price: "Starting at ₹299",
       popular: true,
+      category: 'cleaning',
     },
     {
       id: 2,
@@ -30,6 +31,7 @@ const Services = () => {
       features: ["Plumbing", "Electrical", "Carpentry"],
       price: "Starting at ₹399",
       popular: false,
+      category: 'maintenance',
     },
     {
       id: 3,
@@ -45,6 +47,7 @@ const Services = () => {
       features: ["Same-day Delivery", "Package Tracking", "Grocery Delivery"],
       price: "Starting at ₹99",
       popular: false,
+      category: 'delivery',
     },
     {
       id: 4,
@@ -59,6 +62,7 @@ const Services = () => {
       features: ["Dog Walking", "Pet Grooming", "Pet Sitting"],
       price: "Starting at ₹129",
       popular: false,
+      category: 'pet-care',
     },
     {
       id: 5,
@@ -73,6 +77,7 @@ const Services = () => {
       features: ["Errand Running", "Appointment Scheduling", "Personal Shopping"],
       price: "Starting at ₹399",
       popular: false,
+      category: 'assistant',
     },
     {
       id: 6,
@@ -87,8 +92,46 @@ const Services = () => {
       features: ["Lawn Care", "Garden Design", "Tree Trimming"],
       price: "Starting at ₹299",
       popular: false,
+      category: 'garden',
+    },
+    {
+      id: 7,
+      title: "Full-Day Personal Driver",
+      description: "Hire a background-verified driver for full-day commutes, airport drops, or VIP errands with clear hourly overtime.",
+      icon: (
+        <svg className="w-10 h-10" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 13l2-5a2 2 0 011.886-1.342h10.228A2 2 0 0119 8l2 5M5 13h14m-9 5h4m-9 0h1m10 0h1m-3 0a3 3 0 11-6 0" />
+        </svg>
+      ),
+      gradient: "from-slate-900 to-blue-700",
+      features: ["10 hrs included", "Hourly overtime", "Sedan & SUV trained"],
+      price: "Starting at ₹999",
+      popular: true,
+      category: 'driver',
+    },
+    {
+      id: 8,
+      title: "Outstation Driving Service",
+      description: "Intercity-ready personal drivers for weekend trips and business travel, trained for highways and night halts.",
+      icon: (
+        <svg className="w-10 h-10" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 17a2 2 0 01-4 0M19 17a2 2 0 01-4 0M5 17V5h14l2 6v6H5z" />
+        </svg>
+      ),
+      gradient: "from-indigo-900 to-sky-700",
+      features: ["12 hrs included", "Highway experts", "Night halt friendly"],
+      price: "Starting at ₹1,499",
+      popular: false,
+      category: 'driver',
     },
   ];
+
+  const prioritizedServices = [...services].sort((a, b) => {
+    const aInactive = a.category !== 'driver' && a.category !== 'pujari';
+    const bInactive = b.category !== 'driver' && b.category !== 'pujari';
+    if (aInactive === bInactive) return 0;
+    return aInactive ? 1 : -1;
+  });
 
   return (
     <section className="py-24 bg-gradient-to-br from-gray-50 via-blue-50/30 to-purple-50/20 relative overflow-hidden">
@@ -122,64 +165,85 @@ const Services = () => {
 
         {/* Services Grid */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 mb-12">
-          {services.map((service) => (
-            <div
-              key={service.id}
-              className="group relative bg-white rounded-3xl p-8 shadow-md hover:shadow-2xl transition-all duration-500 hover:-translate-y-3 border border-gray-100 overflow-hidden"
-            >
-              {/* Popular Badge */}
-              {service.popular && (
-                <div className="absolute top-4 right-4 bg-gradient-to-r from-yellow-400 to-orange-400 text-white text-xs font-bold px-3 py-1 rounded-full shadow-lg">
-                  POPULAR
-                </div>
-              )}
+          {prioritizedServices.map((service) => {
+            const isActive = service.category === 'driver' || service.category === 'pujari';
+            const serviceSlug = service.title.toLowerCase().replace(/ & /g, '-').replace(/ /g, '-');
 
-              {/* Gradient Background */}
-              <div className={`absolute inset-0 bg-gradient-to-br ${service.gradient} opacity-0 group-hover:opacity-5 transition-opacity duration-500`}></div>
-
-              {/* Icon */}
-              <div className={`relative w-20 h-20 bg-gradient-to-br ${service.gradient} rounded-2xl flex items-center justify-center text-white mb-6 group-hover:scale-110 group-hover:rotate-6 transition-all duration-500 shadow-lg`}>
-                {service.icon}
-              </div>
-
-              {/* Content */}
-              <h3 className="text-2xl font-bold text-gray-900 mb-3">
-                {service.title}
-              </h3>
-
-              <p className="text-gray-600 mb-6 leading-relaxed">
-                {service.description}
-              </p>
-
-              {/* Features */}
-              <ul className="space-y-2 mb-6">
-                {service.features.map((feature, idx) => (
-                  <li key={idx} className="flex items-center text-sm text-gray-600">
-                    <svg className="w-5 h-5 text-green-500 mr-2" fill="currentColor" viewBox="0 0 20 20">
-                      <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
-                    </svg>
-                    {feature}
-                  </li>
-                ))}
-              </ul>
-
-              {/* Price and CTA */}
-              <div className="flex items-center justify-between">
-                <div>
-                  <div className="text-sm text-gray-500">Price</div>
-                  <div className={`text-xl font-bold bg-gradient-to-r ${service.gradient} bg-clip-text text-transparent`}>
-                    {service.price}
+            return (
+              <div
+                key={service.id}
+                className={`group relative bg-white rounded-3xl p-8 shadow-md border border-gray-100 overflow-hidden transition-all duration-500 ${
+                  isActive ? 'hover:shadow-2xl hover:-translate-y-3' : 'filter grayscale opacity-80'
+                }`}
+              >
+                {!isActive && (
+                  <div className="absolute top-4 left-4 z-10 px-3 py-1 text-xs font-semibold uppercase tracking-wide bg-gray-900 text-white rounded-full">
+                    Inactive
                   </div>
+                )}
+
+                {/* Popular Badge */}
+                {service.popular && isActive && (
+                  <div className="absolute top-4 right-4 bg-gradient-to-r from-yellow-400 to-orange-400 text-white text-xs font-bold px-3 py-1 rounded-full shadow-lg">
+                    POPULAR
+                  </div>
+                )}
+
+                {/* Gradient Background */}
+                <div className={`absolute inset-0 bg-gradient-to-br ${service.gradient} ${isActive ? 'opacity-0 group-hover:opacity-5' : 'opacity-0' } transition-opacity duration-500`}></div>
+
+                {/* Icon */}
+                <div className={`relative w-20 h-20 bg-gradient-to-br ${service.gradient} rounded-2xl flex items-center justify-center text-white mb-6 transition-all duration-500 shadow-lg ${
+                  isActive ? 'group-hover:scale-110 group-hover:rotate-6' : 'grayscale'
+                }`}>
+                  {service.icon}
                 </div>
-                <Link
-                  href={`/services/${service.title.toLowerCase().replace(/ & /g, '-').replace(/ /g, '-')}`}
-                  className={`px-6 py-3 bg-gradient-to-r ${service.gradient} text-white rounded-xl font-semibold shadow-lg hover:shadow-xl transform hover:scale-105 transition-all duration-300`}
-                >
-                  Book Now
-                </Link>
+
+                {/* Content */}
+                <h3 className="text-2xl font-bold text-gray-900 mb-3">
+                  {service.title}
+                </h3>
+
+                <p className="text-gray-600 mb-6 leading-relaxed">
+                  {service.description}
+                </p>
+
+                {/* Features */}
+                <ul className="space-y-2 mb-6">
+                  {service.features.map((feature, idx) => (
+                    <li key={idx} className="flex items-center text-sm text-gray-600">
+                      <svg className="w-5 h-5 text-green-500 mr-2" fill="currentColor" viewBox="0 0 20 20">
+                        <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                      </svg>
+                      {feature}
+                    </li>
+                  ))}
+                </ul>
+
+                {/* Price and CTA */}
+                <div className="flex items-center justify-between">
+                  <div>
+                    <div className="text-sm text-gray-500">Price</div>
+                    <div className={`text-xl font-bold bg-gradient-to-r ${service.gradient} bg-clip-text text-transparent`}>
+                      {service.price}
+                    </div>
+                  </div>
+                  {isActive ? (
+                    <Link
+                      href={`/services/${serviceSlug}`}
+                      className={`px-6 py-3 bg-gradient-to-r ${service.gradient} text-white rounded-xl font-semibold shadow-lg hover:shadow-xl transform hover:scale-105 transition-all duration-300`}
+                    >
+                      Book Now
+                    </Link>
+                  ) : (
+                    <span className="px-6 py-3 bg-gray-200 text-gray-600 rounded-xl font-semibold cursor-not-allowed">
+                      Inactive
+                    </span>
+                  )}
+                </div>
               </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
 
         {/* Bottom CTA */}

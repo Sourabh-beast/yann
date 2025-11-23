@@ -60,6 +60,4 @@ const homeownerSchema = new mongoose.Schema(
   { timestamps: true }
 );
 
-homeownerSchema.index({ email: 1 });
-
 export default mongoose.models.Homeowner || mongoose.model("Homeowner", homeownerSchema);
