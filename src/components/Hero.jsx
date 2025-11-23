@@ -18,6 +18,13 @@ const Hero = () => {
       category: "maid"
     },
     {
+      title: "Personal Driver On Call",
+      subtitle: "Trusted Daily Commutes",
+      description: "Book licensed, background-verified personal drivers for business trips, airport drops, or errands. 10-hour cover with transparent overtime.",
+      gradient: "from-slate-900 to-blue-700",
+      category: "driver"
+    },
+    {
       title: "Expert Cooking Services",
       subtitle: "Delicious Meals, Made Easy",
       description: "Skilled cooks ready to prepare your favorite dishes. From daily meals to special occasions, enjoy home-cooked perfection.",

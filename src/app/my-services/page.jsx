@@ -29,16 +29,17 @@ const servicesData = [
   { id: 15, name: 'Water Tank Cleaning', category: 'specialty', price: 800, duration: '2-3 hours', rating: 4.7, reviews: 198, image: 'https://images.unsplash.com/photo-1625246333195-78d9c38ad449?w=400&h=300&fit=crop', description: 'Professional water tank cleaning and sanitization' },
 
   // Pujari Services
-  { id: 16, name: 'Ganesh Puja at Home', category: 'pujari', price: 2100, duration: '2-3 hours', rating: 4.9, reviews: 432, image: 'https://images.unsplash.com/photo-1578632292335-df3abbb0d586?w=400&h=300&fit=crop', description: 'Traditional Ganesh puja conducted by experienced pujari with all rituals and samagri included' },
-  { id: 17, name: 'Griha Pravesh Puja', category: 'pujari', price: 3500, duration: '3-4 hours', rating: 4.8, reviews: 287, image: 'https://images.unsplash.com/photo-1609220136736-443140cffec6?w=400&h=300&fit=crop', description: 'Complete housewarming ceremony with Vastu puja and traditional rituals for new home' },
-  { id: 18, name: 'Satyanarayan Katha', category: 'pujari', price: 2800, duration: '3-4 hours', rating: 4.9, reviews: 521, image: 'https://images.unsplash.com/photo-1603048674-cfdf1e52ec7f?w=400&h=300&fit=crop', description: 'Sacred Satyanarayan katha with puja, prasad preparation, and complete puja samagri', popular: true },
-  { id: 19, name: 'Havan Ceremony', category: 'pujari', price: 4200, duration: '4-5 hours', rating: 4.8, reviews: 198, image: 'https://static.toiimg.com/thumb/msid-116430332,width-1280,height-720,resizemode-4/116430332.jpg', description: 'Traditional havan ceremony for peace, prosperity, and positive energy at your premises' },
-  { id: 20, name: 'Lakshmi Puja (Diwali Special)', category: 'pujari', price: 2500, duration: '2-3 hours', rating: 4.9, reviews: 612, image: 'https://images.unsplash.com/photo-1605100804763-247f67b3557e?w=400&h=300&fit=crop', description: 'Auspicious Lakshmi puja for wealth and prosperity, ideal for Diwali and special occasions', popular: true },
-  { id: 21, name: 'Rudrabhishek Puja', category: 'pujari', price: 3200, duration: '3-4 hours', rating: 4.7, reviews: 156, image: 'https://images.unsplash.com/photo-1592364395653-83e648b20cc2?w=400&h=300&fit=crop', description: 'Sacred Shiva puja with abhishek, mantra chanting, and complete Vedic rituals' },
-  { id: 22, name: 'Vastu Shanti Puja', category: 'pujari', price: 3800, duration: '4-5 hours', rating: 4.8, reviews: 234, image: 'https://images.unsplash.com/photo-1606119174478-d2a0a9c2c91f?w=400&h=300&fit=crop', description: 'Comprehensive Vastu Shanti ceremony to remove doshas and bring harmony to your space' },
+  { id: 16, name: 'Ganesh Puja at Home', category: 'pujari', price: 2100, duration: '2-3 hours', rating: 4.9, reviews: 432, image: 'https://cdn.shopify.com/s/files/1/2090/3151/files/MPB6116_a2e0c5a8-7c1a-4755-ae54-1b2cc7eaeab2_480x480.jpg?v=1715581380', description: 'Traditional Ganesh puja conducted by experienced pujari with all rituals and samagri included' },
+  { id: 17, name: 'Griha Pravesh Puja', category: 'pujari', price: 3500, duration: '3-4 hours', rating: 4.8, reviews: 287, image: 'https://images.unsplash.com/photo-1593032457863-0c7b2e0ec357?auto=format&fit=crop&w=800&q=80', description: 'Complete housewarming ceremony with Vastu puja and traditional rituals for new home' },
+  { id: 18, name: 'Satyanarayan Katha', category: 'pujari', price: 2800, duration: '3-4 hours', rating: 4.9, reviews: 521, image: 'https://wiralfeed.wordpress.com/wp-content/uploads/2015/10/satyanarayana_swamy_pooja.jpg', description: 'Sacred Satyanarayan katha with puja, prasad preparation, and complete puja samagri', popular: true },
+  { id: 19, name: 'Havan Ceremony', category: 'pujari', price: 4200, duration: '4-5 hours', rating: 4.8, reviews: 198, image: 'https://sanity-admin.rudraksha-ratna.com/static/images/blogs/havan%2Bkund.jpg', description: 'Traditional havan ceremony for peace, prosperity, and positive energy at your premises' },
+  { id: 20, name: 'Lakshmi Puja (Diwali Special)', category: 'pujari', price: 2500, duration: '2-3 hours', rating: 4.9, reviews: 612, image: 'https://resources.ganeshaspeaks.com/wp-content/uploads/2024/06/Laxmi-Puja_1-2-1024x1024.webp', description: 'Auspicious Lakshmi puja for wealth and prosperity, ideal for Diwali and special occasions', popular: true },
+  { id: 21, name: 'Rudrabhishek Puja', category: 'pujari', price: 3200, duration: '3-4 hours', rating: 4.7, reviews: 156, image: 'https://images.unsplash.com/photo-1614850523145-9ed65d9d6f5c?auto=format&fit=crop&w=800&q=80', description: 'Sacred Shiva puja with abhishek, mantra chanting, and complete Vedic rituals' },
+  { id: 22, name: 'Vastu Shanti Puja', category: 'pujari', price: 3800, duration: '4-5 hours', rating: 4.8, reviews: 234, image: 'https://images.unsplash.com/photo-1528909514045-2fa4ac7a08ba?auto=format&fit=crop&w=800&q=80', description: 'Comprehensive Vastu Shanti ceremony to remove doshas and bring harmony to your space' },
 
-  // Driver Services (internal only)
-  { id: 30, name: 'Full-Day Personal Driver', category: 'driver', price: 1000, duration: '10 hours included', rating: 4.9, reviews: 512, image: 'https://images.unsplash.com/photo-1503736334956-4c8f8e92946d?w=400&h=300&fit=crop', description: 'Experienced chauffeur for city travel (10 hours included). Additional hours billed at double rate.', driverConfig: { baseHours: 10, hourlyRate: 100, overtimeMultiplier: 2 } },
+  // Driver Services (shared with guests)
+  { id: 30, name: 'Full-Day Personal Driver', category: 'driver', price: 1000, duration: '10 hours included', rating: 4.9, reviews: 512, image: 'https://images.unsplash.com/photo-1483721310020-03333e577078?auto=format&fit=crop&w=800&q=80', description: 'Experienced personal driver for city travel (10 hours included). Additional hours billed at double rate.', driverConfig: { baseHours: 10, hourlyRate: 100, overtimeMultiplier: 2 } },
+  { id: 31, name: 'Outstation Driving Service', category: 'driver', price: 1600, duration: '12 hours included', rating: 4.8, reviews: 341, image: 'https://images.unsplash.com/photo-1517142089942-ba376ce32a2e?auto=format&fit=crop&w=800&q=80', description: 'Highway-ready driver for weekend getaways or business travel outside the city. Includes night-halt readiness.', driverConfig: { baseHours: 12, hourlyRate: 130, overtimeMultiplier: 1.75 } },
 ];
 
 const currency = new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 });
@@ -846,10 +847,16 @@ const BookingModal = ({ open, onClose, baseService, servicesList = [], onConfirm
 
 const ServiceCard = ({ service, onBook, isFavorite, onToggleFavorite}) => {
   const [isHovered, setIsHovered] = useState(false);
+  const isActive = service.category === 'driver' || service.category === 'pujari';
+
+  const handleBook = () => {
+    if (!isActive) return;
+    onBook?.(service);
+  };
 
   return (
     <div 
-      className="group bg-white rounded-2xl shadow-md overflow-hidden hover:shadow-2xl transition-all duration-500 hover:-translate-y-2"
+      className={`group bg-white rounded-2xl shadow-md overflow-hidden transition-all duration-500 ${isActive ? 'hover:shadow-2xl hover:-translate-y-2' : 'opacity-80'}`}
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
     >
@@ -857,15 +864,21 @@ const ServiceCard = ({ service, onBook, isFavorite, onToggleFavorite}) => {
         <img 
           src={service.image} 
           alt={service.name} 
-          className={`w-full h-56 object-cover transition-transform duration-700 ${isHovered ? 'scale-110' : 'scale-100'}`} 
+          className={`w-full h-56 object-cover transition-transform duration-700 ${isHovered ? 'scale-110' : 'scale-100'} ${isActive ? '' : 'filter grayscale'}`} 
           loading="lazy" 
         />
         <div className={`absolute inset-0 bg-gradient-to-t from-black/60 via-black/20 to-transparent transition-opacity duration-500 ${isHovered ? 'opacity-100' : 'opacity-0'}`} />
         
-        {service.popular && (
+        {service.popular && isActive && (
           <span className="absolute top-3 left-3 px-3 py-1.5 rounded-full text-xs font-bold shadow-lg backdrop-blur-sm bg-gradient-to-r from-orange-500 to-red-500 text-white">
             Popular
           </span>
+        )}
+
+        {!isActive && (
+          <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+            <span className="px-4 py-1.5 rounded-full bg-black/70 text-white text-xs font-semibold uppercase tracking-wider">Inactive</span>
+          </div>
         )}
         
         <button 
@@ -901,10 +914,15 @@ const ServiceCard = ({ service, onBook, isFavorite, onToggleFavorite}) => {
             <p className="text-xs text-gray-500 mt-0.5">per session</p>
           </div>
           <button
-            onClick={() => onBook(service)}
-            className="bg-gradient-to-r from-blue-600 to-indigo-600 text-white px-6 py-3 rounded-xl hover:from-blue-700 hover:to-indigo-700 transition-all duration-300 font-semibold shadow-lg shadow-blue-500/30 hover:shadow-xl hover:shadow-blue-500/40 hover:-translate-y-0.5"
+            onClick={handleBook}
+            disabled={!isActive}
+            className={`px-6 py-3 rounded-xl font-semibold transition-all duration-300 shadow-lg ${
+              isActive 
+                ? 'bg-gradient-to-r from-blue-600 to-indigo-600 text-white hover:from-blue-700 hover:to-indigo-700 hover:-translate-y-0.5 shadow-blue-500/30 hover:shadow-xl hover:shadow-blue-500/40'
+                : 'bg-gray-200 text-gray-600 cursor-not-allowed'
+            }`}
           >
-            Book Now
+            {isActive ? 'Book Now' : 'Inactive'}
           </button>
         </div>
       </div>
@@ -945,12 +963,12 @@ export default function MyServicesPage() {
 
   const filteredServices = useMemo(() => {
     let filtered = servicesData;
-    
+
     if (searchTerm) {
       const q = searchTerm.toLowerCase();
       filtered = filtered.filter(s => s.name.toLowerCase().includes(q) || s.description.toLowerCase().includes(q));
     }
-    
+
     if (selectedCategory !== 'all') {
       filtered = filtered.filter(s => s.category === selectedCategory);
     }
@@ -970,7 +988,18 @@ export default function MyServicesPage() {
       case 'price-high': sorted.sort((a, b) => (b.price || 0) - (a.price || 0)); break;
       default: break;
     }
-    return sorted;
+
+    const activeServices = [];
+    const inactiveServices = [];
+    sorted.forEach(service => {
+      if (service.category === 'driver' || service.category === 'pujari') {
+        activeServices.push(service);
+      } else {
+        inactiveServices.push(service);
+      }
+    });
+
+    return [...activeServices, ...inactiveServices];
   }, [searchTerm, selectedCategory, sortBy, priceRange]);
 
   const categories = useMemo(() => ([
