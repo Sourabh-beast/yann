@@ -10,6 +10,8 @@ const STATUS_BADGE = {
   completed: "bg-emerald-50 text-emerald-600 border border-emerald-200",
   cancelled: "bg-red-50 text-red-500 border border-red-200",
   draft: "bg-slate-50 text-slate-500 border border-slate-200",
+  accepted: "bg-emerald-50 text-emerald-600 border border-emerald-200",
+  denied: "bg-red-50 text-red-500 border border-red-200",
 };
 
 const formatDateLong = (value) => {
@@ -30,6 +32,15 @@ export default function ResidentRequestsPage() {
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState("active");
   const [updatingId, setUpdatingId] = useState(null);
+  const currencyFormatter = useMemo(
+    () =>
+      new Intl.NumberFormat("en-IN", {
+        style: "currency",
+        currency: "INR",
+        maximumFractionDigits: 0,
+      }),
+    []
+  );
 
   const fetchRequests = useCallback(async () => {
     setLoading(true);
@@ -102,6 +113,27 @@ export default function ResidentRequestsPage() {
     }
   };
 
+  const handleNegotiation = async (requestId, action) => {
+    setUpdatingId(`${requestId}-${action}`);
+    try {
+      const res = await fetch(`/api/resident/requests/${requestId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ negotiationAction: action }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data.message || "Unable to respond to negotiation");
+      }
+      setRequests((prev) => prev.map((request) => (request.id === requestId ? data.request : request)));
+    } catch (error) {
+      alert(error instanceof Error ? error.message : "Unable to respond");
+    } finally {
+      setUpdatingId(null);
+    }
+  };
+
   return (
     <div className="space-y-8">
       <header className="flex flex-col gap-4 rounded-3xl bg-white p-6 shadow-sm md:flex-row md:items-center md:justify-between">
@@ -143,6 +175,39 @@ export default function ResidentRequestsPage() {
                   <p className="text-xs font-semibold uppercase tracking-widest text-slate-400">
                     Preferred slot • {formatDateLong(request.scheduledFor)}
                   </p>
+                  {request.negotiation?.isActive && request.negotiation.status === "pending" && (
+                    <div className="mt-4 rounded-2xl border border-blue-200 bg-blue-50 p-4">
+                      <p className="text-xs font-semibold uppercase tracking-[0.25em] text-blue-500 mb-2">Negotiation pending</p>
+                      <p className="text-sm text-slate-600">
+                        <span className="font-semibold text-slate-900">{request.negotiation.providerName || "Provider"}</span> proposed
+                        {" "}
+                        <span className="font-semibold text-slate-900">
+                          {request.negotiation.proposedAmount
+                            ? currencyFormatter.format(request.negotiation.proposedAmount)
+                            : "a new rate"}
+                        </span>
+                        {request.negotiation.note ? ` — "${request.negotiation.note}"` : ""}
+                      </p>
+                      <div className="mt-3 flex flex-wrap gap-2">
+                        <button
+                          type="button"
+                          onClick={() => handleNegotiation(request.id, "accept")}
+                          disabled={updatingId === `${request.id}-accept`}
+                          className="rounded-full bg-emerald-600 px-4 py-1 text-xs font-semibold text-white shadow hover:bg-emerald-700 disabled:cursor-not-allowed"
+                        >
+                          Accept new rate
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => handleNegotiation(request.id, "decline")}
+                          disabled={updatingId === `${request.id}-decline`}
+                          className="rounded-full border border-slate-300 px-4 py-1 text-xs font-semibold text-slate-600 transition hover:bg-slate-50 disabled:cursor-not-allowed"
+                        >
+                          Decline
+                        </button>
+                      </div>
+                    </div>
+                  )}
                 </div>
                 <div className="flex flex-col items-start gap-2 md:items-end">
                   <span className={`rounded-full px-3 py-1 text-[11px] font-semibold uppercase tracking-widest ${STATUS_BADGE[request.status] || STATUS_BADGE.pending}`}>

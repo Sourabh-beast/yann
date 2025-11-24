@@ -4,8 +4,24 @@ import jwt from "jsonwebtoken";
 import connectDB from "@/lib/connectDB";
 import ResidentRequest from "@/models/ResidentRequest";
 import Homeowner from "@/models/Homeowner";
+import Booking from "@/models/Booking";
 
 const HOME_COOKIE = "yann_home_session";
+
+const sanitizeNegotiation = (negotiation) => {
+  if (!negotiation) {
+    return { isActive: false, status: "idle" };
+  }
+  return {
+    isActive: negotiation.isActive,
+    proposedAmount: negotiation.proposedAmount,
+    providerId: negotiation.providerId ? negotiation.providerId.toString() : null,
+    providerName: negotiation.providerName,
+    note: negotiation.note,
+    status: negotiation.status,
+    updatedAt: negotiation.updatedAt ? negotiation.updatedAt.toISOString() : null,
+  };
+};
 
 const sanitizeRequest = (request) => ({
   id: request._id.toString(),
@@ -18,6 +34,8 @@ const sanitizeRequest = (request) => ({
   locationLabel: request.locationLabel,
   createdAt: request.createdAt.toISOString(),
   updatedAt: request.updatedAt.toISOString(),
+  bookingId: request.booking ? request.booking.toString() : null,
+  negotiation: sanitizeNegotiation(request.negotiation),
 });
 
 async function resolveHomeowner() {
@@ -72,7 +90,7 @@ export async function PATCH(req, { params }) {
 
   const update = {};
   if (payload?.status) {
-    const allowedStatuses = ["draft", "pending", "scheduled", "ongoing", "completed", "cancelled"];
+    const allowedStatuses = ["draft", "pending", "scheduled", "ongoing", "completed", "cancelled", "accepted", "denied"];
     if (!allowedStatuses.includes(payload.status)) {
       return NextResponse.json({ success: false, message: "Invalid status" }, { status: 400 });
     }
@@ -99,19 +117,64 @@ export async function PATCH(req, { params }) {
     update.description = payload.description.trim().slice(0, 400);
   }
 
-  if (Object.keys(update).length === 0) {
+  if (Object.keys(update).length === 0 && !payload?.negotiationAction) {
     return NextResponse.json({ success: false, message: "Nothing to update" }, { status: 400 });
   }
 
-  const requestDoc = await ResidentRequest.findOneAndUpdate(
-    { _id: requestId, homeowner: homeowner._id },
-    { $set: update },
-    { new: true }
-  );
+  const requestDoc = await ResidentRequest.findOne({ _id: requestId, homeowner: homeowner._id });
 
   if (!requestDoc) {
     return NextResponse.json({ success: false, message: "Request not found" }, { status: 404 });
   }
+
+  if (payload?.negotiationAction) {
+    if (!requestDoc.booking) {
+      return NextResponse.json({ success: false, message: "No linked booking for negotiation" }, { status: 400 });
+    }
+
+    const booking = await Booking.findById(requestDoc.booking);
+    if (!booking || !booking.negotiation || !booking.negotiation.isActive) {
+      return NextResponse.json({ success: false, message: "No active negotiation" }, { status: 400 });
+    }
+
+    if (payload.negotiationAction === "accept") {
+      booking.status = "accepted";
+      booking.assignedProvider = booking.negotiation.providerId;
+      booking.providerName = booking.negotiation.providerName;
+      if (booking.negotiation.proposedAmount) {
+        booking.totalPrice = booking.negotiation.proposedAmount;
+      }
+      booking.negotiation.isActive = false;
+      booking.negotiation.status = "accepted";
+      booking.negotiation.respondedAt = new Date();
+      requestDoc.status = "accepted";
+    } else if (payload.negotiationAction === "decline") {
+      booking.negotiation.isActive = false;
+      booking.negotiation.status = "declined";
+      booking.negotiation.respondedAt = new Date();
+      requestDoc.status = "pending";
+    } else {
+      return NextResponse.json({ success: false, message: "Unsupported negotiation action" }, { status: 400 });
+    }
+
+    requestDoc.negotiation = {
+      isActive: booking.negotiation.isActive,
+      proposedAmount: booking.negotiation.proposedAmount,
+      providerId: booking.negotiation.providerId,
+      providerName: booking.negotiation.providerName,
+      note: booking.negotiation.note,
+      status: booking.negotiation.status,
+      updatedAt: new Date(),
+    };
+
+    await booking.save();
+    await requestDoc.save();
+
+    return NextResponse.json({ success: true, request: sanitizeRequest(requestDoc) });
+  }
+
+  Object.assign(requestDoc, update);
+  await requestDoc.save();
 
   return NextResponse.json({ success: true, request: sanitizeRequest(requestDoc) });
 }

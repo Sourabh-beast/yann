@@ -3,6 +3,19 @@ import connectDB from '@/lib/mongodb';
 import Booking from '@/models/Booking';
 import ServiceProvider from '@/models/ServiceProvider';
 
+const serializeNegotiation = (negotiation) => {
+  if (!negotiation) return null;
+  return {
+    isActive: negotiation.isActive,
+    proposedAmount: negotiation.proposedAmount,
+    status: negotiation.status,
+    providerId: negotiation.providerId ? negotiation.providerId.toString() : null,
+    providerName: negotiation.providerName,
+    note: negotiation.note,
+    createdAt: negotiation.createdAt,
+  };
+};
+
 export async function GET(request) {
   try {
     await connectDB();
@@ -120,7 +133,8 @@ export async function GET(request) {
         notes: booking.notes,
         createdAt: booking.createdAt,
         isPujari: booking.serviceCategory === 'pujari',
-        driverDetails: booking.driverDetails || null
+        driverDetails: booking.driverDetails || null,
+        negotiation: serializeNegotiation(booking.negotiation)
       })),
       acceptedBookings: acceptedBookings.map(booking => ({
         id: booking._id,
@@ -132,7 +146,8 @@ export async function GET(request) {
         formattedDate: booking.formattedDate,
         totalPrice: booking.totalPrice,
         status: booking.status,
-        driverDetails: booking.driverDetails || null
+        driverDetails: booking.driverDetails || null,
+        negotiation: serializeNegotiation(booking.negotiation)
       }))
     }, { status: 200 });
 

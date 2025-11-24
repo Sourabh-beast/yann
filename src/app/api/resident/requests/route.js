@@ -7,6 +7,21 @@ import Homeowner from "@/models/Homeowner";
 
 const HOME_COOKIE = "yann_home_session";
 
+const sanitizeNegotiation = (negotiation) => {
+  if (!negotiation) {
+    return { isActive: false, status: "idle" };
+  }
+  return {
+    isActive: negotiation.isActive,
+    proposedAmount: negotiation.proposedAmount,
+    providerId: negotiation.providerId ? negotiation.providerId.toString() : null,
+    providerName: negotiation.providerName,
+    note: negotiation.note,
+    status: negotiation.status,
+    updatedAt: negotiation.updatedAt ? negotiation.updatedAt.toISOString() : null,
+  };
+};
+
 const sanitizeRequest = (request) => ({
   id: request._id.toString(),
   title: request.title,
@@ -18,6 +33,8 @@ const sanitizeRequest = (request) => ({
   locationLabel: request.locationLabel,
   createdAt: request.createdAt.toISOString(),
   updatedAt: request.updatedAt.toISOString(),
+  bookingId: request.booking ? request.booking.toString() : null,
+  negotiation: sanitizeNegotiation(request.negotiation),
 });
 
 async function resolveHomeowner() {

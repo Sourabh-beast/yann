@@ -28,7 +28,7 @@ const residentRequestSchema = new mongoose.Schema(
     },
     status: {
       type: String,
-      enum: ["draft", "pending", "scheduled", "ongoing", "completed", "cancelled"],
+      enum: ["draft", "pending", "scheduled", "ongoing", "completed", "cancelled", "accepted", "denied"],
       default: "pending",
       index: true,
     },
@@ -45,6 +45,44 @@ const residentRequestSchema = new mongoose.Schema(
       trim: true,
       maxlength: 60,
       default: "Home",
+    },
+    booking: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Booking",
+      index: true,
+      default: null,
+    },
+    negotiation: {
+      isActive: {
+        type: Boolean,
+        default: false,
+      },
+      proposedAmount: {
+        type: Number,
+        default: null,
+      },
+      providerId: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "ServiceProvider",
+        default: null,
+      },
+      providerName: {
+        type: String,
+        default: null,
+      },
+      note: {
+        type: String,
+        default: "",
+      },
+      status: {
+        type: String,
+        enum: ["idle", "pending", "accepted", "declined", "cancelled"],
+        default: "idle",
+      },
+      updatedAt: {
+        type: Date,
+        default: null,
+      },
     },
   },
   { timestamps: true }

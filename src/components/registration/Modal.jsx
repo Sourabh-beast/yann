@@ -51,12 +51,13 @@ export default function ServiceProviderRegistration({ isOpen, onClose }) {
       'Griha Pravesh Puja',
       'Satyanarayan Katha',
       'Havan Ceremony',
-      'Lakshmi Puja (Diwali Special)',
+      'Lakshmi Puja',
       'Rudrabhishek Puja',
       'Vastu Shanti Puja',
     ],
     'Driver Services': [
-      'Full-Day Personal Driver'
+      'Full-Day Personal Driver',
+      'Outstation Driving Service'
     ],
     'Other Services': [
       'Other',
