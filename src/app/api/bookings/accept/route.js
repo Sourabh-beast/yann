@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import connectDB from '@/lib/connectDB';
 import Booking from '@/models/Booking';
 import ServiceProvider from '@/models/ServiceProvider';
+import ResidentRequest from '@/models/ResidentRequest';
 
 export async function POST(request) {
   try {
@@ -55,6 +56,12 @@ export async function POST(request) {
     booking.status = 'accepted';
     booking.assignedProvider = providerId;
     booking.providerName = providerName || provider.name;
+
+    if (booking.negotiation && booking.negotiation.isActive) {
+      booking.negotiation.isActive = false;
+      booking.negotiation.status = 'accepted';
+      booking.negotiation.respondedAt = new Date();
+    }
     
     // Add to provider responses
     booking.providerResponses.push({
@@ -64,6 +71,27 @@ export async function POST(request) {
     });
 
     await booking.save();
+
+    if (booking.residentRequest) {
+      const requestUpdate = {
+        status: 'accepted',
+        scheduledFor: booking.bookingDate
+      };
+
+      if (booking.negotiation) {
+        requestUpdate.negotiation = {
+          ...booking.negotiation,
+          providerId: booking.negotiation.providerId,
+          providerName: booking.negotiation.providerName,
+          proposedAmount: booking.negotiation.proposedAmount,
+          isActive: false,
+          status: booking.negotiation.status,
+          updatedAt: new Date()
+        };
+      }
+
+      await ResidentRequest.findByIdAndUpdate(booking.residentRequest, { $set: requestUpdate });
+    }
 
     // In production: Send confirmation email/SMS to customer
     console.log(`✅ Booking ${bookingId} accepted by ${providerName}`);

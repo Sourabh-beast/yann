@@ -136,11 +136,76 @@ const bookingSchema = new mongoose.Schema({
     default: null
   },
 
+  // Link to resident request for homeowner dashboards
+  residentRequest: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'ResidentRequest',
+    default: null,
+    index: true
+  },
+
   // Booking Status
   status: {
     type: String,
     enum: ['pending', 'accepted', 'rejected', 'completed', 'cancelled'],
     default: 'pending'
+  },
+
+  negotiation: {
+    isActive: {
+      type: Boolean,
+      default: false
+    },
+    proposedAmount: {
+      type: Number,
+      default: null
+    },
+    providerId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'ServiceProvider',
+      default: null
+    },
+    providerName: {
+      type: String,
+      default: null
+    },
+    note: {
+      type: String,
+      default: ''
+    },
+    status: {
+      type: String,
+      enum: ['idle', 'pending', 'accepted', 'declined', 'cancelled'],
+      default: 'idle'
+    },
+    respondedAt: {
+      type: Date,
+      default: null
+    },
+    createdAt: {
+      type: Date,
+      default: null
+    },
+    history: [
+      {
+        proposedAmount: Number,
+        note: String,
+        providerId: {
+          type: mongoose.Schema.Types.ObjectId,
+          ref: 'ServiceProvider'
+        },
+        providerName: String,
+        status: {
+          type: String,
+          enum: ['pending', 'accepted', 'declined', 'cancelled'],
+          default: 'pending'
+        },
+        createdAt: {
+          type: Date,
+          default: Date.now
+        }
+      }
+    ]
   },
   
   // Provider Responses (for tracking which providers saw/rejected)

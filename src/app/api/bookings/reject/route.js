@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import connectDB from '@/lib/connectDB';
 import Booking from '@/models/Booking';
 import ServiceProvider from '@/models/ServiceProvider';
+import ResidentRequest from '@/models/ResidentRequest';
 
 export async function POST(request) {
   try {
@@ -46,7 +47,25 @@ export async function POST(request) {
     
     if (rejectedCount >= allProviders.length) {
       booking.status = 'rejected';
+      if (booking.negotiation && booking.negotiation.isActive) {
+        booking.negotiation.isActive = false;
+        booking.negotiation.status = 'declined';
+        booking.negotiation.respondedAt = new Date();
+      }
       await booking.save();
+
+      if (booking.residentRequest) {
+        const requestUpdate = { status: 'denied' };
+        if (booking.negotiation) {
+          requestUpdate.negotiation = {
+            ...booking.negotiation,
+            isActive: false,
+            status: 'declined',
+            updatedAt: new Date()
+          };
+        }
+        await ResidentRequest.findByIdAndUpdate(booking.residentRequest, { $set: requestUpdate });
+      }
       
       // In production: Notify customer that booking couldn't be fulfilled
       console.log(`❌ All providers rejected booking ${bookingId}`);

@@ -54,9 +54,15 @@ export default function BookingsHub() {
   const [activeFilter, setActiveFilter] = useState("accepted");
   const [bookingsData, setBookingsData] = useState([]);
   const [fetchingBookings, setFetchingBookings] = useState(true);
+  const [actionState, setActionState] = useState({ bookingId: null, type: null });
+  const [negotiationModal, setNegotiationModal] = useState({ open: false, booking: null, amount: "", note: "" });
+  const [negotiationError, setNegotiationError] = useState("");
   
   const firstName = provider?.name?.split(" ")[0]?.trim();
   const heading = firstName ? `${firstName}'s booking schedule` : "Your booking schedule";
+  const providerIdRaw = provider?._id || provider?.id || null;
+  const providerId = providerIdRaw ? providerIdRaw.toString() : null;
+  const providerName = provider?.name || "Provider";
 
   useEffect(() => {
     fetchBookings();
@@ -145,6 +151,194 @@ export default function BookingsHub() {
     [bookingsData]
   );
 
+  const setLoadingState = (bookingId, type) => setActionState({ bookingId, type });
+  const clearLoadingState = () => setActionState({ bookingId: null, type: null });
+  const isActionLoading = (bookingId, type) => actionState.bookingId === bookingId && actionState.type === type;
+
+  const awaitingHomeownerResponse = (booking) => {
+    if (!booking.negotiation) return false;
+    return (
+      booking.negotiation.isActive &&
+      booking.negotiation.status === "pending" &&
+      booking.negotiation.providerId === providerId
+    );
+  };
+
+  const negotiationStatusCopy = (booking) => {
+    if (!booking.negotiation) return null;
+    const { status, isActive, providerId: negotiationProviderId } = booking.negotiation;
+    if (status === "idle") return null;
+
+    if (status === "pending" && isActive) {
+      if (negotiationProviderId === providerId) {
+        return "Waiting for homeowner response";
+      }
+      return "Homeowner reviewing other offer";
+    }
+
+    if (status === "accepted") {
+      return negotiationProviderId === providerId ? "Homeowner accepted your offer" : "Offer accepted";
+    }
+
+    if (status === "declined") {
+      return negotiationProviderId === providerId ? "Homeowner declined your offer" : "Offer declined";
+    }
+
+    if (status === "cancelled") {
+      return "Negotiation cancelled";
+    }
+
+    return null;
+  };
+
+  const handleAccept = async (booking) => {
+    if (!providerId) {
+      alert("Provider session isn't ready. Please refresh or sign in again.");
+      return;
+    }
+
+    setLoadingState(booking.id, "accept");
+    try {
+      const response = await fetch("/api/bookings/accept", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+          bookingId: booking.id,
+          providerId,
+          providerName
+        })
+      });
+
+      const result = await response.json();
+      if (!response.ok || !result.success) {
+        throw new Error(result.message || "Failed to accept booking");
+      }
+
+      await fetchBookings();
+    } catch (error) {
+      console.error("Booking accept error", error);
+      alert(error.message || "Unable to accept booking");
+    } finally {
+      clearLoadingState();
+    }
+  };
+
+  const handleReject = async (booking) => {
+    if (!providerId) {
+      alert("Provider session isn't ready. Please refresh or sign in again.");
+      return;
+    }
+
+    if (typeof window !== "undefined" && !window.confirm("Reject this booking? It will move to another provider.")) {
+      return;
+    }
+
+    const reason = typeof window !== "undefined"
+      ? window.prompt("Add a short note (optional)", "Not available")
+      : "";
+
+    setLoadingState(booking.id, "reject");
+    try {
+      const response = await fetch("/api/bookings/reject", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+          bookingId: booking.id,
+          providerId,
+          reason: reason || ""
+        })
+      });
+
+      const result = await response.json();
+      if (!response.ok || !result.success) {
+        throw new Error(result.message || "Failed to reject booking");
+      }
+
+      await fetchBookings();
+    } catch (error) {
+      console.error("Booking reject error", error);
+      alert(error.message || "Unable to reject booking");
+    } finally {
+      clearLoadingState();
+    }
+  };
+
+  const handleNegotiateClick = (booking) => {
+    if (!providerId) {
+      alert("Provider session isn't ready. Please refresh or sign in again.");
+      return;
+    }
+
+    setNegotiationError("");
+    setNegotiationModal({
+      open: true,
+      booking,
+      amount:
+        booking.negotiation?.isActive && booking.negotiation?.providerId === providerId
+          ? booking.negotiation?.proposedAmount || booking.totalPrice || ""
+          : booking.totalPrice || "",
+      note:
+        booking.negotiation?.isActive && booking.negotiation?.providerId === providerId
+          ? booking.negotiation?.note || ""
+          : ""
+    });
+  };
+
+  const closeNegotiationModal = () => {
+    setNegotiationModal({ open: false, booking: null, amount: "", note: "" });
+    setNegotiationError("");
+    clearLoadingState();
+  };
+
+  const submitNegotiation = async () => {
+    if (!negotiationModal.booking || !providerId) {
+      setNegotiationError("Missing booking or provider context.");
+      return;
+    }
+
+    const normalizedAmount = Number(negotiationModal.amount);
+    if (Number.isNaN(normalizedAmount) || normalizedAmount <= 0) {
+      setNegotiationError("Enter a valid proposed amount.");
+      return;
+    }
+
+    setNegotiationError("");
+    setLoadingState(negotiationModal.booking.id, "negotiate");
+
+    try {
+      const response = await fetch("/api/bookings/negotiate", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+          bookingId: negotiationModal.booking.id,
+          providerId,
+          providerName,
+          proposedAmount: normalizedAmount,
+          note: negotiationModal.note
+        })
+      });
+
+      const result = await response.json();
+      if (!response.ok || !result.success) {
+        throw new Error(result.message || "Negotiation failed");
+      }
+
+      closeNegotiationModal();
+      await fetchBookings();
+    } catch (error) {
+      console.error("Negotiation error", error);
+      setNegotiationError(error.message || "Failed to submit negotiation");
+    } finally {
+      clearLoadingState();
+    }
+  };
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 via-purple-50 to-pink-50 pt-24 pb-16">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -205,7 +399,7 @@ export default function BookingsHub() {
               <table className="min-w-full divide-y divide-gray-100">
                 <thead className="bg-gray-50/60">
                   <tr>
-                    {["Booking", "Client", "Service", "Date", "Time", "Value", "Payment", "Status"].map((heading) => (
+                    { ["Booking", "Client", "Service", "Date", "Time", "Value", "Payment", "Status", "Actions"].map((heading) => (
                       <th
                         key={heading}
                         scope="col"
@@ -264,6 +458,59 @@ export default function BookingsHub() {
                         >
                           {statusMeta[booking.status]?.label || booking.status}
                         </span>
+                        {negotiationStatusCopy(booking) && (
+                          <p className="mt-1 text-xs font-semibold text-blue-600">
+                            {negotiationStatusCopy(booking)}
+                          </p>
+                        )}
+                      </td>
+                      <td className="px-6 py-4 text-sm">
+                        {booking.status === 'pending' ? (
+                          <div className="flex flex-col sm:flex-row sm:flex-wrap gap-2">
+                            <button
+                              type="button"
+                              onClick={() => handleAccept(booking)}
+                              disabled={isActionLoading(booking.id, 'accept') || !providerId}
+                              className={`px-3 py-1.5 rounded-lg text-xs font-semibold text-white transition ${
+                                isActionLoading(booking.id, 'accept') || !providerId
+                                  ? 'bg-emerald-400 cursor-not-allowed'
+                                  : 'bg-emerald-600 hover:bg-emerald-700'
+                              }`}
+                            >
+                              {isActionLoading(booking.id, 'accept') ? 'Accepting...' : 'Accept'}
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => handleNegotiateClick(booking)}
+                              disabled={
+                                isActionLoading(booking.id, 'negotiate') ||
+                                awaitingHomeownerResponse(booking) ||
+                                !providerId
+                              }
+                              className={`px-3 py-1.5 rounded-lg text-xs font-semibold border transition ${
+                                isActionLoading(booking.id, 'negotiate') || awaitingHomeownerResponse(booking) || !providerId
+                                  ? 'border-amber-100 bg-amber-50 text-amber-400 cursor-not-allowed'
+                                  : 'border-amber-200 bg-amber-50 text-amber-700 hover:border-amber-300'
+                              }`}
+                            >
+                              {awaitingHomeownerResponse(booking) ? 'Awaiting reply' : 'Negotiate'}
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => handleReject(booking)}
+                              disabled={isActionLoading(booking.id, 'reject') || !providerId}
+                              className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition ${
+                                isActionLoading(booking.id, 'reject') || !providerId
+                                  ? 'bg-gray-200 text-gray-400 cursor-not-allowed'
+                                  : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                              }`}
+                            >
+                              {isActionLoading(booking.id, 'reject') ? 'Rejecting...' : 'Reject'}
+                            </button>
+                          </div>
+                        ) : (
+                          <p className="text-xs text-gray-500">No actions</p>
+                        )}
                       </td>
                     </tr>
                   ))}
@@ -352,6 +599,87 @@ export default function BookingsHub() {
           <div className="mt-10 p-4 bg-blue-50 border border-blue-100 rounded-xl text-sm text-blue-800 flex items-center gap-3">
             <div className="w-5 h-5 border-2 border-blue-600 border-t-transparent rounded-full animate-spin"></div>
             <span>Loading your bookings...</span>
+          </div>
+        )}
+
+        {negotiationModal.open && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4">
+            <div className="w-full max-w-md bg-white rounded-2xl shadow-2xl p-6 space-y-5">
+              <div className="flex items-start justify-between gap-4">
+                <div>
+                  <p className="text-xs font-semibold text-blue-600 uppercase tracking-widest">Counter offer</p>
+                  <h4 className="text-xl font-semibold text-gray-900 mt-1">
+                    {negotiationModal.booking?.serviceName}
+                  </h4>
+                  <p className="text-sm text-gray-500">
+                    Booking #{negotiationModal.booking?.id?.toString().slice(-6).toUpperCase()} • {negotiationModal.booking?.customerName}
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={closeNegotiationModal}
+                  className="text-gray-400 hover:text-gray-600 text-xl leading-none"
+                  aria-label="Close negotiation"
+                >
+                  ×
+                </button>
+              </div>
+
+              <div className="space-y-4">
+                <label className="block text-sm font-semibold text-gray-700">
+                  Proposed amount
+                  <input
+                    type="number"
+                    min="0"
+                    step="100"
+                    value={negotiationModal.amount}
+                    onChange={(event) =>
+                      setNegotiationModal((prev) => ({ ...prev, amount: event.target.value }))
+                    }
+                    className="mt-1 w-full rounded-xl border border-gray-200 px-3 py-2 text-sm focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+                  />
+                </label>
+
+                <label className="block text-sm font-semibold text-gray-700">
+                  Note to homeowner
+                  <textarea
+                    rows={3}
+                    value={negotiationModal.note}
+                    onChange={(event) =>
+                      setNegotiationModal((prev) => ({ ...prev, note: event.target.value.slice(0, 300) }))
+                    }
+                    className="mt-1 w-full rounded-xl border border-gray-200 px-3 py-2 text-sm focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+                    placeholder="Share why the new rate is needed"
+                  />
+                </label>
+
+                {negotiationError && (
+                  <p className="text-sm text-red-600 font-medium">{negotiationError}</p>
+                )}
+              </div>
+
+              <div className="flex flex-col-reverse sm:flex-row sm:justify-end gap-3">
+                <button
+                  type="button"
+                  onClick={closeNegotiationModal}
+                  className="px-4 py-2 rounded-xl border border-gray-200 text-sm font-semibold text-gray-600 hover:bg-gray-50"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  onClick={submitNegotiation}
+                  disabled={isActionLoading(negotiationModal.booking?.id, 'negotiate')}
+                  className={`px-4 py-2 rounded-xl text-sm font-semibold text-white transition ${
+                    isActionLoading(negotiationModal.booking?.id, 'negotiate')
+                      ? 'bg-blue-300 cursor-not-allowed'
+                      : 'bg-blue-600 hover:bg-blue-700'
+                  }`}
+                >
+                  {isActionLoading(negotiationModal.booking?.id, 'negotiate') ? 'Sending...' : 'Send offer'}
+                </button>
+              </div>
+            </div>
           </div>
         )}
       </div>

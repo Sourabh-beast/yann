@@ -10,7 +10,7 @@ export function useAuth() {
         const res = await fetch('/api/auth/me', { credentials: 'include', cache: 'no-store' });
         if (res.ok) {
           const data = await res.json();
-          setUser(data.provider || null);
+          setUser(data.provider ? { ...data.provider, role: 'provider' } : null);
           setLoading(false);
           return;
         }
@@ -22,7 +22,7 @@ export function useAuth() {
         const res = await fetch('/api/homeowner/me', { credentials: 'include', cache: 'no-store' });
         if (res.ok) {
           const data = await res.json();
-          setUser(data.homeowner || null);
+          setUser(data.homeowner ? { ...data.homeowner, role: 'homeowner' } : null);
           setLoading(false);
           return;
         }
@@ -36,6 +36,7 @@ export function useAuth() {
 
     checkSession();
   }, []);
+  const role = user?.role || null;
 
-  return { user, loading, isLoggedIn: !!user };
+  return { user, role, loading, isLoggedIn: !!user };
 }

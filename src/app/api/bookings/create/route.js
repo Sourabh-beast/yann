@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import connectDB from '@/lib/connectDB';
 import Booking from '@/models/Booking';
 import ServiceProvider from '@/models/ServiceProvider';
+import ResidentRequest from '@/models/ResidentRequest';
 
 export async function POST(request) {
   try {
@@ -95,6 +96,23 @@ export async function POST(request) {
       driverDetails
     });
 
+    let residentRequest = null;
+    if (booking.customerId) {
+      residentRequest = await ResidentRequest.create({
+        homeowner: booking.customerId,
+        title: booking.serviceName,
+        serviceType: booking.serviceCategory,
+        description: booking.notes || '',
+        scheduledFor: booking.bookingDate,
+        priority: 'routine',
+        locationLabel: booking.customerAddress?.slice(0, 60) || 'Home',
+        booking: booking._id,
+        status: 'pending'
+      });
+      booking.residentRequest = residentRequest._id;
+      await booking.save();
+    }
+
     // Find all service providers who offer this service
     const serviceName = bookingData.serviceName;
     
@@ -136,6 +154,7 @@ export async function POST(request) {
         status: booking.status,
         driverDetails: booking.driverDetails
       },
+      residentRequestId: residentRequest?._id || null,
       notifiedProviders: availableProviders.length
     }, { status: 201 });
 
