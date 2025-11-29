@@ -34,7 +34,7 @@ export async function GET(request) {
       .sort({ createdAt: -1 })
       .skip((page - 1) * limit)
       .limit(limit)
-      .select('-__v');
+      .select('-__v -password');
 
     // Simple format for admin panel
     if (simple === 'true') {

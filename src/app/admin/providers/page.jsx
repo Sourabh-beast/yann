@@ -2,7 +2,7 @@
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { Users, Briefcase, ClipboardList, Activity, Menu, X, Search, Filter, CheckCircle, XCircle, Clock, LogOut } from 'lucide-react';
+import { Users, Briefcase, ClipboardList, Activity, Menu, X, Search, Filter, CheckCircle, XCircle, Clock, LogOut, Eye, Phone, Mail, MapPin, IndianRupee } from 'lucide-react';
 
 export default function ProvidersPage() {
   const router = useRouter();
@@ -14,6 +14,8 @@ export default function ProvidersPage() {
   const [serviceFilter, setServiceFilter] = useState('');
   const [page, setPage] = useState(1);
   const [pagination, setPagination] = useState(null);
+  const [selectedProvider, setSelectedProvider] = useState(null);
+  const [detailModalOpen, setDetailModalOpen] = useState(false);
 
   useEffect(() => {
     fetchProviders();
@@ -53,10 +55,17 @@ export default function ProvidersPage() {
       const data = await res.json();
       if (data.success) {
         fetchProviders();
+        setDetailModalOpen(false);
+        setSelectedProvider(null);
       }
     } catch (error) {
       console.error('Error updating provider:', error);
     }
+  };
+
+  const openProviderDetail = (provider) => {
+    setSelectedProvider(provider);
+    setDetailModalOpen(true);
   };
 
   const sidebarItems = [
@@ -181,7 +190,7 @@ export default function ProvidersPage() {
                     <th className="text-left py-4 px-6 text-sm font-semibold text-gray-600">Name</th>
                     <th className="text-left py-4 px-6 text-sm font-semibold text-gray-600">Email</th>
                     <th className="text-left py-4 px-6 text-sm font-semibold text-gray-600">Phone</th>
-                    <th className="text-left py-4 px-6 text-sm font-semibold text-gray-600">Services</th>
+                    <th className="text-left py-4 px-6 text-sm font-semibold text-gray-600">Services & Pricing</th>
                     <th className="text-left py-4 px-6 text-sm font-semibold text-gray-600">Experience</th>
                     <th className="text-left py-4 px-6 text-sm font-semibold text-gray-600">Rating</th>
                     <th className="text-left py-4 px-6 text-sm font-semibold text-gray-600">Status</th>
@@ -195,15 +204,23 @@ export default function ProvidersPage() {
                       <td className="py-4 px-6 text-sm text-gray-600">{provider.email}</td>
                       <td className="py-4 px-6 text-sm text-gray-600">{provider.phone}</td>
                       <td className="py-4 px-6 text-sm text-gray-600">
-                        <div className="flex flex-wrap gap-1">
-                          {provider.services.slice(0, 2).map((service, idx) => (
-                            <span key={idx} className="px-2 py-1 bg-blue-100 text-blue-700 rounded-full text-xs font-medium">
-                              {service}
-                            </span>
-                          ))}
-                          {provider.services.length > 2 && (
-                            <span className="px-2 py-1 bg-gray-100 text-gray-700 rounded-full text-xs font-medium">
-                              +{provider.services.length - 2}
+                        <div className="flex flex-col gap-1 max-w-xs">
+                          {(provider.serviceRates && provider.serviceRates.length > 0 
+                            ? provider.serviceRates.slice(0, 3).map((rate, idx) => (
+                                <div key={idx} className="flex items-center justify-between gap-2 px-2 py-1 bg-blue-50 rounded-lg text-xs">
+                                  <span className="text-blue-700 font-medium truncate">{rate.serviceName}</span>
+                                  <span className="text-green-600 font-bold whitespace-nowrap">₹{rate.price?.toLocaleString('en-IN')}</span>
+                                </div>
+                              ))
+                            : provider.services.slice(0, 3).map((service, idx) => (
+                                <span key={idx} className="px-2 py-1 bg-blue-100 text-blue-700 rounded-full text-xs font-medium">
+                                  {service}
+                                </span>
+                              ))
+                          )}
+                          {((provider.serviceRates?.length || provider.services?.length || 0) > 3) && (
+                            <span className="px-2 py-1 bg-gray-100 text-gray-700 rounded-lg text-xs font-medium text-center">
+                              +{(provider.serviceRates?.length || provider.services?.length) - 3} more
                             </span>
                           )}
                         </div>
@@ -219,6 +236,13 @@ export default function ProvidersPage() {
                       </td>
                       <td className="py-4 px-6">
                         <div className="flex gap-2">
+                          <button
+                            onClick={() => openProviderDetail(provider)}
+                            className="p-2 bg-blue-100 text-blue-700 rounded-lg hover:bg-blue-200 transition-colors"
+                            title="View Details"
+                          >
+                            <Eye className="w-4 h-4" />
+                          </button>
                           {provider.status === 'pending' && (
                             <>
                               <button
@@ -290,6 +314,156 @@ export default function ProvidersPage() {
           </div>
         )}
       </main>
+
+      {/* Provider Detail Modal */}
+      {detailModalOpen && selectedProvider && (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-hidden">
+            {/* Modal Header */}
+            <div className="bg-gradient-to-r from-blue-600 to-purple-600 px-6 py-4 flex items-center justify-between">
+              <div>
+                <h3 className="text-xl font-bold text-white">{selectedProvider.name}</h3>
+                <span className={`inline-block mt-1 px-3 py-1 rounded-full text-xs font-semibold ${
+                  selectedProvider.status === 'active' ? 'bg-green-400/20 text-green-100' :
+                  selectedProvider.status === 'pending' ? 'bg-yellow-400/20 text-yellow-100' :
+                  'bg-red-400/20 text-red-100'
+                }`}>
+                  {getStatusLabel(selectedProvider.status)}
+                </span>
+              </div>
+              <button 
+                onClick={() => { setDetailModalOpen(false); setSelectedProvider(null); }}
+                className="p-2 hover:bg-white/20 rounded-full transition-colors"
+              >
+                <X className="w-5 h-5 text-white" />
+              </button>
+            </div>
+
+            {/* Modal Body */}
+            <div className="p-6 overflow-y-auto max-h-[60vh]">
+              {/* Contact Info */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+                <div className="flex items-center gap-3 p-3 bg-gray-50 rounded-xl">
+                  <Mail className="w-5 h-5 text-blue-600" />
+                  <div>
+                    <p className="text-xs text-gray-500">Email</p>
+                    <p className="text-sm font-medium text-gray-900">{selectedProvider.email}</p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-3 p-3 bg-gray-50 rounded-xl">
+                  <Phone className="w-5 h-5 text-green-600" />
+                  <div>
+                    <p className="text-xs text-gray-500">Phone</p>
+                    <p className="text-sm font-medium text-gray-900">{selectedProvider.phone}</p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-3 p-3 bg-gray-50 rounded-xl">
+                  <Briefcase className="w-5 h-5 text-purple-600" />
+                  <div>
+                    <p className="text-xs text-gray-500">Experience</p>
+                    <p className="text-sm font-medium text-gray-900">{selectedProvider.experience} years</p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-3 p-3 bg-gray-50 rounded-xl">
+                  <Activity className="w-5 h-5 text-yellow-600" />
+                  <div>
+                    <p className="text-xs text-gray-500">Rating</p>
+                    <p className="text-sm font-medium text-gray-900">⭐ {selectedProvider.rating?.toFixed(1) || 'N/A'} ({selectedProvider.totalReviews || 0} reviews)</p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Services & Pricing */}
+              <div className="mb-6">
+                <h4 className="text-lg font-semibold text-gray-900 mb-3 flex items-center gap-2">
+                  <IndianRupee className="w-5 h-5 text-green-600" />
+                  Services & Pricing
+                </h4>
+                {selectedProvider.serviceRates && selectedProvider.serviceRates.length > 0 ? (
+                  <div className="bg-gradient-to-br from-green-50 to-blue-50 rounded-xl p-4">
+                    <div className="grid grid-cols-1 gap-3">
+                      {selectedProvider.serviceRates.map((rate, idx) => (
+                        <div key={idx} className="flex items-center justify-between p-3 bg-white rounded-lg shadow-sm border border-gray-100">
+                          <span className="font-medium text-gray-800">{rate.serviceName}</span>
+                          <span className="text-lg font-bold text-green-600">₹{rate.price?.toLocaleString('en-IN')}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                ) : selectedProvider.services && selectedProvider.services.length > 0 ? (
+                  <div className="flex flex-wrap gap-2">
+                    {selectedProvider.services.map((service, idx) => (
+                      <span key={idx} className="px-3 py-2 bg-blue-100 text-blue-700 rounded-lg text-sm font-medium">
+                        {service}
+                      </span>
+                    ))}
+                    <p className="w-full text-sm text-gray-500 mt-2 italic">Pricing not set by provider</p>
+                  </div>
+                ) : (
+                  <p className="text-gray-500 italic">No services listed</p>
+                )}
+              </div>
+
+              {/* Address if available */}
+              {selectedProvider.address && (
+                <div className="mb-6">
+                  <h4 className="text-lg font-semibold text-gray-900 mb-3 flex items-center gap-2">
+                    <MapPin className="w-5 h-5 text-red-500" />
+                    Address
+                  </h4>
+                  <p className="text-gray-600 bg-gray-50 p-3 rounded-xl">{selectedProvider.address}</p>
+                </div>
+              )}
+            </div>
+
+            {/* Modal Footer - Actions */}
+            <div className="px-6 py-4 bg-gray-50 border-t border-gray-100 flex gap-3 justify-end">
+              {selectedProvider.status === 'pending' && (
+                <>
+                  <button
+                    onClick={() => updateProviderStatus(selectedProvider._id, 'inactive')}
+                    className="px-4 py-2 bg-red-100 text-red-700 rounded-lg hover:bg-red-200 transition-colors font-medium flex items-center gap-2"
+                  >
+                    <XCircle className="w-4 h-4" />
+                    Reject
+                  </button>
+                  <button
+                    onClick={() => updateProviderStatus(selectedProvider._id, 'active')}
+                    className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors font-medium flex items-center gap-2"
+                  >
+                    <CheckCircle className="w-4 h-4" />
+                    Approve
+                  </button>
+                </>
+              )}
+              {selectedProvider.status === 'active' && (
+                <button
+                  onClick={() => updateProviderStatus(selectedProvider._id, 'inactive')}
+                  className="px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-colors font-medium flex items-center gap-2"
+                >
+                  <XCircle className="w-4 h-4" />
+                  Deactivate
+                </button>
+              )}
+              {selectedProvider.status === 'inactive' && (
+                <button
+                  onClick={() => updateProviderStatus(selectedProvider._id, 'active')}
+                  className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors font-medium flex items-center gap-2"
+                >
+                  <CheckCircle className="w-4 h-4" />
+                  Activate
+                </button>
+              )}
+              <button
+                onClick={() => { setDetailModalOpen(false); setSelectedProvider(null); }}
+                className="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors font-medium"
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
