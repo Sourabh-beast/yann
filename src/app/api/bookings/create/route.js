@@ -11,7 +11,7 @@ export async function POST(request) {
     const bookingData = await request.json();
 
     // Validate required fields
-    const requiredFields = ['serviceId', 'serviceName', 'serviceCategory', 'customerPhone', 'customerAddress', 'bookingDate', 'bookingTime', 'basePrice', 'totalPrice'];
+    const requiredFields = ['serviceId', 'serviceName', 'serviceCategory', 'customerPhone', 'customerAddress', 'bookingDate', 'bookingTime', 'providerId'];
     
     for (const field of requiredFields) {
       if (!bookingData[field]) {
@@ -21,6 +21,31 @@ export async function POST(request) {
         );
       }
     }
+
+    // Resolve provider pricing
+    const provider = await ServiceProvider.findById(bookingData.providerId);
+    if (!provider || provider.status !== 'active') {
+      return NextResponse.json(
+        { success: false, message: 'Selected service partner is no longer available' },
+        { status: 400 }
+      );
+    }
+
+    const providerPrice = typeof provider.getPriceForService === 'function'
+      ? provider.getPriceForService(bookingData.serviceName)
+      : provider.serviceRates?.find(rate => rate.serviceName === bookingData.serviceName)?.price;
+
+    if (providerPrice === undefined || providerPrice === null) {
+      return NextResponse.json(
+        { success: false, message: 'Selected partner has not set a price for this service' },
+        { status: 400 }
+      );
+    }
+
+    bookingData.basePrice = providerPrice;
+
+    const extras = Array.isArray(bookingData.extras) ? bookingData.extras : [];
+    const extrasTotal = extras.reduce((sum, extra) => sum + (extra?.price || 0), 0);
 
     let driverDetails = null;
 
@@ -71,7 +96,12 @@ export async function POST(request) {
       };
 
       bookingData.bookingTime = resolvedStartTime;
-      bookingData.totalPrice = Number((baseCost + overtimeCost).toFixed(2));
+      bookingData.totalPrice = Number((baseCost + overtimeCost + extrasTotal).toFixed(2));
+    } else {
+      const quantity = Number(bookingData.quantity) || 1;
+      const billingType = bookingData.billingType || 'one-time';
+      const billingMultiplier = billingType === 'monthly' ? 4 : 1;
+      bookingData.totalPrice = (bookingData.basePrice + extrasTotal) * billingMultiplier * quantity;
     }
 
     // Create new booking
@@ -86,14 +116,16 @@ export async function POST(request) {
       bookingDate: new Date(bookingData.bookingDate),
       bookingTime: bookingData.bookingTime,
       basePrice: bookingData.basePrice,
-      extras: bookingData.extras || [],
+      extras,
       totalPrice: bookingData.totalPrice,
       paymentMethod: bookingData.paymentMethod || 'cash',
       billingType: bookingData.billingType || 'one-time',
       quantity: bookingData.quantity || 1,
       notes: bookingData.notes || '',
       status: 'pending',
-      driverDetails
+      driverDetails,
+      assignedProvider: provider._id,
+      providerName: provider.name
     });
 
     let residentRequest = null;
@@ -152,6 +184,7 @@ export async function POST(request) {
         bookingTime: booking.bookingTime,
         totalPrice: booking.totalPrice,
         status: booking.status,
+        providerName: booking.providerName,
         driverDetails: booking.driverDetails
       },
       residentRequestId: residentRequest?._id || null,

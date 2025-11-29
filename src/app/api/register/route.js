@@ -30,6 +30,35 @@ export async function POST(req) {
       );
     }
 
+    if (!Array.isArray(body.serviceRates) || body.serviceRates.length === 0) {
+      return NextResponse.json(
+        { success: false, message: "Please provide pricing for each selected service" },
+        { status: 400 }
+      );
+    }
+
+    // Ensure every selected service has a price entry
+    const normalizedRates = body.services.map(serviceName => {
+      const rate = body.serviceRates.find(rateEntry => rateEntry.serviceName === serviceName);
+      if (!rate || rate.price === undefined || rate.price === null) {
+        const err = new Error(`Missing price for service: ${serviceName}`);
+        err.statusCode = 400;
+        throw err;
+      }
+      const numericPrice = Number(rate.price);
+      if (Number.isNaN(numericPrice) || numericPrice < 0) {
+        const err = new Error(`Invalid price for service: ${serviceName}`);
+        err.statusCode = 400;
+        throw err;
+      }
+      return {
+        serviceName,
+        price: numericPrice
+      };
+    });
+
+    body.serviceRates = normalizedRates;
+
     // Check if email already exists
     const existingProvider = await ServiceProvider.findOne({ email: body.email });
     if (existingProvider) {
@@ -63,6 +92,13 @@ export async function POST(req) {
       return NextResponse.json(
         { success: false, message: "Email already registered" },
         { status: 400 }
+      );
+    }
+
+    if (error.statusCode) {
+      return NextResponse.json(
+        { success: false, message: error.message },
+        { status: error.statusCode }
       );
     }
 

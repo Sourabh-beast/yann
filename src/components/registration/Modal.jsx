@@ -22,6 +22,7 @@ export default function ServiceProviderRegistration({ isOpen, onClose }) {
     experience: '',
     selectedCategories: [],
     services: [],
+    servicePricing: {},
     startTime: '09:00',
     endTime: '17:00'
   });
@@ -98,11 +99,31 @@ export default function ServiceProviderRegistration({ isOpen, onClose }) {
   };
 
   const handleServiceChange = (service) => {
+    setFormData(prev => {
+      const isSelected = prev.services.includes(service);
+      if (isSelected) {
+        const { [service]: _removed, ...restPricing } = prev.servicePricing;
+        return {
+          ...prev,
+          services: prev.services.filter(s => s !== service),
+          servicePricing: restPricing
+        };
+      }
+
+      return {
+        ...prev,
+        services: [...prev.services, service]
+      };
+    });
+  };
+
+  const handlePriceChange = (service, value) => {
     setFormData(prev => ({
       ...prev,
-      services: prev.services.includes(service)
-        ? prev.services.filter(s => s !== service)
-        : [...prev.services, service]
+      servicePricing: {
+        ...prev.servicePricing,
+        [service]: value === '' ? '' : Math.max(0, Number(value))
+      }
     }));
   };
 
@@ -118,10 +139,18 @@ export default function ServiceProviderRegistration({ isOpen, onClose }) {
         ? prev.services.filter(s => !categorizedServices[category].includes(s))
         : prev.services;
 
+      const newServicePricing = { ...prev.servicePricing };
+      if (isSelected) {
+        categorizedServices[category].forEach(serviceName => {
+          delete newServicePricing[serviceName];
+        });
+      }
+
       return {
         ...prev,
         selectedCategories: newCategories,
-        services: newServices
+        services: newServices,
+        servicePricing: newServicePricing
       };
     });
 
@@ -141,6 +170,16 @@ export default function ServiceProviderRegistration({ isOpen, onClose }) {
       return;
     }
 
+    const missingPrice = formData.services.find(service => {
+      const priceValue = Number(formData.servicePricing[service]);
+      return Number.isNaN(priceValue) || priceValue <= 0;
+    });
+
+    if (missingPrice) {
+      alert(`Please enter a valid price for ${missingPrice}`);
+      return;
+    }
+
     try {
       setLoading(true);
       
@@ -151,6 +190,10 @@ export default function ServiceProviderRegistration({ isOpen, onClose }) {
         phone: formData.phone,
         experience: Number(formData.experience),
         services: formData.services,
+        serviceRates: formData.services.map(serviceName => ({
+          serviceName,
+          price: Number(formData.servicePricing[serviceName])
+        })),
         selectedCategories: formData.selectedCategories,
         workingHours: {
           startTime: formData.startTime,
@@ -180,6 +223,7 @@ export default function ServiceProviderRegistration({ isOpen, onClose }) {
             experience: '',
             selectedCategories: [],
             services: [],
+            servicePricing: {},
             startTime: '09:00',
             endTime: '17:00'
           });
@@ -418,28 +462,55 @@ export default function ServiceProviderRegistration({ isOpen, onClose }) {
                       {isExpanded && isSelected && (
                         <div className="p-4 bg-gradient-to-br from-green-25 to-emerald-25 border-t-2 border-green-100">
                           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                            {services.map((service) => (
-                              <label 
-                                key={service} 
-                                className={`group flex items-center gap-3 p-3 rounded-lg cursor-pointer transition-all duration-300 ${
-                                  formData.services.includes(service)
-                                    ? 'bg-gradient-to-br from-green-100 to-emerald-100 shadow-sm'
-                                    : 'bg-white/80 hover:bg-white hover:shadow-sm'
-                                }`}
-                              >
-                                <input
-                                  type="checkbox"
-                                  checked={formData.services.includes(service)}
-                                  onChange={() => handleServiceChange(service)}
-                                  className="w-4 h-4 text-green-600 border-gray-300 rounded focus:ring-green-500 transition-transform duration-300 hover:scale-110"
-                                />
-                                <span className={`text-sm font-medium transition-colors ${
-                                  formData.services.includes(service) ? 'text-green-700' : 'text-gray-700 group-hover:text-green-700'
-                                }`}>
-                                  {service}
-                                </span>
-                              </label>
-                            ))}
+                            {services.map((service) => {
+                              const isServiceSelected = formData.services.includes(service);
+                              const servicePrice = formData.servicePricing[service] ?? '';
+                              return (
+                                <label 
+                                  key={service} 
+                                  className={`group flex flex-col gap-2 p-3 rounded-lg cursor-pointer transition-all duration-300 ${
+                                    isServiceSelected
+                                      ? 'bg-gradient-to-br from-green-100 to-emerald-100 shadow-sm'
+                                      : 'bg-white/80 hover:bg-white hover:shadow-sm'
+                                  }`}
+                                >
+                                  <div className="flex items-center justify-between gap-3">
+                                    <div className="flex items-center gap-3">
+                                      <input
+                                        type="checkbox"
+                                        checked={isServiceSelected}
+                                        onChange={() => handleServiceChange(service)}
+                                        className="w-4 h-4 text-green-600 border-gray-300 rounded focus:ring-green-500 transition-transform duration-300 hover:scale-110"
+                                      />
+                                      <span className={`text-sm font-semibold transition-colors ${
+                                        isServiceSelected ? 'text-green-700' : 'text-gray-700 group-hover:text-green-700'
+                                      }`}>
+                                        {service}
+                                      </span>
+                                    </div>
+                                    {isServiceSelected && servicePrice && (
+                                      <span className="text-xs font-bold text-green-700 bg-white/60 px-2 py-0.5 rounded-full">
+                                        ₹{servicePrice}
+                                      </span>
+                                    )}
+                                  </div>
+                                  {isServiceSelected && (
+                                    <div className="flex items-center gap-2 pl-7">
+                                      <span className="text-xs font-semibold text-gray-500">Price (₹)</span>
+                                      <input
+                                        type="number"
+                                        min="1"
+                                        value={servicePrice}
+                                        onClick={(e) => e.stopPropagation()}
+                                        onChange={(e) => handlePriceChange(service, e.target.value)}
+                                        className="flex-1 px-3 py-2 text-sm border-2 border-green-200 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 transition-all duration-300"
+                                        placeholder="Enter your fee"
+                                      />
+                                    </div>
+                                  )}
+                                </label>
+                              );
+                            })}
                           </div>
                         </div>
                       )}

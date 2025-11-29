@@ -1,6 +1,6 @@
 'use client'
 import React, { useState, useMemo, useEffect } from 'react';
-import { Search, Star, Clock, MapPin, Filter, Heart, ChevronDown, X, CheckCircle, Sparkles, TrendingUp, Award, Shield, Zap, Calendar, Lock, Car } from 'lucide-react';
+import { Search, Star, Clock, MapPin, Filter, Heart, ChevronDown, X, CheckCircle, Sparkles, TrendingUp, Award, Shield, Zap, Calendar, Lock, Car, Briefcase } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import LoginModal from '@/components/LoginModal';
 
@@ -46,6 +46,20 @@ const useServicesData = () => useMemo(() => ([
 ]), []);
 
 const currency = new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 });
+const normalizeServiceName = (name = '') => name.trim().toLowerCase();
+const buildPricingMap = (rawPricing = {}) => {
+  return Object.entries(rawPricing || {}).reduce((acc, [serviceName, info]) => {
+    const key = normalizeServiceName(serviceName);
+    if (!key) return acc;
+    const numericPrice = Number(info?.price);
+    if (!Number.isFinite(numericPrice)) return acc;
+    acc[key] = {
+      price: numericPrice,
+      providerCount: Number(info?.providerCount) || 0
+    };
+    return acc;
+  }, {});
+};
 
 /* ------------------------------ BookingModal ------------------------------ */
 const BookingModal = ({ open, onClose, baseService, servicesList = [], onConfirm }) => {
@@ -60,6 +74,10 @@ const BookingModal = ({ open, onClose, baseService, servicesList = [], onConfirm
   const [driverStartTime, setDriverStartTime] = useState('09:00');
   const [driverEndTime, setDriverEndTime] = useState('19:00');
   const [driverError, setDriverError] = useState('');
+  const [providerOptions, setProviderOptions] = useState([]);
+  const [providerStatus, setProviderStatus] = useState('idle');
+  const [providerError, setProviderError] = useState('');
+  const [selectedProviderId, setSelectedProviderId] = useState(null);
 
   useEffect(() => {
     if (open) {
@@ -74,17 +92,64 @@ const BookingModal = ({ open, onClose, baseService, servicesList = [], onConfirm
       setDriverStartTime('09:00');
       setDriverEndTime('19:00');
       setDriverError('');
+      setProviderOptions([]);
+      setSelectedProviderId(null);
+      setProviderStatus('idle');
+      setProviderError('');
     }
   }, [open]);
+
+  useEffect(() => {
+    if (!open || !baseService?.name) return;
+    let ignore = false;
+
+    const fetchProviders = async () => {
+      setProviderStatus('loading');
+      setProviderError('');
+      try {
+        const response = await fetch(`/api/provider/by-service?service=${encodeURIComponent(baseService.name)}`);
+        const data = await response.json();
+
+        if (ignore) return;
+
+        if (!response.ok || data.success === false) {
+          throw new Error(data.message || 'Unable to load partners');
+        }
+
+        const providers = data.providers || [];
+        setProviderOptions(providers);
+        setSelectedProviderId(providers[0]?.id || null);
+        setProviderStatus('loaded');
+
+        if (!providers.length) {
+          setProviderError('Currently no verified partners are available for this service.');
+        }
+      } catch (err) {
+        if (ignore) return;
+        setProviderOptions([]);
+        setSelectedProviderId(null);
+        setProviderStatus('error');
+        setProviderError(err.message || 'Failed to load partners');
+      }
+    };
+
+    fetchProviders();
+
+    return () => {
+      ignore = true;
+    };
+  }, [open, baseService?.name]);
 
   if (!open) return null;
 
   const isDriverService = baseService?.category === 'driver';
+  const selectedProvider = selectedProviderId ? providerOptions.find(p => p.id === selectedProviderId) : null;
+  const providerPrice = selectedProvider?.price ?? baseService?.price ?? 0;
 
   const driverConfig = useMemo(() => {
     if (!isDriverService) return null;
     const baseHours = baseService?.driverConfig?.baseHours ?? 10;
-    const hourlyRate = baseService?.driverConfig?.hourlyRate ?? (((baseService?.price || 0) / baseHours) || 0);
+    const hourlyRate = baseService?.driverConfig?.hourlyRate ?? (((providerPrice || 0) / baseHours) || 0);
     const overtimeMultiplier = baseService?.driverConfig?.overtimeMultiplier ?? 2;
     return { baseHours, hourlyRate, overtimeMultiplier };
   }, [baseService, isDriverService]);
@@ -110,7 +175,7 @@ const BookingModal = ({ open, onClose, baseService, servicesList = [], onConfirm
     const totalMinutes = endMinutes - startMinutes;
     const totalHours = totalMinutes / 60;
     const baseHours = driverConfig?.baseHours ?? 10;
-    const hourlyRate = driverConfig?.hourlyRate ?? (((baseService?.price || 0) / baseHours) || 0);
+    const hourlyRate = driverConfig?.hourlyRate ?? (((providerPrice || 0) / baseHours) || 0);
     const overtimeMultiplier = driverConfig?.overtimeMultiplier ?? 2;
     const overtimeHours = Math.max(0, totalHours - baseHours);
     const billableBaseHours = Math.min(totalHours, baseHours);
@@ -129,7 +194,7 @@ const BookingModal = ({ open, onClose, baseService, servicesList = [], onConfirm
       baseCost,
       overtimeCost
     };
-  }, [baseService?.price, driverConfig, driverEndTime, driverStartTime, isDriverService]);
+  }, [driverConfig, driverEndTime, driverStartTime, isDriverService, providerPrice]);
 
   useEffect(() => {
     if (!isDriverService) return;
@@ -157,12 +222,34 @@ const BookingModal = ({ open, onClose, baseService, servicesList = [], onConfirm
     setSelectedExtras(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]);
   };
 
-  const extrasTotal = selectedExtras.reduce((acc, id) => {
-    const s = servicesList.find(x => x.id === id);
-    return acc + (s?.price || 0);
-  }, 0);
+  const handleSelectProvider = (id) => {
+    setSelectedProviderId(id);
+    setErrorMsg('');
+    if (status === 'error') {
+      setStatus('idle');
+    }
+  };
 
-  const basePrice = baseService?.price || 0;
+  const selectedExtrasDetails = useMemo(() => {
+    if (!Array.isArray(selectedExtras) || !Array.isArray(servicesList)) return [];
+    return selectedExtras
+      .map(id => {
+        const matched = servicesList.find(service => service.id === id);
+        if (!matched) return null;
+        return {
+          id: matched.id,
+          name: matched.name,
+          price: matched.price,
+          duration: matched.duration,
+          description: matched.description
+        };
+      })
+      .filter(Boolean);
+  }, [selectedExtras, servicesList]);
+
+  const extrasTotal = selectedExtrasDetails.reduce((acc, extra) => acc + (extra.price || 0), 0);
+
+  const basePrice = providerPrice || 0;
   const unitPrice = basePrice + extrasTotal;
   const multiplier = billingType === 'hourly' ? quantity : billingType === 'daily' ? quantity : quantity;
   const driverBaseAmount = isDriverService && driverPricing && !driverPricing.error ? driverPricing.totalPrice : 0;
@@ -170,10 +257,42 @@ const BookingModal = ({ open, onClose, baseService, servicesList = [], onConfirm
   const scheduleDisplay = isDriverService ? `${driverStartTime} - ${driverEndTime}` : time;
   const driverBaseCost = isDriverService && driverPricing && !driverPricing.error ? driverPricing.baseCost : 0;
   const driverOvertimeCost = isDriverService && driverPricing && !driverPricing.error ? driverPricing.overtimeCost : 0;
+  const confirmDisabled = status === 'submitting'
+    || providerStatus === 'loading'
+    || providerOptions.length === 0
+    || (providerOptions.length > 0 && !selectedProviderId);
 
   const handleConfirm = async () => {
     setStatus('submitting');
     setErrorMsg('');
+
+    if (providerStatus === 'loading') {
+      const message = 'Please wait while we load verified partners for this service.';
+      setErrorMsg(message);
+      setStatus('error');
+      return;
+    }
+
+    if (providerStatus === 'error') {
+      const message = providerError || 'Unable to load service partners right now. Please try again shortly.';
+      setErrorMsg(message);
+      setStatus('error');
+      return;
+    }
+
+    if (!providerOptions.length) {
+      const message = providerError || 'Currently no verified partners are available for this service.';
+      setErrorMsg(message);
+      setStatus('error');
+      return;
+    }
+
+    if (!selectedProvider) {
+      const message = 'Please choose a service partner to continue.';
+      setErrorMsg(message);
+      setStatus('error');
+      return;
+    }
 
     if (isDriverService) {
       if (!driverPricing || driverPricing.error) {
@@ -195,6 +314,16 @@ const BookingModal = ({ open, onClose, baseService, servicesList = [], onConfirm
       extras: selectedExtras,
       notes,
       totalPrice,
+      providerId: selectedProvider?.id || null,
+      providerName: selectedProvider?.name || null,
+      providerPrice: providerPrice,
+      extras: selectedExtrasDetails,
+      priceBreakdown: {
+        base: providerPrice,
+        extras: extrasTotal,
+        driverBaseAmount,
+        driverOvertimeCost
+      },
       ...(isDriverService && driverPricing && !driverPricing.error ? {
         driverDetails: {
           startTime: driverStartTime,
@@ -311,6 +440,120 @@ const BookingModal = ({ open, onClose, baseService, servicesList = [], onConfirm
                   <p className="text-xs text-gray-500 mt-1">per session</p>
                 </div>
               </div>
+            </div>
+
+            <div className="space-y-4">
+              <div className="flex items-center gap-2">
+                <Briefcase className="w-5 h-5 text-blue-600" />
+                <h4 className="text-xl font-bold text-gray-900">Choose Your Service Partner</h4>
+              </div>
+
+              {providerStatus === 'loading' && (
+                <div className="space-y-3">
+                  {[0, 1, 2].map(idx => (
+                    <div key={idx} className="p-5 border-2 border-gray-200 rounded-2xl bg-white/80 animate-pulse">
+                      <div className="h-5 bg-gray-200 rounded w-1/3 mb-3" />
+                      <div className="h-4 bg-gray-100 rounded w-2/3" />
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {providerStatus === 'error' && (
+                <div className="p-4 border-2 border-red-200 rounded-2xl bg-red-50 text-sm text-red-700 font-medium">
+                  {providerError || 'Failed to load verified partners. Please try again.'}
+                </div>
+              )}
+
+              {providerStatus === 'loaded' && providerOptions.length === 0 && (
+                <div className="p-4 border-2 border-amber-200 rounded-2xl bg-amber-50 text-sm text-amber-900">
+                  Currently no verified partners are available for this service. Please check back soon.
+                </div>
+              )}
+
+              {providerOptions.length > 0 && (
+                <div className="space-y-3">
+                  {providerOptions.map((provider, index) => {
+                    const isSelected = selectedProviderId === provider.id;
+                    const isBestValue = index === 0;
+                    const ratingDisplay = typeof provider.rating === 'number' ? provider.rating.toFixed(1) : provider.rating ?? '—';
+
+                    return (
+                      <button
+                        type="button"
+                        key={provider.id}
+                        onClick={() => handleSelectProvider(provider.id)}
+                        aria-pressed={isSelected}
+                        className={`w-full text-left p-5 border-2 rounded-2xl transition-all duration-300 focus:outline-none focus-visible:ring-4 focus-visible:ring-blue-200 ${
+                          isSelected
+                            ? 'border-blue-500 bg-blue-50/80 shadow-lg shadow-blue-500/20'
+                            : 'border-gray-200 hover:border-blue-300 hover:bg-gray-50'
+                        }`}
+                      >
+                        <div className="flex items-start gap-4">
+                          <div className={`w-14 h-14 rounded-2xl flex items-center justify-center text-white font-bold text-xl bg-gradient-to-br ${
+                            isSelected ? 'from-blue-600 to-indigo-600' : 'from-gray-600 to-gray-700'
+                          }`}>
+                            {provider.profileImage ? (
+                              <img
+                                src={provider.profileImage}
+                                alt={provider.name}
+                                className="w-full h-full object-cover rounded-2xl"
+                              />
+                            ) : (
+                              <span>{provider.name?.[0] ?? 'P'}</span>
+                            )}
+                          </div>
+
+                          <div className="flex-1 space-y-1">
+                            <div className="flex flex-wrap items-center gap-2">
+                              <p className="font-semibold text-gray-900 text-lg">{provider.name}</p>
+                              {isBestValue && (
+                                <span className="px-2 py-0.5 text-xs font-semibold rounded-full bg-emerald-100 text-emerald-700">Best price</span>
+                              )}
+                              {isSelected && (
+                                <span className="px-2 py-0.5 text-xs font-semibold rounded-full bg-blue-100 text-blue-700 flex items-center gap-1">
+                                  <CheckCircle className="w-3.5 h-3.5" />
+                                  Selected
+                                </span>
+                              )}
+                            </div>
+                            <div className="flex flex-wrap items-center gap-4 text-sm text-gray-600">
+                              <span className="flex items-center gap-1 text-gray-800">
+                                <Star className="w-4 h-4 text-yellow-500 fill-yellow-500" />
+                                <span className="font-semibold">{ratingDisplay}</span>
+                                {provider.totalReviews ? (
+                                  <span className="text-xs text-gray-500">({provider.totalReviews})</span>
+                                ) : null}
+                              </span>
+                              {provider.experience ? (
+                                <span>{provider.experience}+ yrs experience</span>
+                              ) : (
+                                <span>Verified partner</span>
+                              )}
+                              {provider.workingHours && (
+                                <span className="flex items-center gap-1">
+                                  <Clock className="w-4 h-4" />
+                                  {provider.workingHours}
+                                </span>
+                              )}
+                            </div>
+                            <div className="flex items-center gap-2 text-xs text-gray-500">
+                              <Shield className="w-4 h-4 text-blue-500" />
+                              <span>Background checked & insured</span>
+                            </div>
+                          </div>
+
+                          <div className="text-right">
+                            <p className="text-2xl font-bold text-blue-600">{currency.format(provider.price)}</p>
+                            <p className="text-xs text-gray-500">partner quote</p>
+                          </div>
+                        </div>
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
             </div>
 
             <div className="space-y-5">
@@ -467,6 +710,12 @@ const BookingModal = ({ open, onClose, baseService, servicesList = [], onConfirm
                 {isDriverService ? currency.format(driverBaseCost) : currency.format(basePrice)}
               </span>
             </div>
+            {selectedProvider && (
+              <div className="flex items-center justify-between text-sm">
+                <span className="text-gray-600 font-medium">Selected Partner</span>
+                <span className="font-semibold text-gray-900">{selectedProvider.name}</span>
+              </div>
+            )}
             {isDriverService ? (
               <>
                 <div className="flex items-center justify-between text-sm">
@@ -531,8 +780,12 @@ const BookingModal = ({ open, onClose, baseService, servicesList = [], onConfirm
 
             <button 
               onClick={handleConfirm} 
-              className="flex-1 px-6 py-4 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-semibold rounded-xl transition-all duration-300 shadow-lg shadow-blue-500/30 hover:shadow-xl hover:shadow-blue-500/40 flex items-center justify-center gap-2 hover:-translate-y-0.5"
-              disabled={status === 'submitting'}
+              className={`flex-1 px-6 py-4 rounded-xl transition-all duration-300 shadow-lg shadow-blue-500/30 hover:shadow-xl hover:shadow-blue-500/40 flex items-center justify-center gap-2 hover:-translate-y-0.5 text-white ${
+                confirmDisabled
+                  ? 'bg-gray-300 cursor-not-allowed'
+                  : 'bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700'
+              }`}
+              disabled={confirmDisabled}
             >
               {status === 'submitting' ? (
                 <>
@@ -557,9 +810,65 @@ const BookingModal = ({ open, onClose, baseService, servicesList = [], onConfirm
 };
 
 /* ------------------------------ ServiceCard ------------------------------ */
-const ServiceCard = ({ service, onBook, isFavorite, onToggleFavorite, isLoggedIn }) => {
+const ServiceCard = ({ service, onBook, isFavorite, onToggleFavorite, isLoggedIn, startingPrice, providerCount }) => {
   const [isHovered, setIsHovered] = useState(false);
+  const [localQuote, setLocalQuote] = useState(null);
+  const [localProviderCount, setLocalProviderCount] = useState(0);
+  const [fetchAttempted, setFetchAttempted] = useState(false);
   const isActive = service.category === 'driver' || service.category === 'pujari';
+
+  // Always fetch for active services, ignore parent props for now
+  useEffect(() => {
+    if (!isActive || fetchAttempted) return;
+    
+    let ignore = false;
+    setFetchAttempted(true);
+
+    const loadQuote = async () => {
+      try {
+        console.log(`🎯 [${service.name}] Fetching price...`);
+        const response = await fetch(`/api/provider/by-service?service=${encodeURIComponent(service.name)}`);
+        const data = await response.json();
+        console.log(`🎯 [${service.name}] API response:`, data);
+        if (ignore) {
+          console.log(`🎯 [${service.name}] Ignored (component unmounted)`);
+          return;
+        }
+        if (!response.ok || data.success === false) {
+          console.log(`🎯 [${service.name}] Failed response`);
+          return;
+        }
+        const cheapest = data.providers?.[0];
+        const numericPrice = Number(cheapest?.price);
+        console.log(`🎯 [${service.name}] Cheapest provider:`, cheapest, 'numericPrice:', numericPrice);
+        if (!cheapest || !Number.isFinite(numericPrice)) {
+          console.log(`🎯 [${service.name}] No valid price found`);
+          return;
+        }
+        console.log(`🎯 [${service.name}] Setting localQuote to ${numericPrice}`);
+        setLocalQuote(numericPrice);
+        setLocalProviderCount(data.providers?.length || 0);
+      } catch (error) {
+        console.error(`🎯 [${service.name}] Error:`, error);
+      }
+    };
+
+    loadQuote();
+
+    return () => {
+      ignore = true;
+    };
+  }, [isActive, service.name, fetchAttempted]);
+
+  const sanitizedStartingPrice = Number.isFinite(Number(startingPrice)) ? Number(startingPrice) : null;
+  const sanitizedProviderCount = Number.isFinite(Number(providerCount)) ? Number(providerCount) : 0;
+  const effectiveQuote = sanitizedStartingPrice ?? localQuote;
+  const effectiveProviderCount = sanitizedProviderCount || localProviderCount;
+  const hasPartnerQuote = typeof effectiveQuote === 'number' && Number.isFinite(effectiveQuote) && effectiveQuote >= 0;
+  const displayPrice = hasPartnerQuote ? effectiveQuote : service.price;
+  const partnerCountLabel = hasPartnerQuote
+    ? (effectiveProviderCount > 0 ? `${effectiveProviderCount} partner${effectiveProviderCount > 1 ? 's' : ''}` : 'Verified partner quote')
+    : null;
 
   const handleBookClick = () => {
     if (!isActive) return;
@@ -594,7 +903,7 @@ const ServiceCard = ({ service, onBook, isFavorite, onToggleFavorite, isLoggedIn
 
         {!isActive && (
           <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-            <span className="px-4 py-1.5 rounded-full bg-black/70 text-white text-xs font-semibold uppercase tracking-wider">Inactive</span>
+            <span className="px-4 py-1.5 rounded-full bg-black/70 text-white text-xs font-semibold uppercase tracking-wider">Coming Soon</span>
           </div>
         )}
         
@@ -629,8 +938,9 @@ const ServiceCard = ({ service, onBook, isFavorite, onToggleFavorite, isLoggedIn
 
             <div className="flex items-center justify-between">
               <div>
-                <div className="text-3xl font-bold bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">{currency.format(service.price)}</div>
-                <p className="text-xs text-gray-500 mt-0.5">per session</p>
+                <div className="text-sm font-semibold text-gray-600">{hasPartnerQuote ? 'Starting from' : 'Base price'}</div>
+                <div className="text-3xl font-bold bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">{currency.format(displayPrice)}</div>
+                <p className="text-xs text-gray-500 mt-0.5">{partnerCountLabel || 'per session'}</p>
               </div>
               <button
                 onClick={handleBookClick}
@@ -641,7 +951,7 @@ const ServiceCard = ({ service, onBook, isFavorite, onToggleFavorite, isLoggedIn
                     : 'bg-gray-200 text-gray-600 cursor-not-allowed'
                 }`}
               >
-                {isActive ? 'Book Now' : 'Inactive'}
+                {isActive ? 'Book Now' : 'Coming Soon'}
               </button>
             </div>
           </>
@@ -661,7 +971,8 @@ const ServiceCard = ({ service, onBook, isFavorite, onToggleFavorite, isLoggedIn
             <div className="flex items-center justify-between">
               <div>
                 <div className="text-lg font-semibold text-gray-600">Starting from</div>
-                <div className="text-2xl font-bold bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">{currency.format(service.price)}</div>
+                <div className="text-2xl font-bold bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">{currency.format(displayPrice)}</div>
+                <p className="text-xs text-gray-500 mt-0.5">{partnerCountLabel || 'per session'}</p>
               </div>
               <button
                 onClick={handleBookClick}
@@ -672,7 +983,7 @@ const ServiceCard = ({ service, onBook, isFavorite, onToggleFavorite, isLoggedIn
                     : 'bg-gray-200 text-gray-600 cursor-not-allowed'
                 }`}
               >
-                {isActive ? 'Login to Book' : 'Inactive'}
+                {isActive ? 'Login to Book' : 'Coming Soon'}
               </button>
             </div>
           </>
@@ -696,6 +1007,7 @@ const ServicesPage = () => {
   const [bookingService, setBookingService] = useState(null);
   const [loginModalOpen, setLoginModalOpen] = useState(false);
   const [pendingBookingService, setPendingBookingService] = useState(null);
+  const [servicePricing, setServicePricing] = useState({});
 
   const handleBook = (service) => {
     if (!isLoggedIn) {
@@ -717,6 +1029,97 @@ const ServicesPage = () => {
       setPendingBookingService(null);
     }
   };
+
+  useEffect(() => {
+    let ignore = false;
+
+    const fetchIndividualFallback = async (serviceNames) => {
+      const results = {};
+      for (const name of serviceNames) {
+        try {
+          const response = await fetch(`/api/provider/by-service?service=${encodeURIComponent(name)}`);
+          const data = await response.json();
+          if (!response.ok || data.success === false) continue;
+          const cheapest = data.providers?.[0];
+          const numericPrice = Number(cheapest?.price);
+          if (!cheapest || !Number.isFinite(numericPrice)) continue;
+          results[name] = {
+            price: numericPrice,
+            providerCount: data.providers?.length || 0
+          };
+        } catch (error) {
+          console.warn('Fallback pricing fetch failed for', name, error);
+        }
+      }
+      return results;
+    };
+
+    const fetchServicePricing = async () => {
+      const uniqueServices = [...new Set(services.map(service => service.name).filter(Boolean))];
+      if (!uniqueServices.length) return;
+
+      try {
+        const response = await fetch('/api/provider/pricing', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({ services: uniqueServices })
+        });
+
+        const data = await response.json();
+        if (ignore) return;
+
+        if (!response.ok || data.success === false) {
+          throw new Error(data.message || 'Unable to load service pricing');
+        }
+
+        if (data.pricing && Object.keys(data.pricing).length > 0) {
+          const builtMap = buildPricingMap(data.pricing);
+          console.log('📊 Pricing API response:', data.pricing);
+          console.log('📊 Built pricing map:', builtMap);
+          console.log('📊 Setting servicePricing state now...');
+          setServicePricing(builtMap);
+          console.log('📊 servicePricing state set call completed');
+          return;
+        }
+
+        const fallbackResults = await fetchIndividualFallback(uniqueServices);
+        if (!ignore) {
+          setServicePricing(buildPricingMap(fallbackResults));
+        }
+      } catch (error) {
+        if (!ignore) {
+          console.error('Failed to load provider pricing, using fallback', error);
+          const fallbackResults = await fetchIndividualFallback(uniqueServices);
+          if (!ignore) {
+            setServicePricing(buildPricingMap(fallbackResults));
+          }
+        }
+      }
+    };
+
+    fetchServicePricing();
+
+    return () => {
+      ignore = true;
+    };
+  }, [services]);
+
+  // Debug: log servicePricing state changes
+  useEffect(() => {
+    console.log('🗺️ servicePricing state updated:', servicePricing);
+    console.log('🗺️ servicePricing keys:', Object.keys(servicePricing));
+    if (servicePricing['havan ceremony']) {
+      console.log('✅ Havan Ceremony pricing found:', servicePricing['havan ceremony']);
+    } else {
+      console.log('❌ Havan Ceremony pricing NOT found. Available keys:', Object.keys(servicePricing));
+    }
+  }, [servicePricing]);
+
+  // Show debug alert if pricing is loaded for Havan Ceremony
+  const havanPrice = servicePricing['havan ceremony']?.price;
+  console.log('🔍 Checking Havan price in render:', havanPrice);
 
   const handleConfirmBooking = async (booking) => {
     try {
@@ -742,13 +1145,16 @@ const ServicesPage = () => {
         customerAddress: customerAddress.trim(),
         bookingDate: booking.date,
         bookingTime: booking.time,
-        basePrice: bookingService?.price || 0,
+        basePrice: booking.providerPrice || bookingService?.price || 0,
         extras: booking.extras || [],
         totalPrice: booking.totalPrice,
         paymentMethod: bookingService?.category === 'pujari' ? 'cash' : 'online',
         billingType: booking.billingType || 'one-time',
         quantity: booking.quantity || 1,
         notes: booking.notes || '',
+        providerId: booking.providerId,
+        providerName: booking.providerName,
+        priceBreakdown: booking.priceBreakdown,
         customerName: user?.role === 'homeowner' ? user?.name || 'Guest' : 'Guest'
       };
 
@@ -777,7 +1183,8 @@ const ServicesPage = () => {
       }
 
       console.log('Booking created successfully:', data);
-      alert(`Booking confirmed! ${data.notifiedProviders} service providers have been notified.`);
+      const assignedPartner = booking.providerName || data?.booking?.providerName || 'your selected partner';
+      alert(`Booking confirmed with ${assignedPartner}! ${data.notifiedProviders} service providers have been notified.`);
       
     } catch (error) {
       console.error('Booking error:', error);
@@ -1060,6 +1467,8 @@ const ServicesPage = () => {
                     isFavorite={favorites.includes(s.id)}
                     onToggleFavorite={toggleFavorite}
                     isLoggedIn={isLoggedIn}
+                    startingPrice={servicePricing[normalizeServiceName(s.name)]?.price}
+                    providerCount={servicePricing[normalizeServiceName(s.name)]?.providerCount || 0}
                   />
                 ))}
               </div>
