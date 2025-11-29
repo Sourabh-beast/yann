@@ -2,7 +2,7 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { useRouter } from 'next/navigation';
-import { Search, Star, Clock, MapPin, Filter, Heart, ChevronDown, Sparkles, TrendingUp, Award, Shield, Zap, Calendar, CheckCircle, X, Car } from 'lucide-react';
+import { Search, Star, Clock, MapPin, Filter, Heart, ChevronDown, Sparkles, TrendingUp, Award, Shield, Zap, Calendar, CheckCircle, X, Car, Briefcase } from 'lucide-react';
 
 const servicesData = [
   // Cleaning Services
@@ -59,6 +59,10 @@ const BookingModal = ({ open, onClose, baseService, servicesList = [], onConfirm
   const [driverStartTime, setDriverStartTime] = useState('09:00');
   const [driverEndTime, setDriverEndTime] = useState('19:00');
   const [driverError, setDriverError] = useState('');
+  const [providerOptions, setProviderOptions] = useState([]);
+  const [providerStatus, setProviderStatus] = useState('idle');
+  const [providerError, setProviderError] = useState('');
+  const [selectedProviderId, setSelectedProviderId] = useState(null);
   const isDriverService = baseService?.category === 'driver';
 
   useEffect(() => {
@@ -76,6 +80,10 @@ const BookingModal = ({ open, onClose, baseService, servicesList = [], onConfirm
       setDriverStartTime('09:00');
       setDriverEndTime('19:00');
       setDriverError('');
+      setProviderOptions([]);
+      setProviderStatus('idle');
+      setProviderError('');
+      setSelectedProviderId(null);
       setStatus('idle');
     } else {
       document.body.style.overflow = 'unset';
@@ -168,16 +176,77 @@ const BookingModal = ({ open, onClose, baseService, servicesList = [], onConfirm
     setDriverError(driverPricing?.error || '');
   }, [driverPricing, isDriverService]);
 
+  useEffect(() => {
+    if (!open || !baseService?.name) return;
+    let ignore = false;
+
+    const fetchProviders = async () => {
+      setProviderStatus('loading');
+      setProviderError('');
+      try {
+        const response = await fetch(`/api/provider/by-service?service=${encodeURIComponent(baseService.name)}`);
+        const data = await response.json();
+        if (ignore) return;
+
+        if (!response.ok || data.success === false) {
+          throw new Error(data.message || 'Unable to load partners');
+        }
+
+        const providers = data.providers || [];
+        setProviderOptions(providers);
+        setSelectedProviderId(providers[0]?.id || null);
+        setProviderStatus('loaded');
+
+        if (!providers.length) {
+          setProviderError('Currently no verified partners are available for this service.');
+        }
+      } catch (error) {
+        if (ignore) return;
+        setProviderOptions([]);
+        setProviderStatus('error');
+        setProviderError(error.message || 'Failed to load partners');
+        setSelectedProviderId(null);
+      }
+    };
+
+    fetchProviders();
+
+    return () => {
+      ignore = true;
+    };
+  }, [open, baseService?.name]);
+
   const toggleExtra = (id) => {
     setSelectedExtras(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]);
   };
 
-  const extrasTotal = selectedExtras.reduce((acc, id) => {
-    const s = servicesList.find(x => x.id === id);
-    return acc + (s?.price || 0);
-  }, 0);
+  const handleSelectProvider = (id) => {
+    setSelectedProviderId(id);
+    setErrorMsg('');
+  };
 
-  const basePrice = baseService?.price || 0;
+  const selectedExtrasDetails = useMemo(() => {
+    if (!Array.isArray(selectedExtras) || !Array.isArray(servicesList)) return [];
+    return selectedExtras
+      .map(id => {
+        const matched = servicesList.find(service => service.id === id);
+        if (!matched) return null;
+        return {
+          serviceId: matched.id,
+          serviceName: matched.name,
+          price: matched.price,
+          description: matched.description
+        };
+      })
+      .filter(Boolean);
+  }, [selectedExtras, servicesList]);
+
+  const extrasTotal = selectedExtrasDetails.reduce((acc, extra) => acc + (extra.price || 0), 0);
+
+  const selectedProvider = selectedProviderId ? providerOptions.find(p => p.id === selectedProviderId) : null;
+  const providerPrice = selectedProvider?.price ?? baseService?.price ?? 0;
+
+  const basePrice = providerPrice;
   const driverBaseAmount = isDriverService && driverPricing && !driverPricing.error ? driverPricing.totalPrice : 0;
   const driverBaseCost = isDriverService && driverPricing && !driverPricing.error ? driverPricing.baseCost : 0;
   const driverOvertimeCost = isDriverService && driverPricing && !driverPricing.error ? driverPricing.overtimeCost : 0;
@@ -197,7 +266,14 @@ const BookingModal = ({ open, onClose, baseService, servicesList = [], onConfirm
       }
       return Boolean(selectedTime);
     }
-    if (currentStep === 2) return address.trim() && phone.trim();
+    if (currentStep === 2) {
+      if (!address.trim() || !phone.trim()) return false;
+      if (providerStatus === 'loading') return false;
+      if (providerStatus === 'error') return false;
+      if (!providerOptions.length) return false;
+      if (!selectedProviderId) return false;
+      return true;
+    }
     return false;
   };
 
@@ -215,6 +291,33 @@ const BookingModal = ({ open, onClose, baseService, servicesList = [], onConfirm
       return;
     }
 
+    if (providerStatus === 'loading') {
+      const message = 'Please wait while we load verified partners.';
+      setErrorMsg(message);
+      setStatus('idle');
+      return;
+    }
+
+    if (providerStatus === 'error') {
+      setErrorMsg(providerError || 'Unable to load service partners right now.');
+      setStatus('idle');
+      return;
+    }
+
+    if (!providerOptions.length) {
+      const message = providerError || 'Currently no verified partners are available for this service.';
+      setErrorMsg(message);
+      setStatus('idle');
+      return;
+    }
+
+    if (!selectedProvider) {
+      const message = 'Please choose a service partner to continue.';
+      setErrorMsg(message);
+      setStatus('idle');
+      return;
+    }
+
     const booking = {
       serviceId: baseService?.id || null,
       serviceName: baseService?.name || null,
@@ -224,20 +327,21 @@ const BookingModal = ({ open, onClose, baseService, servicesList = [], onConfirm
       customerName: customer?.name || 'Guest',
       bookingDate: selectedDate?.toISOString(),
       bookingTime: isDriverService ? driverStartTime : selectedTime,
-      basePrice: basePrice,
-      extras: selectedExtras.map(extraId => {
-        const extra = servicesList.find(s => s.id === extraId);
-        return extra ? {
-          serviceId: extra.id,
-          serviceName: extra.name,
-          price: extra.price
-        } : null;
-      }).filter(Boolean),
+      basePrice: providerPrice,
+      extras: selectedExtrasDetails,
       totalPrice: totalPrice,
       paymentMethod: isDriverService ? 'online' : billingType,
       billingType: isDriverService ? 'hourly' : billingType,
       quantity: isDriverService ? (driverSelectedHours || 1) : quantity,
-      notes: notes.trim()
+      notes: notes.trim(),
+      providerId: selectedProvider.id,
+      providerName: selectedProvider.name,
+      priceBreakdown: {
+        base: providerPrice,
+        extras: extrasTotal,
+        driverBaseAmount,
+        driverOvertimeCost
+      }
     };
 
     if (customer?.role === 'homeowner' && customer?.id) {
@@ -310,6 +414,10 @@ const BookingModal = ({ open, onClose, baseService, servicesList = [], onConfirm
                 <div className="flex justify-between">
                   <span className="text-gray-600">Service</span>
                   <span className="font-semibold text-gray-900">{baseService?.name}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-gray-600">Partner</span>
+                  <span className="font-semibold text-gray-900">{selectedProvider?.name || '—'}</span>
                 </div>
                 <div className="flex justify-between">
                   <span className="text-gray-600">Date</span>
@@ -558,10 +666,122 @@ const BookingModal = ({ open, onClose, baseService, servicesList = [], onConfirm
                         <Star className="w-4 h-4 text-yellow-500 fill-yellow-500" />
                         {baseService?.rating}
                       </span>
-                      <span className="font-bold text-blue-600">{currency.format(baseService?.price)}</span>
+                      <span className="font-bold text-blue-600">{selectedProvider ? currency.format(providerPrice) : `from ${currency.format(baseService?.price || 0)}`}</span>
                     </div>
+                    {selectedProvider && (
+                      <p className="text-xs text-gray-500 mt-2">Selected partner: <span className="font-semibold text-gray-800">{selectedProvider.name}</span></p>
+                    )}
                   </div>
                 </div>
+              </div>
+
+              <div className="space-y-4">
+                <div className="flex items-center gap-2">
+                  <Briefcase className="w-5 h-5 text-blue-600" />
+                  <h4 className="text-lg font-bold text-gray-900">Choose Your Service Partner</h4>
+                </div>
+
+                {providerStatus === 'loading' && (
+                  <div className="space-y-3">
+                    {[0,1,2].map(idx => (
+                      <div key={idx} className="p-5 border-2 border-gray-200 rounded-2xl bg-white/70 animate-pulse">
+                        <div className="h-5 bg-gray-200 rounded w-1/3 mb-2" />
+                        <div className="h-4 bg-gray-100 rounded w-1/2" />
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                {providerStatus === 'error' && (
+                  <div className="p-4 border-2 border-red-200 rounded-2xl bg-red-50 text-sm font-semibold text-red-700">
+                    {providerError || 'Failed to load partners. Please try again.'}
+                  </div>
+                )}
+
+                {providerStatus === 'loaded' && providerOptions.length === 0 && (
+                  <div className="p-4 border-2 border-amber-200 rounded-2xl bg-amber-50 text-sm font-semibold text-amber-900">
+                    Currently no verified partners are available for this service. Please check back soon.
+                  </div>
+                )}
+
+                {providerOptions.length > 0 && (
+                  <div className="space-y-3">
+                    {providerOptions.map((partner, index) => {
+                      const isSelected = selectedProviderId === partner.id;
+                      const isBestValue = index === 0;
+                      const ratingDisplay = typeof partner.rating === 'number' ? partner.rating.toFixed(1) : partner.rating ?? '—';
+
+                      return (
+                        <button
+                          type="button"
+                          key={partner.id}
+                          onClick={() => handleSelectProvider(partner.id)}
+                          className={`w-full text-left p-5 border-2 rounded-2xl transition-all ${
+                            isSelected
+                              ? 'border-blue-500 bg-blue-50 shadow-lg shadow-blue-500/10'
+                              : 'border-gray-200 hover:border-blue-300 hover:bg-gray-50'
+                          }`}
+                        >
+                          <div className="flex items-start gap-4">
+                            <div className={`w-14 h-14 rounded-2xl flex items-center justify-center text-white font-bold text-xl bg-gradient-to-br ${
+                              isSelected ? 'from-blue-600 to-indigo-600' : 'from-gray-600 to-gray-700'
+                            }`}>
+                              {partner.profileImage ? (
+                                <img src={partner.profileImage} alt={partner.name} className="w-full h-full object-cover rounded-2xl" />
+                              ) : (
+                                <span>{partner.name?.[0] ?? 'P'}</span>
+                              )}
+                            </div>
+                            <div className="flex-1 space-y-1">
+                              <div className="flex flex-wrap items-center gap-2">
+                                <p className="font-semibold text-gray-900 text-lg">{partner.name}</p>
+                                {isBestValue && (
+                                  <span className="px-2 py-0.5 text-xs font-semibold rounded-full bg-emerald-100 text-emerald-700">Best price</span>
+                                )}
+                                {isSelected && (
+                                  <span className="px-2 py-0.5 text-xs font-semibold rounded-full bg-blue-100 text-blue-700 flex items-center gap-1">
+                                    <CheckCircle className="w-3.5 h-3.5" />
+                                    Selected
+                                  </span>
+                                )}
+                              </div>
+                              <div className="flex flex-wrap items-center gap-4 text-sm text-gray-600">
+                                <span className="flex items-center gap-1 text-gray-800">
+                                  <Star className="w-4 h-4 text-yellow-500 fill-yellow-500" />
+                                  <span className="font-semibold">{ratingDisplay}</span>
+                                  {partner.totalReviews ? (
+                                    <span className="text-xs text-gray-500">({partner.totalReviews})</span>
+                                  ) : null}
+                                </span>
+                                {partner.experience ? (
+                                  <span>{partner.experience}+ yrs experience</span>
+                                ) : (
+                                  <span>Verified partner</span>
+                                )}
+                                {partner.workingHours && (
+                                  <span className="flex items-center gap-1">
+                                    <Clock className="w-4 h-4" />
+                                    {partner.workingHours?.startTime && partner.workingHours?.endTime
+                                      ? `${partner.workingHours.startTime} - ${partner.workingHours.endTime}`
+                                      : partner.workingHours}
+                                  </span>
+                                )}
+                              </div>
+                              <div className="flex items-center gap-1 text-xs text-gray-500">
+                                <Shield className="w-4 h-4 text-blue-500" />
+                                Background checked & insured
+                              </div>
+                            </div>
+                            <div className="text-right">
+                              <p className="text-2xl font-bold text-blue-600">{currency.format(partner.price)}</p>
+                              <p className="text-xs text-gray-500">partner quote</p>
+                            </div>
+                          </div>
+                        </button>
+                      );
+                    })}
+                  </div>
+                )}
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -718,6 +938,10 @@ const BookingModal = ({ open, onClose, baseService, servicesList = [], onConfirm
                     <p className="font-semibold">{phone}</p>
                   </div>
                   <div>
+                    <p className="text-blue-100 mb-1">Service Partner</p>
+                    <p className="font-semibold">{selectedProvider?.name || '—'}</p>
+                  </div>
+                  <div>
                     <p className="text-blue-100 mb-1">{isDriverService ? 'Billing' : baseService?.category === 'pujari' ? 'Payment Method' : 'Billing'}</p>
                     <p className="font-semibold">
                       {isDriverService
@@ -758,7 +982,7 @@ const BookingModal = ({ open, onClose, baseService, servicesList = [], onConfirm
                   ) : (
                     <>
                       <div className="flex justify-between text-gray-700">
-                        <span>{baseService?.category === 'pujari' ? 'Pooja Service' : 'Base Service'}</span>
+                        <span>{baseService?.category === 'pujari' ? 'Pooja Service' : 'Partner Quote'}</span>
                         <span className="font-semibold">{currency.format(basePrice)}</span>
                       </div>
                       {baseService?.category !== 'pujari' && billingType === 'monthly' && (
@@ -882,7 +1106,7 @@ const ServiceCard = ({ service, onBook, isFavorite, onToggleFavorite}) => {
 
         {!isActive && (
           <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-            <span className="px-4 py-1.5 rounded-full bg-black/70 text-white text-xs font-semibold uppercase tracking-wider">Inactive</span>
+            <span className="px-4 py-1.5 rounded-full bg-black/70 text-white text-xs font-semibold uppercase tracking-wider">Coming Soon</span>
           </div>
         )}
         
@@ -927,7 +1151,7 @@ const ServiceCard = ({ service, onBook, isFavorite, onToggleFavorite}) => {
                 : 'bg-gray-200 text-gray-600 cursor-not-allowed'
             }`}
           >
-            {isActive ? 'Book Now' : 'Inactive'}
+            {isActive ? 'Book Now' : 'Coming Soon'}
           </button>
         </div>
       </div>

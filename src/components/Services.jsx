@@ -178,7 +178,7 @@ const Services = () => {
               >
                 {!isActive && (
                   <div className="absolute top-4 left-4 z-10 px-3 py-1 text-xs font-semibold uppercase tracking-wide bg-gray-900 text-white rounded-full">
-                    Inactive
+                    Coming Soon
                   </div>
                 )}
 
@@ -237,7 +237,7 @@ const Services = () => {
                     </Link>
                   ) : (
                     <span className="px-6 py-3 bg-gray-200 text-gray-600 rounded-xl font-semibold cursor-not-allowed">
-                      Inactive
+                      Coming Soon
                     </span>
                   )}
                 </div>

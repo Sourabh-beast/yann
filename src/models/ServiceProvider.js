@@ -59,6 +59,31 @@ const serviceProviderSchema = new mongoose.Schema({
     }
   },
 
+  // Per-service pricing
+  serviceRates: {
+    type: [{
+      serviceName: {
+        type: String,
+        required: true,
+        trim: true
+      },
+      price: {
+        type: Number,
+        required: true,
+        min: [0, 'Price cannot be negative']
+      }
+    }],
+    default: [],
+    validate: {
+      validator: function (rates) {
+        if (!Array.isArray(rates)) return false;
+        const uniqueNames = new Set(rates.map(rate => rate.serviceName));
+        return uniqueNames.size === rates.length;
+      },
+      message: 'Duplicate service pricing entries are not allowed'
+    }
+  },
+
   // Service Categories
   selectedCategories: {
     type: [String],
@@ -115,6 +140,13 @@ serviceProviderSchema.methods.isAvailableAt = function (time) {
   const endTimeInMinutes = endHours * 60 + endMinutes;
 
   return timeInMinutes >= startTimeInMinutes && timeInMinutes <= endTimeInMinutes;
+};
+
+serviceProviderSchema.methods.getPriceForService = function (serviceName) {
+  if (!serviceName || !Array.isArray(this.serviceRates)) return null;
+  const normalized = serviceName.trim().toLowerCase();
+  const entry = this.serviceRates.find(rate => rate.serviceName?.trim().toLowerCase() === normalized);
+  return entry ? entry.price : null;
 };
 
 export default mongoose.models.ServiceProvider || mongoose.model('ServiceProvider', serviceProviderSchema);

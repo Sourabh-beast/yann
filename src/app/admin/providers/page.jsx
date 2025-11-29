@@ -148,7 +148,7 @@ export default function ProvidersPage() {
             >
               <option value="">All Status</option>
               <option value="active">Active</option>
-              <option value="inactive">Inactive</option>
+              <option value="inactive">Coming Soon</option>
               <option value="pending">Pending</option>
             </select>
             <select
@@ -214,7 +214,7 @@ export default function ProvidersPage() {
                       </td>
                       <td className="py-4 px-6">
                         <span className={`px-3 py-1 rounded-full text-xs font-semibold ${getStatusClass(provider.status)}`}>
-                          {provider.status}
+                          {getStatusLabel(provider.status)}
                         </span>
                       </td>
                       <td className="py-4 px-6">
@@ -301,4 +301,11 @@ function getStatusClass(status) {
     pending: 'bg-yellow-100 text-yellow-700'
   };
   return classes[status] || 'bg-gray-100 text-gray-700';
+}
+
+function getStatusLabel(status) {
+  if (status === 'inactive') return 'Coming Soon';
+  if (status === 'active') return 'Active';
+  if (status === 'pending') return 'Pending';
+  return status;
 }
