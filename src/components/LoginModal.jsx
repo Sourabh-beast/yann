@@ -31,19 +31,25 @@ const formatTimer = (seconds) => {
   return `${minutes}:${remainingSeconds}`;
 };
 
-export default function LoginModal({ isOpen, onClose, onLoginSuccess, defaultPanel = "partner" }) {
+export default function LoginModal({ isOpen, onClose, onLoginSuccess, defaultPanel = "partner", intent = "login" }) {
   const router = useRouter();
   const [partnerForm, setPartnerForm] = useState(partnerInitialState);
-  const [residentForm, setResidentForm] = useState(residentInitialState);
+  const [residentForm, setResidentForm] = useState(() => ({
+    ...residentInitialState(),
+    mode: intent === "signup" ? "signup" : "login",
+  }));
   const [activePanel, setActivePanel] = useState(defaultPanel);
 
   useEffect(() => {
     if (!isOpen) {
       setPartnerForm(partnerInitialState());
-      setResidentForm(residentInitialState());
+      setResidentForm({
+        ...residentInitialState(),
+        mode: intent === "signup" ? "signup" : "login",
+      });
       setActivePanel(defaultPanel);
     }
-  }, [isOpen, defaultPanel]);
+  }, [isOpen, defaultPanel, intent]);
 
   useEffect(() => {
     if (partnerForm.timer <= 0) return;
@@ -156,12 +162,12 @@ export default function LoginModal({ isOpen, onClose, onLoginSuccess, defaultPan
       return;
     }
 
-    if (residentForm.mode === "signup" && !residentForm.name.trim()) {
+    if (intent === "signup" && !residentForm.name.trim()) {
       alert("Please share your name");
       return;
     }
 
-    if (residentForm.mode === "signup" && residentForm.phone.trim() && !/^[0-9]{10}$/.test(residentForm.phone.trim())) {
+    if (intent === "signup" && residentForm.phone.trim() && !/^[0-9]{10}$/.test(residentForm.phone.trim())) {
       alert("Phone number should be 10 digits");
       return;
     }
@@ -171,10 +177,10 @@ export default function LoginModal({ isOpen, onClose, onLoginSuccess, defaultPan
       const payload = {
         email: residentForm.email,
         audience: "homeowner",
-        intent: residentForm.mode,
+        intent: intent,
       };
 
-      if (residentForm.mode === "signup") {
+      if (intent === "signup") {
         payload.metadata = {
           name: residentForm.name.trim(),
           phone: residentForm.phone.trim(),
@@ -205,7 +211,7 @@ export default function LoginModal({ isOpen, onClose, onLoginSuccess, defaultPan
     } finally {
       setResidentForm((prev) => ({ ...prev, sending: false }));
     }
-  }, [residentForm.email, residentForm.mode, residentForm.name, residentForm.phone]);
+  }, [residentForm.email, intent, residentForm.name, residentForm.phone]);
 
   const verifyResidentOtp = useCallback(async () => {
     if (!residentForm.otp) {
@@ -222,7 +228,7 @@ export default function LoginModal({ isOpen, onClose, onLoginSuccess, defaultPan
           email: residentForm.email,
           otp: residentForm.otp,
           audience: "homeowner",
-          intent: residentForm.mode,
+          intent: intent,
         }),
       });
       const data = await res.json();
@@ -242,7 +248,7 @@ export default function LoginModal({ isOpen, onClose, onLoginSuccess, defaultPan
     } finally {
       setResidentForm((prev) => ({ ...prev, verifying: false }));
     }
-  }, [residentForm.email, residentForm.otp, residentForm.mode, closeModal, onLoginSuccess, router]);
+  }, [residentForm.email, residentForm.otp, intent, closeModal, onLoginSuccess, router]);
 
   const changeResidentMode = useCallback((mode) => {
     setResidentForm((prev) => ({
@@ -261,7 +267,7 @@ export default function LoginModal({ isOpen, onClose, onLoginSuccess, defaultPan
       onClick={closeModal}
     >
       <div 
-        className={`relative w-full ${defaultPanel === "resident" ? "max-w-xl" : "max-w-5xl"} overflow-hidden rounded-3xl border border-white/10 bg-white shadow-2xl`}
+        className={`relative w-full max-w-xl overflow-hidden rounded-3xl border border-white/10 bg-white shadow-2xl`}
         onClick={(e) => e.stopPropagation()}
       >
         <button
@@ -275,9 +281,9 @@ export default function LoginModal({ isOpen, onClose, onLoginSuccess, defaultPan
           </svg>
         </button>
 
-        <div className={`grid ${defaultPanel === "resident" ? "grid-cols-1" : "grid-cols-1 lg:grid-cols-2"}`}>
-          {defaultPanel !== "resident" && (
-            <section className={`relative flex flex-col gap-6 p-8 lg:p-10 ${activePanel === "partner" ? "bg-gradient-to-b from-slate-900 via-slate-900 to-slate-800 text-white" : "bg-slate-900 text-white/80"}`}>
+        <div className="grid grid-cols-1">
+          {defaultPanel === "partner" && (
+            <section className="relative flex flex-col gap-6 p-8 lg:p-10 bg-gradient-to-b from-slate-900 via-slate-900 to-slate-800 text-white">
             <header className="space-y-3">
               <span className="inline-flex items-center gap-2 rounded-full bg-white/10 px-3 py-1 text-xs font-semibold uppercase tracking-widest text-indigo-200">
                 Service Partner
@@ -376,38 +382,27 @@ export default function LoginModal({ isOpen, onClose, onLoginSuccess, defaultPan
           </section>
           )}
 
-          <section className={`relative flex flex-col gap-6 bg-white p-8 lg:p-10 ${activePanel === "resident" ? "shadow-[inset_0_0_0_1px_rgba(79,70,229,0.2)]" : ""}`}>
+          {defaultPanel === "resident" && (
+          <section className="relative flex flex-col gap-6 bg-white p-8 lg:p-10">
             <header className="space-y-3">
               <span className="inline-flex items-center gap-2 rounded-full bg-slate-900/5 px-3 py-1 text-xs font-semibold uppercase tracking-widest text-slate-500">
                 Home Resident
               </span>
-              <h2 className="text-2xl font-semibold text-slate-900 lg:text-3xl">Plan your home services</h2>
+              <h2 className="text-2xl font-semibold text-slate-900 lg:text-3xl">
+                {intent === "login" ? "Welcome back" : "Plan your home services"}
+              </h2>
               <p className="text-sm text-slate-600">
-                Login to track requests, discover curated pros, and manage favorites seamlessly. New to YANN? Create a resident profile in seconds.
+                {intent === "login" 
+                  ? "Login to access your resident space, track requests, and manage your favorites."
+                  : "Create a resident profile in seconds. Track requests, discover curated pros, and manage favorites seamlessly."}
               </p>
             </header>
 
             <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-              <div className="mb-5 flex items-center gap-2 rounded-full bg-slate-100 p-1 text-xs font-semibold uppercase tracking-widest text-slate-500">
-                <button
-                  type="button"
-                  onClick={() => changeResidentMode("login")}
-                  className={`flex-1 rounded-full px-4 py-2 transition ${residentForm.mode === "login" ? "bg-slate-900 text-white shadow" : ""}`}
-                >
-                  I already use YANN
-                </button>
-                <button
-                  type="button"
-                  onClick={() => changeResidentMode("signup")}
-                  className={`flex-1 rounded-full px-4 py-2 transition ${residentForm.mode === "signup" ? "bg-indigo-500 text-white shadow" : ""}`}
-                >
-                  I am new here
-                </button>
-              </div>
 
               {residentForm.step === "email" ? (
                 <div className="space-y-5">
-                  {residentForm.mode === "signup" && (
+                  {intent === "signup" && (
                     <div>
                       <label className="mb-2 block text-xs font-semibold uppercase tracking-widest text-slate-500">Full name</label>
                       <input
@@ -429,7 +424,7 @@ export default function LoginModal({ isOpen, onClose, onLoginSuccess, defaultPan
                       className="w-full rounded-xl border border-slate-200 bg-slate-50 py-3 px-4 text-sm text-slate-900 outline-none transition focus:border-indigo-400 focus:bg-white"
                     />
                   </div>
-                  {residentForm.mode === "signup" && (
+                  {intent === "signup" && (
                     <div>
                       <label className="mb-2 flex items-center justify-between text-xs font-semibold uppercase tracking-widest text-slate-500">
                         <span>Phone (optional)</span>
@@ -448,10 +443,10 @@ export default function LoginModal({ isOpen, onClose, onLoginSuccess, defaultPan
                   <button
                     type="button"
                     onClick={requestResidentOtp}
-                    disabled={residentForm.sending || !residentForm.email || (residentForm.mode === "signup" && !residentForm.name)}
+                    disabled={residentForm.sending || !residentForm.email || (intent === "signup" && !residentForm.name)}
                     className="flex w-full items-center justify-center rounded-xl bg-gradient-to-r from-indigo-500 to-purple-500 py-3 text-sm font-semibold text-white shadow-lg shadow-indigo-200 transition hover:shadow-xl disabled:cursor-not-allowed disabled:opacity-50"
                   >
-                    {residentForm.mode === "signup"
+                    {intent === "signup"
                       ? residentForm.sending ? "Sharing OTP..." : "Create account with OTP"
                       : residentForm.sending ? "Sending OTP..." : "Send login OTP"}
                   </button>
@@ -493,7 +488,7 @@ export default function LoginModal({ isOpen, onClose, onLoginSuccess, defaultPan
                   >
                     {residentForm.verifying
                       ? "Verifying..."
-                      : residentForm.mode === "signup"
+                      : intent === "signup"
                         ? "Create my resident space"
                         : "Access resident space"}
                   </button>
@@ -510,6 +505,7 @@ export default function LoginModal({ isOpen, onClose, onLoginSuccess, defaultPan
               </ul>
             </footer>
           </section>
+          )}
         </div>
 
         <div className="border-t border-slate-100 bg-slate-50 px-6 py-4 text-center text-xs text-slate-500">

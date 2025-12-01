@@ -57,6 +57,18 @@ const servicesData = [
 ];
 
 const currency = new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 });
+const normalizeServiceName = (name = '') => name.trim().toLowerCase();
+const buildPricingMap = (rawPricing = {}) => Object.entries(rawPricing || {}).reduce((acc, [serviceName, info]) => {
+  const key = normalizeServiceName(serviceName);
+  if (!key) return acc;
+  const numericPrice = Number(info?.price);
+  if (!Number.isFinite(numericPrice)) return acc;
+  acc[key] = {
+    price: numericPrice,
+    providerCount: Number(info?.providerCount) || 0
+  };
+  return acc;
+}, {});
 
 const BookingModal = ({ open, onClose, baseService, servicesList = [], onConfirm, customer }) => {
   const [currentStep, setCurrentStep] = useState(1);
@@ -1088,10 +1100,52 @@ const BookingModal = ({ open, onClose, baseService, servicesList = [], onConfirm
   );
 };
 
-const ServiceCard = ({ service, onBook, isFavorite, onToggleFavorite}) => {
+const ServiceCard = ({ service, onBook, isFavorite, onToggleFavorite, startingPrice, providerCount }) => {
   const [isHovered, setIsHovered] = useState(false);
+  const [localQuote, setLocalQuote] = useState(null);
+  const [localProviderCount, setLocalProviderCount] = useState(0);
+  const [fetchAttempted, setFetchAttempted] = useState(false);
   const isActive = service.category === 'driver' || service.category === 'pujari';
-  const hasNoPartner = service.noPartner === true;
+
+  useEffect(() => {
+    if (!isActive || fetchAttempted) return;
+
+    let ignore = false;
+    setFetchAttempted(true);
+
+    const loadQuote = async () => {
+      try {
+        const response = await fetch(`/api/provider/by-service?service=${encodeURIComponent(service.name)}`);
+        const data = await response.json();
+        if (ignore) return;
+        if (!response.ok || data.success === false) return;
+        const cheapest = data.providers?.[0];
+        const numericPrice = Number(cheapest?.price);
+        if (!cheapest || !Number.isFinite(numericPrice)) return;
+        setLocalQuote(numericPrice);
+        setLocalProviderCount(data.providers?.length || 0);
+      } catch (error) {
+        console.error(`[MyServices] Failed to fetch pricing for ${service.name}`, error);
+      }
+    };
+
+    loadQuote();
+
+    return () => {
+      ignore = true;
+    };
+  }, [fetchAttempted, isActive, service.name]);
+
+  const sanitizedStartingPrice = Number.isFinite(Number(startingPrice)) ? Number(startingPrice) : null;
+  const sanitizedProviderCount = Number.isFinite(Number(providerCount)) ? Number(providerCount) : 0;
+  const effectiveQuote = sanitizedStartingPrice ?? localQuote;
+  const effectiveProviderCount = sanitizedProviderCount || localProviderCount;
+  const hasPartnerQuote = typeof effectiveQuote === 'number' && Number.isFinite(effectiveQuote) && effectiveQuote >= 0;
+  const displayPrice = hasPartnerQuote ? effectiveQuote : service.price;
+  const partnerCountLabel = hasPartnerQuote
+    ? (effectiveProviderCount > 0 ? `${effectiveProviderCount} partner${effectiveProviderCount > 1 ? 's' : ''}` : 'Verified partner quote')
+    : 'per session';
+  const hasNoPartner = fetchAttempted ? effectiveProviderCount === 0 : service.noPartner === true;
 
   const handleBook = () => {
     if (!isActive || hasNoPartner) return;
@@ -1170,8 +1224,9 @@ const ServiceCard = ({ service, onBook, isFavorite, onToggleFavorite}) => {
               </>
             ) : (
               <>
-                <div className="text-3xl font-bold bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">{currency.format(service.price)}</div>
-                <p className="text-xs text-gray-500 mt-0.5">per session</p>
+                <div className="text-sm font-semibold text-gray-600">{hasPartnerQuote ? 'Starting from' : 'Base price'}</div>
+                <div className="text-3xl font-bold bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">{currency.format(displayPrice)}</div>
+                <p className="text-xs text-gray-500 mt-0.5">{partnerCountLabel}</p>
               </>
             )}
           </div>
@@ -1204,6 +1259,7 @@ export default function MyServicesPage() {
   const [favorites, setFavorites] = useState([]);
   const [bookingOpen, setBookingOpen] = useState(false);
   const [bookingService, setBookingService] = useState(null);
+  const [servicePricing, setServicePricing] = useState({});
 
   useEffect(() => {
     // Redirect if not logged in
@@ -1211,6 +1267,77 @@ export default function MyServicesPage() {
       router.push('/');
     }
   }, [loading, isLoggedIn, router]);
+
+  useEffect(() => {
+    let ignore = false;
+
+    const fetchIndividualFallback = async (serviceNames) => {
+      const results = {};
+      for (const name of serviceNames) {
+        try {
+          const response = await fetch(`/api/provider/by-service?service=${encodeURIComponent(name)}`);
+          const data = await response.json();
+          if (!response.ok || data.success === false) continue;
+          const cheapest = data.providers?.[0];
+          const numericPrice = Number(cheapest?.price);
+          if (!cheapest || !Number.isFinite(numericPrice)) continue;
+          results[name] = {
+            price: numericPrice,
+            providerCount: data.providers?.length || 0
+          };
+        } catch (error) {
+          console.warn('Fallback pricing fetch failed for', name, error);
+        }
+      }
+      return results;
+    };
+
+    const fetchServicePricing = async () => {
+      const uniqueServices = [...new Set(servicesData.map(service => service.name).filter(Boolean))];
+      if (!uniqueServices.length) return;
+
+      try {
+        const response = await fetch('/api/provider/pricing', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({ services: uniqueServices })
+        });
+
+        const data = await response.json();
+        if (ignore) return;
+
+        if (!response.ok || data.success === false) {
+          throw new Error(data.message || 'Unable to load service pricing');
+        }
+
+        if (data.pricing && Object.keys(data.pricing).length > 0) {
+          setServicePricing(buildPricingMap(data.pricing));
+          return;
+        }
+
+        const fallbackResults = await fetchIndividualFallback(uniqueServices);
+        if (!ignore) {
+          setServicePricing(buildPricingMap(fallbackResults));
+        }
+      } catch (error) {
+        if (!ignore) {
+          console.error('Failed to load provider pricing, using fallback', error);
+          const fallbackResults = await fetchIndividualFallback(uniqueServices);
+          if (!ignore) {
+            setServicePricing(buildPricingMap(fallbackResults));
+          }
+        }
+      }
+    };
+
+    fetchServicePricing();
+
+    return () => {
+      ignore = true;
+    };
+  }, []);
 
   const handleBook = (service) => {
     setBookingService(service);
@@ -1480,6 +1607,8 @@ export default function MyServicesPage() {
                     onBook={handleBook}
                     isFavorite={favorites.includes(s.id)}
                     onToggleFavorite={toggleFavorite}
+                    startingPrice={servicePricing[normalizeServiceName(s.name)]?.price}
+                    providerCount={servicePricing[normalizeServiceName(s.name)]?.providerCount || 0}
                   />
                 ))}
               </div>

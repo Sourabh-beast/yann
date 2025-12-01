@@ -26,6 +26,10 @@ export default function Navbar() {
   const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
   const [isLogoutConfirmOpen, setIsLogoutConfirmOpen] = useState(false);
   const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
+  const [isSignupChoiceOpen, setIsSignupChoiceOpen] = useState(false);
+  const [isLoginChoiceOpen, setIsLoginChoiceOpen] = useState(false);
+  const [loginType, setLoginType] = useState('partner'); // 'partner' or 'member'
+  const [loginIntent, setLoginIntent] = useState('login'); // 'login' or 'signup'
   const sessionRequestIdRef = useRef(0);
   const userMenuRef = useRef(null);
   const isActiveLink = useCallback((href, options = {}) => {
@@ -145,6 +149,45 @@ export default function Navbar() {
   }, [fetchSession, resetUserSession]);
 
   const toggleMenu = () => setIsMenuOpen((prev) => !prev);
+
+  const openSignupChoice = () => {
+    setIsSignupChoiceOpen(true);
+    setIsMenuOpen(false);
+  };
+  const closeSignupChoice = () => setIsSignupChoiceOpen(false);
+
+  const openLoginChoice = () => {
+    setIsLoginChoiceOpen(true);
+    setIsMenuOpen(false);
+  };
+  const closeLoginChoice = () => setIsLoginChoiceOpen(false);
+
+  const handleLoginAsPartner = () => {
+    setIsLoginChoiceOpen(false);
+    setLoginType('partner');
+    setLoginIntent('login');
+    setIsLoginModalOpen(true);
+  };
+
+  const handleLoginAsMember = () => {
+    setIsLoginChoiceOpen(false);
+    setLoginType('member');
+    setLoginIntent('login');
+    setIsLoginModalOpen(true);
+  };
+
+  const handleSignupAsPartner = () => {
+    setIsSignupChoiceOpen(false);
+    setIsRegistrationModalOpen(true);
+  };
+
+  const handleSignupAsMember = () => {
+    setIsSignupChoiceOpen(false);
+    setLoginType('member');
+    setLoginIntent('signup');
+    setIsLoginModalOpen(true);
+  };
+
   const openRegistrationModal = () => {
     setIsRegistrationModalOpen(true);
     setIsMenuOpen(false);
@@ -279,18 +322,18 @@ export default function Navbar() {
 
                   {/* Login Button */}
                   <button
-                    onClick={openLoginModal}
+                    onClick={openLoginChoice}
                     className="text-blue-600 border border-blue-600 px-6 py-2.5 rounded-full font-medium transition-all duration-300 hover:bg-blue-600 hover:text-white"
                   >
                     Login
                   </button>
 
-                  {/* Partner Registration Button */}
+                  {/* Sign Up Button */}
                   <button
-                    onClick={openRegistrationModal}
+                    onClick={openSignupChoice}
                     className="bg-gradient-to-r from-blue-600 to-purple-600 text-white px-6 py-2.5 rounded-full font-medium transition-all duration-300 hover:shadow-lg hover:shadow-blue-500/25 hover:-translate-y-0.5"
                   >
-                    Partner Registration
+                    Sign Up
                   </button>
                 </>
               ) : (
@@ -479,18 +522,18 @@ export default function Navbar() {
 
                   {/* Mobile Login Button */}
                   <button
-                    onClick={openLoginModal}
+                    onClick={openLoginChoice}
                     className="block w-full text-center text-blue-600 border border-blue-600 px-6 py-2.5 rounded-full font-medium transition-all duration-300 hover:bg-blue-600 hover:text-white"
                   >
                     Login
                   </button>
 
-                  {/* Partner Registration Button */}
+                  {/* Sign Up Button */}
                   <button
-                    onClick={openRegistrationModal}
+                    onClick={openSignupChoice}
                     className="bg-gradient-to-r from-blue-500 to-purple-600 text-white px-6 py-2.5 rounded-full font-medium transition-all duration-300 hover:shadow-lg hover:shadow-blue-500/25 mt-2"
                   >
-                    Partner Registration
+                    Sign Up
                   </button>
                 </>
               ) : (
@@ -609,6 +652,8 @@ export default function Navbar() {
             onLoginSuccess={() => {
               fetchSession();
             }}
+            defaultPanel={loginType === 'member' ? 'resident' : 'partner'}
+            intent={loginIntent}
           />
         </div>
       )}
@@ -624,6 +669,152 @@ export default function Navbar() {
             }, 0);
           }}
         />
+      )}
+
+      {/* Login Choice Modal */}
+      {isLoginChoiceOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm px-4">
+          <div className="w-full max-w-md rounded-3xl bg-white p-8 shadow-2xl animate-in zoom-in-95 duration-200">
+            <div className="flex items-center justify-between mb-6">
+              <h3 className="text-xl font-bold text-gray-900">Welcome Back</h3>
+              <button
+                onClick={closeLoginChoice}
+                className="p-2 rounded-full hover:bg-gray-100 transition-colors"
+              >
+                <svg className="w-5 h-5 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+            <p className="text-gray-600 mb-6">How would you like to login?</p>
+            
+            <div className="space-y-4">
+              {/* Login as Partner */}
+              <button
+                onClick={handleLoginAsPartner}
+                className="w-full flex items-center gap-4 p-4 rounded-2xl border-2 border-gray-200 hover:border-blue-500 hover:bg-blue-50 transition-all duration-300 group"
+              >
+                <div className="flex-shrink-0 w-12 h-12 rounded-xl bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center">
+                  <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 13.255A23.931 23.931 0 0112 15c-3.183 0-6.22-.62-9-1.745M16 6V4a2 2 0 00-2-2h-4a2 2 0 00-2 2v2m4 6h.01M5 20h14a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                  </svg>
+                </div>
+                <div className="flex-1 text-left">
+                  <h4 className="font-semibold text-gray-900 group-hover:text-blue-600 transition-colors">Login as Partner</h4>
+                  <p className="text-sm text-gray-500">Access your service provider dashboard</p>
+                </div>
+                <svg className="w-5 h-5 text-gray-400 group-hover:text-blue-600 transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                </svg>
+              </button>
+
+              {/* Login as Member */}
+              <button
+                onClick={handleLoginAsMember}
+                className="w-full flex items-center gap-4 p-4 rounded-2xl border-2 border-gray-200 hover:border-purple-500 hover:bg-purple-50 transition-all duration-300 group"
+              >
+                <div className="flex-shrink-0 w-12 h-12 rounded-xl bg-gradient-to-br from-purple-500 to-pink-600 flex items-center justify-center">
+                  <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
+                  </svg>
+                </div>
+                <div className="flex-1 text-left">
+                  <h4 className="font-semibold text-gray-900 group-hover:text-purple-600 transition-colors">Login as Member</h4>
+                  <p className="text-sm text-gray-500">Access your resident account</p>
+                </div>
+                <svg className="w-5 h-5 text-gray-400 group-hover:text-purple-600 transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                </svg>
+              </button>
+            </div>
+
+            <p className="mt-6 text-center text-sm text-gray-500">
+              Don't have an account?{' '}
+              <button
+                onClick={() => {
+                  setIsLoginChoiceOpen(false);
+                  setIsSignupChoiceOpen(true);
+                }}
+                className="text-blue-600 font-semibold hover:underline"
+              >
+                Sign Up
+              </button>
+            </p>
+          </div>
+        </div>
+      )}
+
+      {/* Sign Up Choice Modal */}
+      {isSignupChoiceOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm px-4">
+          <div className="w-full max-w-md rounded-3xl bg-white p-8 shadow-2xl animate-in zoom-in-95 duration-200">
+            <div className="flex items-center justify-between mb-6">
+              <h3 className="text-xl font-bold text-gray-900">Join YANN</h3>
+              <button
+                onClick={closeSignupChoice}
+                className="p-2 rounded-full hover:bg-gray-100 transition-colors"
+              >
+                <svg className="w-5 h-5 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+            <p className="text-gray-600 mb-6">Choose how you want to join our platform</p>
+            
+            <div className="space-y-4">
+              {/* Sign up as Partner */}
+              <button
+                onClick={handleSignupAsPartner}
+                className="w-full flex items-center gap-4 p-4 rounded-2xl border-2 border-gray-200 hover:border-blue-500 hover:bg-blue-50 transition-all duration-300 group"
+              >
+                <div className="flex-shrink-0 w-12 h-12 rounded-xl bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center">
+                  <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 13.255A23.931 23.931 0 0112 15c-3.183 0-6.22-.62-9-1.745M16 6V4a2 2 0 00-2-2h-4a2 2 0 00-2 2v2m4 6h.01M5 20h14a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                  </svg>
+                </div>
+                <div className="flex-1 text-left">
+                  <h4 className="font-semibold text-gray-900 group-hover:text-blue-600 transition-colors">Sign up as Partner</h4>
+                  <p className="text-sm text-gray-500">Offer your services and grow your business</p>
+                </div>
+                <svg className="w-5 h-5 text-gray-400 group-hover:text-blue-600 transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                </svg>
+              </button>
+
+              {/* Sign up as Member */}
+              <button
+                onClick={handleSignupAsMember}
+                className="w-full flex items-center gap-4 p-4 rounded-2xl border-2 border-gray-200 hover:border-purple-500 hover:bg-purple-50 transition-all duration-300 group"
+              >
+                <div className="flex-shrink-0 w-12 h-12 rounded-xl bg-gradient-to-br from-purple-500 to-pink-600 flex items-center justify-center">
+                  <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
+                  </svg>
+                </div>
+                <div className="flex-1 text-left">
+                  <h4 className="font-semibold text-gray-900 group-hover:text-purple-600 transition-colors">Sign up as Member</h4>
+                  <p className="text-sm text-gray-500">Book services for your home easily</p>
+                </div>
+                <svg className="w-5 h-5 text-gray-400 group-hover:text-purple-600 transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                </svg>
+              </button>
+            </div>
+
+            <p className="mt-6 text-center text-sm text-gray-500">
+              Already have an account?{' '}
+              <button
+                onClick={() => {
+                  setIsSignupChoiceOpen(false);
+                  setIsLoginModalOpen(true);
+                }}
+                className="text-blue-600 font-semibold hover:underline"
+              >
+                Login
+              </button>
+            </p>
+          </div>
+        </div>
       )}
 
       {isLogoutConfirmOpen && (
