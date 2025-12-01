@@ -154,8 +154,6 @@ const BookingModal = ({ open, onClose, baseService, servicesList = [], onConfirm
     };
   }, [open, baseService?.name]);
 
-  if (!open) return null;
-
   const isDriverService = baseService?.category === 'driver';
   const selectedProvider = selectedProviderId ? providerOptions.find(p => p.id === selectedProviderId) : null;
   const providerPrice = selectedProvider?.price ?? baseService?.price ?? 0;
@@ -218,6 +216,8 @@ const BookingModal = ({ open, onClose, baseService, servicesList = [], onConfirm
       setDriverError('');
     }
   }, [driverPricing, isDriverService]);
+
+  if (!open) return null;
 
   const generateTimeSlots = () => {
     const slots = [];

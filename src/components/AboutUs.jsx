@@ -1,6 +1,11 @@
 "use client";
 
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useState, useRef, useMemo } from "react";
+
+const seededRandom = (seed) => {
+  const x = Math.sin(seed) * 10000;
+  return x - Math.floor(x);
+};
 
 export default function AboutUs() {
   const [isVisible, setIsVisible] = useState(false);
@@ -87,6 +92,21 @@ export default function AboutUs() {
     { value: "500+", label: "Cities Covered", icon: "🌍" }
   ];
 
+  const particleConfigs = useMemo(() => (
+    Array.from({ length: 15 }, (_, i) => {
+      const left = seededRandom(i * 1.37) * 100;
+      const top = seededRandom(i * 2.11 + 5) * 100;
+      const duration = 15 + seededRandom(i * 3.17 + 11) * 10;
+      const delay = seededRandom(i * 4.03 + 23) * 5;
+      return {
+        left: `${left}%`,
+        top: `${top}%`,
+        duration,
+        delay
+      };
+    })
+  ), []);
+
   return (
     <section 
       ref={sectionRef}
@@ -123,15 +143,15 @@ export default function AboutUs() {
         />
 
         {/* Floating particles */}
-        {[...Array(15)].map((_, i) => (
+        {particleConfigs.map((config, i) => (
           <div
             key={i}
             className="absolute w-1 h-1 bg-gradient-to-r from-blue-400 to-purple-400 rounded-full opacity-30"
             style={{
-              left: `${Math.random() * 100}%`,
-              top: `${Math.random() * 100}%`,
-              animation: `float-particle ${15 + Math.random() * 10}s linear infinite`,
-              animationDelay: `${Math.random() * 5}s`,
+              left: config.left,
+              top: config.top,
+              animation: `float-particle ${config.duration}s linear infinite`,
+              animationDelay: `${config.delay}s`,
             }}
           />
         ))}
