@@ -2,7 +2,7 @@
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { Users, Briefcase, ClipboardList, Activity, Menu, X, Search, Filter, CheckCircle, XCircle, Clock, LogOut, Eye, Phone, Mail, MapPin, IndianRupee } from 'lucide-react';
+import { Users, Briefcase, ClipboardList, Activity, Menu, X, Search, Filter, CheckCircle, XCircle, Clock, LogOut, Eye, Phone, Mail, MapPin, IndianRupee, AlertCircle, Plus } from 'lucide-react';
 
 export default function ProvidersPage() {
   const router = useRouter();
@@ -60,6 +60,42 @@ export default function ProvidersPage() {
       }
     } catch (error) {
       console.error('Error updating provider:', error);
+    }
+  };
+
+  const approveServiceRequest = async (providerId) => {
+    try {
+      const res = await fetch('/api/admin/providers/approve-service', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ providerId })
+      });
+      const data = await res.json();
+      if (data.success) {
+        fetchProviders();
+        setDetailModalOpen(false);
+        setSelectedProvider(null);
+      }
+    } catch (error) {
+      console.error('Error approving service request:', error);
+    }
+  };
+
+  const rejectServiceRequest = async (providerId) => {
+    try {
+      const res = await fetch('/api/admin/providers/reject-service', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ providerId })
+      });
+      const data = await res.json();
+      if (data.success) {
+        fetchProviders();
+        setDetailModalOpen(false);
+        setSelectedProvider(null);
+      }
+    } catch (error) {
+      console.error('Error rejecting service request:', error);
     }
   };
 
@@ -373,11 +409,55 @@ export default function ProvidersPage() {
                 </div>
               </div>
 
+              {/* Pending Service Request */}
+              {selectedProvider.pendingServiceRequest && selectedProvider.pendingServiceRequest.addedServices && selectedProvider.pendingServiceRequest.addedServices.length > 0 && (
+                <div className="mb-6">
+                  <h4 className="text-lg font-semibold text-amber-700 mb-3 flex items-center gap-2">
+                    <AlertCircle className="w-5 h-5 text-amber-600" />
+                    Pending Service Request
+                  </h4>
+                  <div className="bg-gradient-to-br from-amber-50 to-orange-50 rounded-xl p-4 border border-amber-200">
+                    <div className="mb-3 text-sm text-amber-700">
+                      <Clock className="w-4 h-4 inline mr-1" />
+                      Requested on: {selectedProvider.pendingServiceRequest.requestedAt ? new Date(selectedProvider.pendingServiceRequest.requestedAt).toLocaleDateString('en-IN', { dateStyle: 'medium' }) : 'N/A'}
+                    </div>
+                    <p className="text-sm text-gray-600 mb-3">New services requesting approval:</p>
+                    <div className="grid grid-cols-1 gap-3 mb-4">
+                      {selectedProvider.pendingServiceRequest.addedRates?.map((rate, idx) => (
+                        <div key={idx} className="flex items-center justify-between p-3 bg-white rounded-lg shadow-sm border border-amber-200">
+                          <div className="flex items-center gap-2">
+                            <Plus className="w-4 h-4 text-amber-600" />
+                            <span className="font-medium text-gray-800">{rate.serviceName}</span>
+                          </div>
+                          <span className="text-lg font-bold text-green-600">₹{rate.price?.toLocaleString('en-IN')}</span>
+                        </div>
+                      ))}
+                    </div>
+                    <div className="flex gap-3">
+                      <button
+                        onClick={() => approveServiceRequest(selectedProvider._id)}
+                        className="flex-1 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors font-medium flex items-center justify-center gap-2"
+                      >
+                        <CheckCircle className="w-4 h-4" />
+                        Approve Services
+                      </button>
+                      <button
+                        onClick={() => rejectServiceRequest(selectedProvider._id)}
+                        className="flex-1 px-4 py-2 bg-red-100 text-red-700 rounded-lg hover:bg-red-200 transition-colors font-medium flex items-center justify-center gap-2"
+                      >
+                        <XCircle className="w-4 h-4" />
+                        Reject Services
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              )}
+
               {/* Services & Pricing */}
               <div className="mb-6">
                 <h4 className="text-lg font-semibold text-gray-900 mb-3 flex items-center gap-2">
                   <IndianRupee className="w-5 h-5 text-green-600" />
-                  Services & Pricing
+                  Current Services & Pricing
                 </h4>
                 {selectedProvider.serviceRates && selectedProvider.serviceRates.length > 0 ? (
                   <div className="bg-gradient-to-br from-green-50 to-blue-50 rounded-xl p-4">

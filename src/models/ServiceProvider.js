@@ -103,6 +103,30 @@ const serviceProviderSchema = new mongoose.Schema({
     default: 'pending'
   },
 
+  // Pending service request (for admin approval)
+  pendingServiceRequest: {
+    addedServices: {
+      type: [String],
+      default: []
+    },
+    addedRates: {
+      type: [{
+        serviceName: String,
+        price: Number
+      }],
+      default: []
+    },
+    previousStatus: {
+      type: String,
+      enum: ['active', 'inactive', 'pending', null],
+      default: null
+    },
+    requestedAt: {
+      type: Date,
+      default: null
+    }
+  },
+
   // Ratings
   rating: {
     type: Number,

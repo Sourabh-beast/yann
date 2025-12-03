@@ -22,10 +22,13 @@ const clearSessionResponse = (message) => {
 };
 
 const sanitizeProvider = (provider) => ({
+  _id: provider._id.toString(),
   id: provider._id.toString(),
   name: provider.name,
   email: provider.email,
   services: provider.services,
+  serviceRates: provider.serviceRates || [],
+  selectedCategories: provider.selectedCategories || [],
   status: provider.status,
   rating: provider.rating,
   totalReviews: provider.totalReviews,
@@ -33,6 +36,7 @@ const sanitizeProvider = (provider) => ({
   phone: provider.phone,
   workingHours: provider.workingHours || null,
   profileImage: provider.profileImage || '',
+  pendingServiceRequest: provider.pendingServiceRequest || null,
 });
 
 export async function GET() {
