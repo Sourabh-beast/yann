@@ -144,9 +144,15 @@ export default function LoginModal({ isOpen, onClose, onLoginSuccess, defaultPan
       }
       alert(data.message || "Login successful");
       setPartnerForm(partnerInitialState());
-      closeModal();
-      onLoginSuccess?.({ type: "provider", profile: data.provider });
+      
+      // First dispatch refresh event and call success callback
       window.dispatchEvent(new Event("auth:refresh"));
+      onLoginSuccess?.({ type: "provider", profile: data.provider });
+      
+      // Small delay to allow session to be fetched before navigation
+      await new Promise(resolve => setTimeout(resolve, 100));
+      
+      closeModal();
       router.push("/dashboard");
       router.refresh();
     } catch (error) {
@@ -238,9 +244,15 @@ export default function LoginModal({ isOpen, onClose, onLoginSuccess, defaultPan
       }
       alert(data.message || "Welcome back");
       setResidentForm(residentInitialState());
-      closeModal();
-      onLoginSuccess?.({ type: "resident", profile: data.homeowner });
+      
+      // First dispatch refresh event and call success callback
       window.dispatchEvent(new Event("auth:refresh"));
+      onLoginSuccess?.({ type: "resident", profile: data.homeowner });
+      
+      // Small delay to allow session to be fetched before navigation
+      await new Promise(resolve => setTimeout(resolve, 100));
+      
+      closeModal();
       router.push("/resident");
       router.refresh();
     } catch (error) {

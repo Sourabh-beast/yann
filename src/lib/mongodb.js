@@ -19,7 +19,7 @@ const connectDB = async () => {
 
   if (!cached.promise) {
     const opts = {
-      dbName: "ServiceDB",
+      dbName: "YannDB",
       bufferCommands: false,
       maxPoolSize: 10,
       serverSelectionTimeoutMS: 10000,
