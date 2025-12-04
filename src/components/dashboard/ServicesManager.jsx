@@ -252,7 +252,20 @@ function AddServiceModal({ isOpen, onClose, existingServices, providerId, onSucc
                     onClick={() => toggleCategory(category)}
                     className="w-full flex items-center justify-between p-4 bg-gray-50 hover:bg-gray-100 transition-colors"
                   >
-                    <span className="font-semibold text-gray-900">{category}</span>
+                    <div className="flex items-center gap-3">
+                      <div 
+                        className="w-5 h-5 border-2 border-gray-300 rounded flex items-center justify-center bg-white"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          toggleCategory(category);
+                        }}
+                      >
+                        {expandedCategories.includes(category) && (
+                          <CheckCircle className="w-4 h-4 text-purple-600" />
+                        )}
+                      </div>
+                      <span className="font-semibold text-gray-900">{category}</span>
+                    </div>
                     {expandedCategories.includes(category) ? (
                       <ChevronUp className="w-5 h-5 text-gray-500" />
                     ) : (
@@ -298,26 +311,37 @@ function AddServiceModal({ isOpen, onClose, existingServices, providerId, onSucc
               <p className="text-sm text-gray-600 mb-4">
                 Enter your rate for each selected service.
               </p>
-              {selectedServices.map(service => (
-                <div key={service} className="flex items-center gap-4 p-4 bg-gray-50 rounded-xl">
-                  <div className="flex-1">
-                    <p className="font-medium text-gray-900">{service}</p>
-                  </div>
-                  <div className="relative">
-                    <div className="absolute left-3 top-1/2 -translate-y-1/2">
-                      <IndianRupee className="w-4 h-4 text-gray-400" />
+              {selectedServices.map(service => {
+                const isDriverService = categorizedServices['Driver Services']?.includes(service);
+                return (
+                  <div key={service} className="flex items-center gap-4 p-4 bg-gray-50 rounded-xl">
+                    <div className="flex-1">
+                      <p className="font-medium text-gray-900">{service}</p>
+                      {isDriverService && (
+                        <p className="text-xs text-orange-600 font-medium">Hourly rate</p>
+                      )}
                     </div>
-                    <input
-                      type="number"
-                      min="0"
-                      placeholder="Enter rate"
-                      value={servicePricing[service] || ''}
-                      onChange={(e) => handlePriceChange(service, e.target.value)}
-                      className="w-32 pl-8 pr-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
-                    />
+                    <div className="relative flex items-center gap-2">
+                      <div className="relative">
+                        <div className="absolute left-3 top-1/2 -translate-y-1/2">
+                          <IndianRupee className="w-4 h-4 text-gray-400" />
+                        </div>
+                        <input
+                          type="number"
+                          min="0"
+                          placeholder={isDriverService ? "Per hour" : "Enter rate"}
+                          value={servicePricing[service] || ''}
+                          onChange={(e) => handlePriceChange(service, e.target.value)}
+                          className="w-32 pl-8 pr-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
+                        />
+                      </div>
+                      {isDriverService && (
+                        <span className="text-xs font-bold text-orange-600 bg-orange-50 px-2 py-1 rounded-full whitespace-nowrap">/hr</span>
+                      )}
+                    </div>
                   </div>
-                </div>
-              ))}
+                );
+              })}
 
               {/* 24hr notice */}
               <div className="mt-6 p-4 bg-amber-50 border border-amber-200 rounded-xl">
@@ -482,6 +506,7 @@ export default function ServicesManager() {
 
             {activeServices.map((serviceName) => {
               const rate = getServiceRate(serviceName);
+              const isDriverService = categorizedServices['Driver Services']?.includes(serviceName);
               return (
                 <article key={serviceName} className="border border-gray-100 rounded-2xl p-6 shadow-sm bg-gradient-to-br from-white to-purple-50 hover:shadow-md transition-all">
                   <div className="flex items-start justify-between gap-4 mb-3">
@@ -494,6 +519,7 @@ export default function ServicesManager() {
                     <div className="flex items-center gap-1 text-purple-700 font-bold text-xl mb-2">
                       <IndianRupee className="w-5 h-5" />
                       {rate}
+                      {isDriverService && <span className="text-sm font-medium text-orange-600">/hr</span>}
                     </div>
                   )}
                   <p className="text-sm text-gray-600 mb-4">Professional service offering</p>

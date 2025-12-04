@@ -448,10 +448,8 @@ export default function ServiceProviderRegistration({ isOpen, onClose }) {
                           <input
                             type="checkbox"
                             checked={isSelected}
-                            onChange={(e) => {
-                              e.stopPropagation();
-                              toggleCategory(category);
-                            }}
+                            onChange={() => toggleCategory(category)}
+                            onClick={(e) => e.stopPropagation()}
                             className="w-5 h-5 text-green-600 border-gray-300 rounded focus:ring-green-500 transition-transform duration-300 hover:scale-110"
                           />
                           <span className={`font-bold text-lg ${isSelected ? 'text-green-700' : 'text-gray-700'}`}>
@@ -502,13 +500,15 @@ export default function ServiceProviderRegistration({ isOpen, onClose }) {
                                     </div>
                                     {isServiceSelected && servicePrice && (
                                       <span className="text-xs font-bold text-green-700 bg-white/60 px-2 py-0.5 rounded-full">
-                                        ₹{servicePrice}
+                                        ₹{servicePrice}{category === 'Driver Services' ? '/hr' : ''}
                                       </span>
                                     )}
                                   </div>
                                   {isServiceSelected && (
                                     <div className="flex items-center gap-2 pl-7">
-                                      <span className="text-xs font-semibold text-gray-500">Price (₹)</span>
+                                      <span className="text-xs font-semibold text-gray-500">
+                                        {category === 'Driver Services' ? 'Rate (₹/hr)' : 'Price (₹)'}
+                                      </span>
                                       <input
                                         type="number"
                                         min="1"
@@ -516,8 +516,11 @@ export default function ServiceProviderRegistration({ isOpen, onClose }) {
                                         onClick={(e) => e.stopPropagation()}
                                         onChange={(e) => handlePriceChange(service, e.target.value)}
                                         className="flex-1 px-3 py-2 text-sm border-2 border-green-200 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 transition-all duration-300"
-                                        placeholder="Enter your fee"
+                                        placeholder={category === 'Driver Services' ? 'Per hour rate' : 'Enter your fee'}
                                       />
+                                      {category === 'Driver Services' && (
+                                        <span className="text-xs font-bold text-orange-600 bg-orange-50 px-2 py-1 rounded-full whitespace-nowrap">per hour</span>
+                                      )}
                                     </div>
                                   )}
                                 </label>
