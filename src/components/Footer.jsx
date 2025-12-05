@@ -48,7 +48,7 @@ const Footer = () => {
       { name: 'Privacy Policy', href: '/privacy' },
       { name: 'Cookie Policy', href: '/cookies' },
       { name: 'Refund Policy', href: '/refund' },
-      { name: 'Insurance', href: '/insurance' },
+      { name: 'Partner Agreement', href: '/partner-terms' },
     ],
   };
 

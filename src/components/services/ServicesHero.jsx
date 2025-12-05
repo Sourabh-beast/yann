@@ -158,13 +158,15 @@ const BookingModal = ({ open, onClose, baseService, servicesList = [], onConfirm
   const selectedProvider = selectedProviderId ? providerOptions.find(p => p.id === selectedProviderId) : null;
   const providerPrice = selectedProvider?.price ?? baseService?.price ?? 0;
 
+  // For driver services, provider's hourly rate comes directly from their serviceRates
   const driverConfig = useMemo(() => {
     if (!isDriverService) return null;
     const baseHours = baseService?.driverConfig?.baseHours ?? 10;
-    const hourlyRate = baseService?.driverConfig?.hourlyRate ?? (((providerPrice || 0) / baseHours) || 0);
+    // Use provider's actual hourly rate (they set per-hour rate during registration)
+    const hourlyRate = selectedProvider?.price ?? baseService?.driverConfig?.hourlyRate ?? 100;
     const overtimeMultiplier = baseService?.driverConfig?.overtimeMultiplier ?? 2;
     return { baseHours, hourlyRate, overtimeMultiplier };
-  }, [baseService, isDriverService]);
+  }, [baseService, isDriverService, selectedProvider?.price]);
 
   const timeToMinutes = (value) => {
     if (!value || typeof value !== 'string' || !value.includes(':')) return null;
