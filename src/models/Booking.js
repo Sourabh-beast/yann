@@ -291,3 +291,5 @@ bookingSchema.methods.calculateTotal = function() {
 };
 
 export default mongoose.models.Booking || mongoose.model('Booking', bookingSchema);
+
+// Motoroirot
