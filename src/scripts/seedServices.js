@@ -111,8 +111,10 @@ async function seedServices() {
       throw new Error('MONGODB_URI is not defined in environment variables');
     }
 
-    await mongoose.connect(MONGODB_URI);
-    console.log('📦 Connected to MongoDB');
+    await mongoose.connect(MONGODB_URI, {
+      dbName: 'YannDB',
+    });
+    console.log('📦 Connected to MongoDB (YannDB)');
 
     // Clear existing services
     await Service.deleteMany({});

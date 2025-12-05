@@ -121,12 +121,14 @@ export async function POST(req) {
         audience: "provider",
       });
 
+      // Set cookie with proper settings for mobile apps
+      const isProduction = process.env.NODE_ENV === "production";
       response.cookies.set({
         name: TOKEN_COOKIE_NAME,
         value: token,
         httpOnly: true,
-        secure: process.env.NODE_ENV === "production",
-        sameSite: "lax",
+        secure: isProduction,
+        sameSite: isProduction ? "none" : "lax",
         maxAge: TOKEN_MAX_AGE,
         path: "/",
       });
@@ -171,12 +173,14 @@ export async function POST(req) {
       audience: "homeowner",
     });
 
+    // Set cookie with proper settings for mobile apps
+    const isProduction = process.env.NODE_ENV === "production";
     response.cookies.set({
       name: "yann_home_session",
       value: token,
       httpOnly: true,
-      secure: process.env.NODE_ENV === "production",
-      sameSite: "lax",
+      secure: isProduction,
+      sameSite: isProduction ? "none" : "lax",
       maxAge: TOKEN_MAX_AGE,
       path: "/",
     });
