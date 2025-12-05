@@ -166,27 +166,58 @@ const STATIC_SERVICES = [
 
 /**
  * GET /api/services
- * Fetch all services or filter by category
+ * Fetch all services from MongoDB
  * Query params: category (optional)
  */
 export async function GET(request) {
   try {
+    await connectDB();
+
     const { searchParams } = new URL(request.url);
     const category = searchParams.get('category');
 
-    // Use static services as the source of truth
-    let services = STATIC_SERVICES;
-    
+    // Build query - only active services
+    const query = { isActive: { $ne: false } };
     if (category) {
-      services = services.filter(s => s.category === category);
+      query.category = category;
     }
+
+    // Get services from database
+    const services = await Service.find(query)
+      .sort({ order: 1, popular: -1, createdAt: -1 })
+      .select('-__v');
+
+    // If no services in database, return static services as fallback
+    if (services.length === 0) {
+      console.log('No services in database, returning static fallback');
+      let staticData = STATIC_SERVICES;
+      if (category) {
+        staticData = staticData.filter(s => s.category === category);
+      }
+      return NextResponse.json({
+        success: true,
+        data: staticData,
+      });
+    }
+
+    const mappedServices = services.map(service => ({
+      id: service._id.toString(),
+      title: service.title,
+      description: service.description,
+      category: service.category,
+      price: service.price,
+      features: service.features || [],
+      icon: service.icon || '🏠',
+      popular: service.popular || false,
+    }));
 
     return NextResponse.json({
       success: true,
-      data: services,
+      data: mappedServices,
     });
   } catch (error) {
     console.error('Error fetching services:', error);
+    // Return static services on error
     return NextResponse.json({
       success: true,
       data: STATIC_SERVICES,
