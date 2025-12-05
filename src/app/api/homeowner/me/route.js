@@ -37,7 +37,8 @@ export async function GET() {
   try {
     await connectDB();
 
-    const token = cookies().get(HOME_COOKIE)?.value;
+    const cookieStore = await cookies();
+    const token = cookieStore.get(HOME_COOKIE)?.value;
     if (!token) {
       return clearHomeSession("Session not found");
     }

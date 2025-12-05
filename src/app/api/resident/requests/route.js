@@ -43,7 +43,8 @@ async function resolveHomeowner() {
     return NextResponse.json({ success: false, message: "Server configuration error" }, { status: 500 });
   }
 
-  const token = cookies().get(HOME_COOKIE)?.value;
+  const cookieStore = await cookies();
+  const token = cookieStore.get(HOME_COOKIE)?.value;
   if (!token) {
     return NextResponse.json({ success: false, message: "Unauthorized" }, { status: 401 });
   }

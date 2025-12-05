@@ -15,7 +15,8 @@ const validationErrorResponse = (message) =>
   NextResponse.json({ success: false, message }, { status: 400 });
 
 const getAuthenticatedProvider = async () => {
-  const token = cookies().get(TOKEN_COOKIE_NAME)?.value;
+  const cookieStore = await cookies();
+  const token = cookieStore.get(TOKEN_COOKIE_NAME)?.value;
   if (!token) {
     return null;
   }
