@@ -19,29 +19,15 @@ const Footer = () => {
   };
 
   const footerLinks = {
-    services: [
-      { name: 'House Cleaning', href: '/services/cleaning' },
-      { name: 'Repairs & Maintenance', href: '/services/repairs' },
-      { name: 'Delivery Services', href: '/services/delivery' },
-      { name: 'Pet Care', href: '/services/pet-care' },
-      { name: 'Personal Assistant', href: '/services/assistant' },
-      { name: 'Garden & Landscaping', href: '/services/garden' },
-    ],
     company: [
       { name: 'About Us', href: '/about' },
-  { name: 'How It Works', href: '/#how-it-works' },
-      { name: 'Careers', href: '/careers', badge: 'Hiring' },
-      { name: 'Press', href: '/press' },
-      { name: 'Partners', href: '/partners' },
-      { name: 'Blog', href: '/blog' },
+      { name: 'How It Works', href: '/#how-it-works' },
+      { name: 'Our Services', href: '/services' },
     ],
     support: [
-      { name: 'Help Center', href: '/help' },
-      { name: 'Contact Us', href: '/contact' },
-      { name: 'Safety', href: '/safety' },
-      { name: 'Trust & Safety', href: '/trust-safety' },
-      { name: 'Community Guidelines', href: '/guidelines' },
-      { name: 'Report Issue', href: '/report' },
+      { name: 'Help & Support', href: '/help' },
+      { name: 'Contact Us', href: '/help#contact' },
+      { name: 'FAQs', href: '/help#faq' },
     ],
     legal: [
       { name: 'Terms of Service', href: '/terms' },
@@ -269,29 +255,6 @@ const Footer = () => {
                 ))}
               </div>
             </div>
-          </div>
-
-          {/* Services */}
-          <div>
-            <h4 className="text-lg font-bold mb-6 text-white flex items-center">
-              <span className="w-1 h-6 bg-gradient-to-b from-blue-500 to-purple-500 rounded-full mr-2"></span>
-              Services
-            </h4>
-            <ul className="space-y-3">
-              {footerLinks.services.map((link) => (
-                <li key={link.name}>
-                  <Link
-                    href={link.href}
-                    className="text-gray-400 hover:text-white transition-all duration-300 flex items-center group text-sm"
-                  >
-                    <svg className="w-4 h-4 mr-2 opacity-0 group-hover:opacity-100 transition-opacity" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                    </svg>
-                    <span className="group-hover:translate-x-1 transition-transform">{link.name}</span>
-                  </Link>
-                </li>
-              ))}
-            </ul>
           </div>
 
           {/* Company */}
