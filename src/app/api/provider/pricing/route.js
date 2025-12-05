@@ -4,6 +4,56 @@ import ServiceProvider from '@/models/ServiceProvider';
 
 const normalizeName = (name = '') => name.trim().toLowerCase();
 
+/**
+ * GET /api/provider/pricing
+ * Get all service pricing from active providers
+ */
+export async function GET() {
+  try {
+    await connectDB();
+
+    const providers = await ServiceProvider.find({
+      status: 'active',
+      serviceRates: { $exists: true, $ne: [] }
+    }).select('serviceRates services');
+
+    const pricingMap = {};
+    const providerSets = {};
+
+    providers.forEach((provider) => {
+      provider.serviceRates?.forEach((rate) => {
+        const serviceName = rate?.serviceName?.trim();
+        if (!serviceName || typeof rate.price !== 'number') return;
+        
+        if (!pricingMap[serviceName] || rate.price < pricingMap[serviceName]) {
+          pricingMap[serviceName] = rate.price;
+        }
+        if (!providerSets[serviceName]) {
+          providerSets[serviceName] = new Set();
+        }
+        providerSets[serviceName].add(provider._id.toString());
+      });
+    });
+
+    const pricing = Object.entries(pricingMap).map(([serviceName, price]) => ({
+      serviceName,
+      lowestPrice: price,
+      providerCount: providerSets[serviceName]?.size || 0,
+    }));
+
+    return NextResponse.json({
+      success: true,
+      data: pricing,
+    });
+  } catch (error) {
+    console.error('Failed to get pricing:', error);
+    return NextResponse.json({
+      success: true,
+      data: [],
+    });
+  }
+}
+
 export async function POST(request) {
   try {
     const body = await request.json();

@@ -13,7 +13,7 @@ export async function GET(request) {
 
     if (!serviceName) {
       return NextResponse.json(
-        { success: false, message: 'service query parameter is required' },
+        { success: false, message: 'service query parameter is required', data: [] },
         { status: 400 }
       );
     }
@@ -38,11 +38,11 @@ export async function GET(request) {
           id: provider._id.toString(),
           name: provider.name,
           experience: provider.experience,
-          rating: provider.rating,
-          totalReviews: provider.totalReviews,
+          rating: provider.rating || 0,
+          totalReviews: provider.totalReviews || 0,
           price,
-          workingHours: provider.workingHours,
-          profileImage: provider.profileImage
+          workingHours: provider.workingHours || null,
+          profileImage: provider.profileImage || ''
         };
       })
       .filter(Boolean)
@@ -51,6 +51,8 @@ export async function GET(request) {
     return NextResponse.json(
       {
         success: true,
+        data: mappedProviders,
+        // Also include as 'providers' for backward compatibility
         providers: mappedProviders,
         meta: {
           total: mappedProviders.length,
@@ -62,7 +64,7 @@ export async function GET(request) {
   } catch (error) {
     console.error('Failed to fetch providers for service', error);
     return NextResponse.json(
-      { success: false, message: 'Failed to load providers' },
+      { success: false, message: 'Failed to load providers', data: [] },
       { status: 500 }
     );
   }

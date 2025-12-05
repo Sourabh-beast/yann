@@ -79,6 +79,8 @@ export async function GET() {
 
   return NextResponse.json({
     success: true,
+    data: requests.map((request) => sanitizeRequest(request)),
+    // Also include as 'requests' for backward compatibility
     requests: requests.map((request) => sanitizeRequest(request)),
   });
 }
