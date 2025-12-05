@@ -2,7 +2,7 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { useRouter } from 'next/navigation';
-import { Search, Star, Clock, MapPin, Filter, Heart, ChevronDown, Sparkles, TrendingUp, Award, Shield, Zap, Calendar, CheckCircle, X, Car, Briefcase } from 'lucide-react';
+import { Search, Star, Clock, MapPin, Filter, Heart, ChevronDown, Sparkles, TrendingUp, Award, Shield, Zap, Calendar, CheckCircle, X, Car, Briefcase, AlertCircle, Copy, RefreshCw, Loader2 } from 'lucide-react';
 
 const servicesData = [
   // Cleaning Services
@@ -73,7 +73,7 @@ const buildPricingMap = (rawPricing = {}) => Object.entries(rawPricing || {}).re
 const BookingModal = ({ open, onClose, baseService, servicesList = [], onConfirm, customer }) => {
   const [currentStep, setCurrentStep] = useState(1);
   const [selectedDate, setSelectedDate] = useState(null);
-  const [selectedTime, setSelectedTime] = useState(null);
+  const [selectedTime, setSelectedTime] = useState('');
   const [selectedExtras, setSelectedExtras] = useState([]);
   const [billingType, setBillingType] = useState(baseService?.category === 'pujari' ? 'cash' : 'one-time');
   const [quantity, setQuantity] = useState(1);
@@ -89,14 +89,29 @@ const BookingModal = ({ open, onClose, baseService, servicesList = [], onConfirm
   const [providerStatus, setProviderStatus] = useState('idle');
   const [providerError, setProviderError] = useState('');
   const [selectedProviderId, setSelectedProviderId] = useState(null);
+  const [isMultiDateMode, setIsMultiDateMode] = useState(false);
+  const [selectedDates, setSelectedDates] = useState([]);
+  
+  // Payment states
+  const [paymentMethod, setPaymentMethod] = useState('cash'); // 'cash' or 'upi'
+  const [paymentStatus, setPaymentStatus] = useState('idle'); // 'idle', 'creating', 'pending', 'verifying', 'success', 'failed'
+  const [orderId, setOrderId] = useState(null);
+  const [paymentSessionId, setPaymentSessionId] = useState(null);
+  const [upiLink, setUpiLink] = useState('');
+  const [qrCode, setQrCode] = useState('');
+  const [paymentLink, setPaymentLink] = useState('');
+  
   const isDriverService = baseService?.category === 'driver';
+  const isPujariService = baseService?.category === 'pujari';
 
   useEffect(() => {
     if (open) {
       document.body.style.overflow = 'hidden';
       setCurrentStep(1);
       setSelectedDate(null);
-      setSelectedTime(null);
+      setSelectedDates([]);
+      setIsMultiDateMode(false);
+      setSelectedTime('');
       setSelectedExtras([]);
       setBillingType(baseService?.category === 'pujari' ? 'cash' : (isDriverService ? 'hourly' : 'one-time'));
       setQuantity(1);
@@ -111,6 +126,15 @@ const BookingModal = ({ open, onClose, baseService, servicesList = [], onConfirm
       setProviderError('');
       setSelectedProviderId(null);
       setStatus('idle');
+      // Reset payment states
+      setPaymentMethod('cash');
+      setPaymentStatus('idle');
+      setOrderId(null);
+      setPaymentSessionId(null);
+      setUpiLink('');
+      setQrCode('');
+      setPaymentLink('');
+      setErrorMsg('');
     } else {
       document.body.style.overflow = 'unset';
     }
@@ -154,13 +178,18 @@ const BookingModal = ({ open, onClose, baseService, servicesList = [], onConfirm
     return hours * 60 + minutes;
   };
 
+  const selectedProvider = selectedProviderId ? providerOptions.find(p => p.id === selectedProviderId) : null;
+  const providerPrice = selectedProvider?.price ?? baseService?.price ?? 0;
+
+  // For driver services, provider's hourly rate comes directly from their serviceRates
   const driverConfig = useMemo(() => {
     if (!isDriverService) return null;
     const baseHours = baseService?.driverConfig?.baseHours ?? 10;
-    const hourlyRate = baseService?.driverConfig?.hourlyRate ?? (((baseService?.price || 0) / baseHours) || 0);
+    // Use provider's actual hourly rate (they set per-hour rate during registration)
+    const hourlyRate = selectedProvider?.price ?? baseService?.driverConfig?.hourlyRate ?? 100;
     const overtimeMultiplier = baseService?.driverConfig?.overtimeMultiplier ?? 2;
     return { baseHours, hourlyRate, overtimeMultiplier };
-  }, [baseService, isDriverService]);
+  }, [baseService, isDriverService, selectedProvider?.price]);
 
   const driverPricing = useMemo(() => {
     if (!isDriverService) return null;
@@ -176,7 +205,7 @@ const BookingModal = ({ open, onClose, baseService, servicesList = [], onConfirm
     const totalMinutes = endMinutes - startMinutes;
     const totalHours = totalMinutes / 60;
     const baseHours = driverConfig?.baseHours ?? 10;
-    const hourlyRate = driverConfig?.hourlyRate ?? (((baseService?.price || 0) / baseHours) || 0);
+    const hourlyRate = driverConfig?.hourlyRate ?? 100;
     const overtimeMultiplier = driverConfig?.overtimeMultiplier ?? 2;
     const overtimeHours = Math.max(0, totalHours - baseHours);
     const billableBaseHours = Math.min(totalHours, baseHours);
@@ -269,9 +298,6 @@ const BookingModal = ({ open, onClose, baseService, servicesList = [], onConfirm
 
   const extrasTotal = selectedExtrasDetails.reduce((acc, extra) => acc + (extra.price || 0), 0);
 
-  const selectedProvider = selectedProviderId ? providerOptions.find(p => p.id === selectedProviderId) : null;
-  const providerPrice = selectedProvider?.price ?? baseService?.price ?? 0;
-
   const basePrice = providerPrice;
   const driverBaseAmount = isDriverService && driverPricing && !driverPricing.error ? driverPricing.totalPrice : 0;
   const driverBaseCost = isDriverService && driverPricing && !driverPricing.error ? driverPricing.baseCost : 0;
@@ -280,13 +306,21 @@ const BookingModal = ({ open, onClose, baseService, servicesList = [], onConfirm
   const driverOvertimeHours = isDriverService && driverPricing && !driverPricing.error ? driverPricing.overtimeHours : 0;
   const resolvedTimeLabel = !isDriverService ? timeSlots.find(t => t.value === selectedTime)?.time : null;
   const formattedSchedule = isDriverService ? `${driverStartTime} - ${driverEndTime}` : (resolvedTimeLabel || '--');
+  
+  // Calculate number of days for driver service
+  const numberOfDays = isDriverService && isMultiDateMode ? selectedDates.length : 1;
   const totalPrice = isDriverService
-    ? driverBaseAmount + extrasTotal
+    ? (driverBaseAmount + extrasTotal) * numberOfDays
     : (basePrice + extrasTotal) * (billingType === 'monthly' ? 4 : 1) * quantity;
 
   const canProceed = () => {
     if (currentStep === 1) {
-      if (!selectedDate) return false;
+      // For multi-date mode, check selectedDates; otherwise check selectedDate
+      if (isDriverService && isMultiDateMode) {
+        if (selectedDates.length === 0) return false;
+      } else {
+        if (!selectedDate) return false;
+      }
       if (isDriverService) {
         return Boolean(driverPricing && !driverPricing.error);
       }
@@ -294,6 +328,9 @@ const BookingModal = ({ open, onClose, baseService, servicesList = [], onConfirm
     }
     if (currentStep === 2) {
       if (!address.trim() || !phone.trim()) return false;
+      // Phone must be 10 digits
+      const phoneDigits = phone.replace(/\D/g, '');
+      if (phoneDigits.length !== 10) return false;
       if (providerStatus === 'loading') return false;
       if (providerStatus === 'error') return false;
       if (!providerOptions.length) return false;
@@ -304,6 +341,115 @@ const BookingModal = ({ open, onClose, baseService, servicesList = [], onConfirm
   };
 
   if (!open) return null;
+
+  // Initiate UPI Payment - Get QR Code
+  const initiateUpiPayment = async () => {
+    setErrorMsg('');
+    setQrCode('');
+    setUpiLink('');
+    setPaymentLink('');
+    
+    try {
+      const response = await fetch('/api/payment/upi', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          amount: totalPrice,
+          customerPhone: phone.trim(),
+          customerName: customer?.name || 'Guest',
+          serviceName: baseService?.name || 'Service',
+        }),
+      });
+
+      const data = await response.json();
+      
+      if (!response.ok || !data.success) {
+        setErrorMsg(data.error || 'Failed to generate UPI payment');
+        return;
+      }
+
+      setOrderId(data.orderId);
+      setPaymentSessionId(data.paymentSessionId);
+      
+      // Set QR code, UPI link and payment link
+      if (data.qrCode) {
+        setQrCode(data.qrCode);
+      }
+      if (data.upiLink) {
+        setUpiLink(data.upiLink);
+      }
+      if (data.paymentLink) {
+        setPaymentLink(data.paymentLink);
+      }
+    } catch (error) {
+      console.error('UPI payment error:', error);
+      setErrorMsg('Failed to initiate payment. Please try again.');
+    }
+  };
+
+  // Handle proceed to payment step
+  const handleProceedToPayment = async () => {
+    setStatus('submitting');
+    setErrorMsg('');
+    setPaymentStatus('idle');
+    
+    // Validate provider selection first
+    if (!selectedProvider) {
+      setErrorMsg('Please choose a service partner to continue.');
+      setStatus('idle');
+      return;
+    }
+
+    // Move to payment step and initiate UPI
+    setCurrentStep(4);
+    setStatus('idle');
+    await initiateUpiPayment();
+  };
+
+  // Verify payment status
+  const handleVerifyPayment = async () => {
+    if (!orderId) {
+      setErrorMsg('No payment order found. Please try again.');
+      return;
+    }
+
+    setPaymentStatus('processing');
+    setErrorMsg('');
+
+    try {
+      const response = await fetch('/api/payment/verify', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ orderId }),
+      });
+
+      const data = await response.json();
+      
+      if (!response.ok) {
+        setPaymentStatus('failed');
+        setErrorMsg(data.error || 'Payment verification failed');
+        return;
+      }
+
+      if (data.status === 'SUCCESS' || data.status === 'PAID') {
+        setPaymentStatus('success');
+        // Auto-confirm booking after successful payment
+        setTimeout(() => {
+          handleConfirm();
+        }, 2000);
+      } else if (data.status === 'PENDING') {
+        setPaymentStatus('idle');
+        setErrorMsg('Payment is still pending. Please complete the payment and try again.');
+      } else {
+        setPaymentStatus('failed');
+        setErrorMsg(`Payment status: ${data.status}. Please try again.`);
+      }
+    } catch (error) {
+      console.error('Payment verification error:', error);
+      setPaymentStatus('failed');
+      setErrorMsg('Failed to verify payment. Please try again.');
+    }
+  };
 
   const handleConfirm = async () => {
     setStatus('submitting');
@@ -356,7 +502,9 @@ const BookingModal = ({ open, onClose, baseService, servicesList = [], onConfirm
       basePrice: providerPrice,
       extras: selectedExtrasDetails,
       totalPrice: totalPrice,
-      paymentMethod: isDriverService ? 'online' : billingType,
+      paymentMethod: paymentMethod === 'upi' ? 'upi' : (isDriverService ? 'online' : billingType),
+      paymentStatus: paymentMethod === 'upi' && paymentStatus === 'success' ? 'paid' : 'pending',
+      paymentOrderId: orderId || null,
       billingType: isDriverService ? 'hourly' : billingType,
       quantity: isDriverService ? (driverSelectedHours || 1) : quantity,
       notes: notes.trim(),
@@ -497,9 +645,9 @@ const BookingModal = ({ open, onClose, baseService, servicesList = [], onConfirm
 
       <div className="relative w-full max-w-5xl bg-white rounded-3xl shadow-2xl overflow-hidden max-h-[95vh] flex flex-col animate-in zoom-in-95 duration-300">
         {/* Header */}
-        <div className="bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-600 text-white p-6 relative overflow-hidden">
-          <div className="absolute inset-0 bg-white/5 backdrop-blur-3xl" />
-          <div className="absolute top-0 right-0 w-96 h-96 bg-white/10 rounded-full blur-3xl -translate-y-48 translate-x-48" />
+        <div className="bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-600 text-white p-6 pb-8 relative">
+          <div className="absolute inset-0 bg-white/5" />
+          <div className="absolute top-0 right-0 w-64 h-64 bg-white/10 rounded-full blur-3xl -translate-y-32 translate-x-32" />
           
           <div className="relative flex items-center justify-between mb-6">
             <div className="flex-1">
@@ -518,30 +666,31 @@ const BookingModal = ({ open, onClose, baseService, servicesList = [], onConfirm
           </div>
 
           {/* Progress Steps */}
-          <div className="relative flex items-center justify-between mt-6">
+          <div className="relative flex items-center justify-between mt-4 px-4">
             {[
               { num: 1, label: 'Date & Time' },
-              { num: 2, label: 'Your Details' },
-              { num: 3, label: 'Review' }
-            ].map((step, idx) => (
+              { num: 2, label: 'Details' },
+              { num: 3, label: 'Review' },
+              ...(paymentMethod === 'upi' ? [{ num: 4, label: 'Payment' }] : [])
+            ].map((step, idx, arr) => (
               <div key={step.num} className="flex items-center flex-1">
                 <div className="flex flex-col items-center flex-1">
-                  <div className={`w-12 h-12 rounded-full flex items-center justify-center font-bold text-base transition-all duration-300 ${
+                  <div className={`w-10 h-10 rounded-full flex items-center justify-center font-bold text-sm transition-all duration-300 ${
                     currentStep >= step.num 
-                      ? 'bg-white text-blue-600 shadow-xl ring-4 ring-white/30' 
-                      : 'bg-white/20 text-white/50 border-2 border-white/30'
+                      ? 'bg-white text-blue-600 shadow-lg' 
+                      : 'bg-white/20 text-white/70 border-2 border-white/40'
                   }`}>
                     {currentStep > step.num ? '✓' : step.num}
                   </div>
-                  <span className={`mt-2 text-sm font-semibold ${
-                    currentStep >= step.num ? 'text-white drop-shadow-lg' : 'text-white/50'
+                  <span className={`mt-2 text-xs font-semibold ${
+                    currentStep >= step.num ? 'text-white' : 'text-white/60'
                   }`}>
                     {step.label}
                   </span>
                 </div>
-                {idx < 2 && (
-                  <div className={`h-0.5 flex-1 mx-2 transition-all duration-300 ${
-                    currentStep > step.num ? 'bg-white' : 'bg-white/20'
+                {idx < arr.length - 1 && (
+                  <div className={`h-0.5 flex-1 mx-3 transition-all duration-300 ${
+                    currentStep > step.num ? 'bg-white' : 'bg-white/30'
                   }`} />
                 )}
               </div>
@@ -553,32 +702,84 @@ const BookingModal = ({ open, onClose, baseService, servicesList = [], onConfirm
         <div className="flex-1 overflow-y-auto p-8">
           {/* Step 1: Date & Time */}
           {currentStep === 1 && (
-            <div className="space-y-6 animate-in fade-in duration-300">
-              {/* Calendar */}
-              <div>
-                <h3 className="text-xl font-bold text-gray-900 mb-4 flex items-center gap-2">
-                  <Calendar className="w-6 h-6 text-blue-600" />
-                  Select Date
-                </h3>
+            <div className="space-y-8 animate-in fade-in duration-300">
+              {/* Calendar Section */}
+              <div className="bg-white rounded-2xl border-2 border-gray-100 p-6 shadow-sm">
+                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-6">
+                  <h3 className="text-xl font-bold text-gray-900 flex items-center gap-3">
+                    <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-xl flex items-center justify-center shadow-lg shadow-blue-500/30">
+                      <Calendar className="w-5 h-5 text-white" />
+                    </div>
+                    Select Date
+                  </h3>
+                  {isDriverService && (
+                    <label className="flex items-center gap-3 cursor-pointer group bg-gradient-to-r from-orange-50 to-amber-50 border-2 border-orange-200 rounded-xl px-4 py-2.5 hover:border-orange-400 transition-all">
+                      <input
+                        type="checkbox"
+                        checked={isMultiDateMode}
+                        onChange={(e) => {
+                          setIsMultiDateMode(e.target.checked);
+                          if (e.target.checked) {
+                            // If switching to multi-date, add current selected date to array
+                            if (selectedDate) {
+                              setSelectedDates([selectedDate]);
+                            }
+                          } else {
+                            // If switching to single-date, use first selected date
+                            if (selectedDates.length > 0) {
+                              setSelectedDate(selectedDates[0]);
+                            }
+                            setSelectedDates([]);
+                          }
+                        }}
+                        className="w-5 h-5 text-orange-600 border-orange-300 rounded focus:ring-orange-500 accent-orange-600"
+                      />
+                      <span className="text-sm font-bold text-orange-800 group-hover:text-orange-900 transition-colors">
+                        Multiple Dates
+                      </span>
+                      {isMultiDateMode && selectedDates.length > 0 && (
+                        <span className="px-2.5 py-1 bg-orange-600 text-white text-xs font-bold rounded-full shadow-sm">
+                          {selectedDates.length} days
+                        </span>
+                      )}
+                    </label>
+                  )}
+                </div>
                 <div className="grid grid-cols-7 gap-2">
                   {availableDates.slice(0, 21).map((date, idx) => {
-                    const isSelected = selectedDate?.toDateString() === date.toDateString();
+                    const isSelected = isMultiDateMode 
+                      ? selectedDates.some(d => d.toDateString() === date.toDateString())
+                      : selectedDate?.toDateString() === date.toDateString();
                     const isToday = new Date().toDateString() === date.toDateString();
                     
                     return (
                       <button
                         key={idx}
-                        onClick={() => setSelectedDate(date)}
+                        onClick={() => {
+                          if (isMultiDateMode) {
+                            setSelectedDates(prev => {
+                              const exists = prev.some(d => d.toDateString() === date.toDateString());
+                              if (exists) {
+                                return prev.filter(d => d.toDateString() !== date.toDateString());
+                              }
+                              return [...prev, date].sort((a, b) => a - b);
+                            });
+                          } else {
+                            setSelectedDate(date);
+                          }
+                        }}
                         className={`group relative p-3 rounded-xl border-2 transition-all duration-300 ${
                           isSelected
-                            ? 'bg-gradient-to-br from-blue-600 to-indigo-600 border-blue-600 text-white shadow-lg shadow-blue-500/30 scale-105'
+                            ? isMultiDateMode 
+                              ? 'bg-gradient-to-br from-orange-500 to-amber-500 border-orange-500 text-white shadow-lg shadow-orange-500/30 scale-105'
+                              : 'bg-gradient-to-br from-blue-600 to-indigo-600 border-blue-600 text-white shadow-lg shadow-blue-500/30 scale-105'
                             : isToday
                             ? 'border-blue-300 bg-blue-50 hover:border-blue-400 hover:bg-blue-100'
                             : 'border-gray-200 hover:border-blue-300 hover:bg-blue-50'
                         }`}
                       >
                         <div className={`text-xs font-semibold mb-1 ${
-                          isSelected ? 'text-blue-100' : 'text-gray-500'
+                          isSelected ? (isMultiDateMode ? 'text-orange-100' : 'text-blue-100') : 'text-gray-500'
                         }`}>
                           {date.toLocaleDateString('en-US', { weekday: 'short' })}
                         </div>
@@ -590,11 +791,30 @@ const BookingModal = ({ open, onClose, baseService, servicesList = [], onConfirm
                         {isToday && !isSelected && (
                           <div className="absolute top-1 right-1 w-2 h-2 bg-blue-600 rounded-full" />
                         )}
+                        {isMultiDateMode && isSelected && (
+                          <div className="absolute top-1 right-1 w-4 h-4 bg-white rounded-full flex items-center justify-center">
+                            <CheckCircle className="w-3 h-3 text-orange-600" />
+                          </div>
+                        )}
                       </button>
                     );
                   })}
                 </div>
-                {selectedDate && (
+                {/* Selected dates display */}
+                {isMultiDateMode && selectedDates.length > 0 ? (
+                  <div className="mt-4 p-4 bg-gradient-to-r from-orange-50 to-amber-50 rounded-xl border-2 border-orange-200">
+                    <p className="text-sm font-semibold text-orange-900 mb-2">
+                      📅 Selected {selectedDates.length} date{selectedDates.length > 1 ? 's' : ''}:
+                    </p>
+                    <div className="flex flex-wrap gap-2">
+                      {selectedDates.map((date, idx) => (
+                        <span key={idx} className="px-3 py-1 bg-white border border-orange-200 rounded-full text-xs font-medium text-orange-800">
+                          {date.toLocaleDateString('en-IN', { weekday: 'short', month: 'short', day: 'numeric' })}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                ) : selectedDate && !isMultiDateMode && (
                   <div className="mt-4 p-4 bg-gradient-to-r from-blue-50 to-indigo-50 rounded-xl border-2 border-blue-200">
                     <p className="text-sm font-semibold text-blue-900">
                       📅 Selected: {selectedDate.toLocaleDateString('en-IN', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' })}
@@ -603,10 +823,12 @@ const BookingModal = ({ open, onClose, baseService, servicesList = [], onConfirm
                 )}
               </div>
 
-              {/* Time Slots */}
-              <div>
-                <h3 className="text-xl font-bold text-gray-900 mb-4 flex items-center gap-2">
-                  <Clock className="w-6 h-6 text-purple-600" />
+              {/* Time Slots Section */}
+              <div className="bg-white rounded-2xl border-2 border-gray-100 p-6 shadow-sm">
+                <h3 className="text-xl font-bold text-gray-900 mb-6 flex items-center gap-3">
+                  <div className="w-10 h-10 bg-gradient-to-br from-purple-500 to-pink-600 rounded-xl flex items-center justify-center shadow-lg shadow-purple-500/30">
+                    <Clock className="w-5 h-5 text-white" />
+                  </div>
                   {isDriverService ? 'Select Driver Schedule' : 'Select Time Slot'}
                 </h3>
                 {isDriverService ? (
@@ -816,11 +1038,16 @@ const BookingModal = ({ open, onClose, baseService, servicesList = [], onConfirm
                   <input
                     type="tel"
                     value={phone}
-                    onChange={(e) => setPhone(e.target.value)}
+                    onChange={(e) => setPhone(e.target.value.replace(/\D/g, ''))}
                     placeholder="Enter your 10-digit mobile number"
-                    className="w-full px-4 py-4 border-2 border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all text-base font-medium"
+                    className={`w-full px-4 py-4 border-2 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all text-base font-medium ${
+                      phone && phone.length !== 10 ? 'border-red-300 bg-red-50' : 'border-gray-300'
+                    }`}
                     maxLength="10"
                   />
+                  {phone && phone.length !== 10 && (
+                    <p className="text-xs text-red-500 mt-1">Please enter a valid 10-digit mobile number</p>
+                  )}
                 </div>
 
                 {baseService?.category === 'pujari' ? (
@@ -829,7 +1056,10 @@ const BookingModal = ({ open, onClose, baseService, servicesList = [], onConfirm
                     <div className="grid grid-cols-2 gap-3">
                       <button
                         type="button"
-                        onClick={() => setBillingType('cash')}
+                        onClick={() => {
+                          setBillingType('cash');
+                          setPaymentMethod('cash');
+                        }}
                         className={`p-4 rounded-xl border-2 font-semibold transition-all ${
                           billingType === 'cash'
                             ? 'bg-gradient-to-r from-green-600 to-emerald-600 border-green-600 text-white shadow-md'
@@ -840,12 +1070,19 @@ const BookingModal = ({ open, onClose, baseService, servicesList = [], onConfirm
                       </button>
                       <button
                         type="button"
-                        disabled
-                        className="p-4 rounded-xl border-2 border-gray-200 bg-gray-100 text-gray-400 cursor-not-allowed relative"
+                        onClick={() => {
+                          setBillingType('upi');
+                          setPaymentMethod('upi');
+                        }}
+                        className={`p-4 rounded-xl border-2 font-semibold transition-all ${
+                          billingType === 'upi'
+                            ? 'bg-gradient-to-r from-blue-600 to-indigo-600 border-blue-600 text-white shadow-md'
+                            : 'border-gray-300 hover:border-blue-400 text-gray-700'
+                        }`}
                       >
                         <div className="flex flex-col items-center">
-                          <span>UPI</span>
-                          <span className="text-xs mt-1 bg-orange-500 text-white px-2 py-0.5 rounded-full">Coming Soon</span>
+                          <span>Pay via UPI</span>
+                          <span className="text-xs mt-1 text-current opacity-70">GPay, PhonePe, etc.</span>
                         </div>
                       </button>
                     </div>
@@ -853,9 +1090,41 @@ const BookingModal = ({ open, onClose, baseService, servicesList = [], onConfirm
                 ) : isDriverService ? (
                   <div>
                     <label className="block text-sm font-bold text-gray-900 mb-2">Driver Billing</label>
-                    <div className="rounded-2xl border-2 border-blue-200 bg-blue-50 p-4">
+                    <div className="rounded-2xl border-2 border-blue-200 bg-blue-50 p-4 mb-4">
                       <p className="text-sm text-gray-700 mb-2">Base coverage includes {driverConfig?.baseHours ?? 10} hours at ₹{driverConfig?.hourlyRate ?? 0}/hr. Additional hours auto-switch to {driverConfig?.overtimeMultiplier ?? 2}x.</p>
                       <div className="text-xs text-gray-500">Billing type locked to hourly for chauffeur bookings.</div>
+                    </div>
+                    
+                    <label className="block text-sm font-bold text-gray-900 mb-2">Payment Method</label>
+                    <div className="grid grid-cols-2 gap-3">
+                      <button
+                        type="button"
+                        onClick={() => setPaymentMethod('cash')}
+                        className={`p-4 rounded-xl border-2 font-semibold transition-all ${
+                          paymentMethod === 'cash'
+                            ? 'bg-gradient-to-r from-green-600 to-emerald-600 border-green-600 text-white shadow-md'
+                            : 'border-gray-300 hover:border-green-400 text-gray-700'
+                        }`}
+                      >
+                        <div className="flex flex-col items-center">
+                          <span>Pay Later</span>
+                          <span className="text-xs mt-1 opacity-70">Cash on Service</span>
+                        </div>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setPaymentMethod('upi')}
+                        className={`p-4 rounded-xl border-2 font-semibold transition-all ${
+                          paymentMethod === 'upi'
+                            ? 'bg-gradient-to-r from-blue-600 to-indigo-600 border-blue-600 text-white shadow-md'
+                            : 'border-gray-300 hover:border-blue-400 text-gray-700'
+                        }`}
+                      >
+                        <div className="flex flex-col items-center">
+                          <span>Pay via UPI</span>
+                          <span className="text-xs mt-1 opacity-70">GPay, PhonePe, etc.</span>
+                        </div>
+                      </button>
                     </div>
                   </div>
                 ) : (
@@ -878,6 +1147,39 @@ const BookingModal = ({ open, onClose, baseService, servicesList = [], onConfirm
                           {type.label}
                         </button>
                       ))}
+                    </div>
+                    
+                    {/* Payment Method for non-pujari services */}
+                    <label className="block text-sm font-bold text-gray-900 mb-2 mt-4">Payment Method</label>
+                    <div className="grid grid-cols-2 gap-3">
+                      <button
+                        type="button"
+                        onClick={() => setPaymentMethod('cash')}
+                        className={`p-4 rounded-xl border-2 font-semibold transition-all ${
+                          paymentMethod === 'cash'
+                            ? 'bg-gradient-to-r from-green-600 to-emerald-600 border-green-600 text-white shadow-md'
+                            : 'border-gray-300 hover:border-green-400 text-gray-700'
+                        }`}
+                      >
+                        <div className="flex flex-col items-center">
+                          <span>Pay Later</span>
+                          <span className="text-xs mt-1 opacity-70">Cash on Service</span>
+                        </div>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setPaymentMethod('upi')}
+                        className={`p-4 rounded-xl border-2 font-semibold transition-all ${
+                          paymentMethod === 'upi'
+                            ? 'bg-gradient-to-r from-blue-600 to-indigo-600 border-blue-600 text-white shadow-md'
+                            : 'border-gray-300 hover:border-blue-400 text-gray-700'
+                        }`}
+                      >
+                        <div className="flex flex-col items-center">
+                          <span>Pay via UPI</span>
+                          <span className="text-xs mt-1 opacity-70">GPay, PhonePe, etc.</span>
+                        </div>
+                      </button>
                     </div>
                   </div>
                 )}
@@ -954,9 +1256,12 @@ const BookingModal = ({ open, onClose, baseService, servicesList = [], onConfirm
                     <p className="font-semibold">{baseService?.name}</p>
                   </div>
                   <div>
-                    <p className="text-blue-100 mb-1">Date & Time</p>
+                    <p className="text-blue-100 mb-1">Date{isMultiDateMode && selectedDates.length > 1 ? 's' : ''} & Time</p>
                     <p className="font-semibold">
-                      {selectedDate?.toLocaleDateString('en-IN', { month: 'short', day: 'numeric' })} at {formattedSchedule}
+                      {isMultiDateMode && selectedDates.length > 0 
+                        ? `${selectedDates.length} day${selectedDates.length > 1 ? 's' : ''}`
+                        : selectedDate?.toLocaleDateString('en-IN', { month: 'short', day: 'numeric' })
+                      } at {formattedSchedule}
                     </p>
                   </div>
                   <div>
@@ -978,6 +1283,19 @@ const BookingModal = ({ open, onClose, baseService, servicesList = [], onConfirm
                     </p>
                   </div>
                 </div>
+                {/* Show selected dates for multi-date mode */}
+                {isMultiDateMode && selectedDates.length > 0 && (
+                  <div className="mt-4 pt-4 border-t border-white/20">
+                    <p className="text-blue-100 mb-2 text-sm">Selected Dates:</p>
+                    <div className="flex flex-wrap gap-2">
+                      {selectedDates.map((date, idx) => (
+                        <span key={idx} className="px-2 py-1 bg-white/20 rounded-lg text-xs font-medium">
+                          {date.toLocaleDateString('en-IN', { weekday: 'short', month: 'short', day: 'numeric' })}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                )}
               </div>
 
               <div className="bg-white rounded-2xl border-2 border-gray-200 p-6">
@@ -1002,6 +1320,16 @@ const BookingModal = ({ open, onClose, baseService, servicesList = [], onConfirm
                         <div className="flex justify-between text-gray-700">
                           <span>Overtime ({driverOvertimeHours || 0}h @ {driverPricing?.overtimeMultiplier ?? 2}x)</span>
                           <span className="font-semibold">{currency.format(driverOvertimeCost)}</span>
+                        </div>
+                      )}
+                      <div className="flex justify-between text-gray-700">
+                        <span>Per Day Total</span>
+                        <span className="font-semibold">{currency.format(driverBaseAmount + extrasTotal)}</span>
+                      </div>
+                      {numberOfDays > 1 && (
+                        <div className="flex justify-between text-orange-700 bg-orange-50 rounded-lg p-2 -mx-2">
+                          <span className="font-semibold">× {numberOfDays} Days</span>
+                          <span className="font-bold">×{numberOfDays}</span>
                         </div>
                       )}
                     </>
@@ -1046,12 +1374,167 @@ const BookingModal = ({ open, onClose, baseService, servicesList = [], onConfirm
               )}
             </div>
           )}
+
+          {/* Step 4: Payment */}
+          {currentStep === 4 && (
+            <div className="space-y-6 animate-in fade-in duration-300">
+              {/* Payment Status */}
+              {paymentStatus === 'idle' && (
+                <>
+                  <div className="bg-gradient-to-br from-blue-600 via-indigo-600 to-purple-600 text-white rounded-2xl p-6 text-center">
+                    <h3 className="text-2xl font-bold mb-2">Complete Payment</h3>
+                    <p className="text-blue-100">Pay securely via UPI</p>
+                    <div className="mt-4 text-4xl font-bold">{currency.format(totalPrice)}</div>
+                  </div>
+
+                  <div className="bg-white rounded-2xl border-2 border-gray-200 p-6">
+                    <h4 className="font-bold text-gray-900 mb-4 text-center">Scan QR Code to Pay</h4>
+                    
+                    {qrCode ? (
+                      <div className="flex flex-col items-center space-y-4">
+                        <div className="bg-white p-4 rounded-xl shadow-lg border-2 border-gray-100">
+                          <img 
+                            src={qrCode} 
+                            alt="UPI QR Code" 
+                            className="w-64 h-64 object-contain"
+                          />
+                        </div>
+                        <p className="text-sm text-gray-600 text-center">
+                          Scan with any UPI app (Google Pay, PhonePe, Paytm, etc.)
+                        </p>
+                        
+                        {upiLink && (
+                          <div className="w-full">
+                            <p className="text-xs text-gray-500 text-center mb-2">Or pay using UPI ID:</p>
+                            <div className="flex items-center gap-2 bg-gray-50 border border-gray-200 rounded-lg p-3">
+                              <input 
+                                type="text" 
+                                value={upiLink} 
+                                readOnly 
+                                className="flex-1 bg-transparent text-sm text-gray-700 font-mono outline-none"
+                              />
+                              <button
+                                onClick={() => {
+                                  navigator.clipboard.writeText(upiLink);
+                                  alert('UPI ID copied!');
+                                }}
+                                className="px-3 py-1 bg-blue-600 text-white text-xs rounded-lg hover:bg-blue-700 transition-colors"
+                              >
+                                Copy
+                              </button>
+                            </div>
+                          </div>
+                        )}
+
+                        {paymentLink && (
+                          <a
+                            href={paymentLink}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="w-full py-3 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-xl font-semibold hover:from-blue-700 hover:to-indigo-700 transition-all duration-300 flex items-center justify-center gap-2 text-center"
+                          >
+                            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+                            </svg>
+                            Open Payment Page
+                          </a>
+                        )}
+                        
+                        <button
+                          onClick={handleVerifyPayment}
+                          className="w-full py-4 bg-gradient-to-r from-emerald-600 to-green-600 text-white rounded-xl font-bold hover:from-emerald-700 hover:to-green-700 transition-all duration-300 shadow-lg flex items-center justify-center gap-2"
+                        >
+                          <CheckCircle className="w-5 h-5" />
+                          I have completed the payment
+                        </button>
+                      </div>
+                    ) : (
+                      <div className="flex flex-col items-center py-8">
+                        <div className="w-16 h-16 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mb-4" />
+                        <p className="text-gray-600">Generating QR Code...</p>
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="bg-amber-50 border-2 border-amber-200 rounded-xl p-4">
+                    <div className="flex items-start gap-3">
+                      <AlertCircle className="w-5 h-5 text-amber-600 flex-shrink-0 mt-0.5" />
+                      <div className="text-sm text-amber-800">
+                        <p className="font-semibold mb-1">Payment Instructions:</p>
+                        <ul className="list-disc list-inside space-y-1 text-xs">
+                          <li>Scan the QR code using any UPI app</li>
+                          <li>Complete the payment with the exact amount shown</li>
+                          <li>Click "I have completed the payment" after paying</li>
+                          <li>Do not close this window until payment is verified</li>
+                        </ul>
+                      </div>
+                    </div>
+                  </div>
+                </>
+              )}
+
+              {/* Payment Processing */}
+              {paymentStatus === 'processing' && (
+                <div className="bg-white rounded-2xl border-2 border-blue-200 p-8 text-center">
+                  <div className="w-20 h-20 mx-auto mb-6 relative">
+                    <div className="absolute inset-0 border-4 border-blue-200 rounded-full" />
+                    <div className="absolute inset-0 border-4 border-blue-600 border-t-transparent rounded-full animate-spin" />
+                  </div>
+                  <h3 className="text-xl font-bold text-gray-900 mb-2">Verifying Payment...</h3>
+                  <p className="text-gray-600">Please wait while we confirm your payment</p>
+                  <p className="text-sm text-gray-500 mt-4">This may take a few seconds</p>
+                </div>
+              )}
+
+              {/* Payment Success */}
+              {paymentStatus === 'success' && (
+                <div className="bg-gradient-to-br from-emerald-50 to-green-50 rounded-2xl border-2 border-emerald-300 p-8 text-center">
+                  <div className="w-20 h-20 mx-auto mb-6 bg-emerald-100 rounded-full flex items-center justify-center">
+                    <CheckCircle className="w-12 h-12 text-emerald-600" />
+                  </div>
+                  <h3 className="text-2xl font-bold text-emerald-800 mb-2">Payment Successful!</h3>
+                  <p className="text-emerald-700 mb-4">Your payment of {currency.format(totalPrice)} has been received</p>
+                  <div className="bg-white rounded-xl p-4 mb-6">
+                    <p className="text-sm text-gray-600">Order ID</p>
+                    <p className="font-mono font-bold text-gray-900">{orderId}</p>
+                  </div>
+                  <p className="text-sm text-gray-600">Confirming your booking...</p>
+                </div>
+              )}
+
+              {/* Payment Failed */}
+              {paymentStatus === 'failed' && (
+                <div className="bg-red-50 rounded-2xl border-2 border-red-200 p-8 text-center">
+                  <div className="w-20 h-20 mx-auto mb-6 bg-red-100 rounded-full flex items-center justify-center">
+                    <AlertCircle className="w-12 h-12 text-red-600" />
+                  </div>
+                  <h3 className="text-2xl font-bold text-red-800 mb-2">Payment Failed</h3>
+                  <p className="text-red-700 mb-6">We couldn't verify your payment. Please try again.</p>
+                  <button
+                    onClick={() => {
+                      setPaymentStatus('idle');
+                      initiateUpiPayment();
+                    }}
+                    className="px-8 py-4 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-xl font-bold hover:from-blue-700 hover:to-indigo-700 transition-all duration-300 shadow-lg"
+                  >
+                    Try Again
+                  </button>
+                </div>
+              )}
+
+              {errorMsg && (
+                <div className="bg-red-50 border-2 border-red-200 rounded-xl p-4">
+                  <p className="text-sm font-semibold text-red-700">{errorMsg}</p>
+                </div>
+              )}
+            </div>
+          )}
         </div>
 
         {/* Footer */}
         <div className="border-t-2 border-gray-200 bg-gradient-to-br from-gray-50 to-white p-6">
           <div className="flex items-center justify-between gap-4">
-            {currentStep > 1 && (
+            {currentStep > 1 && currentStep < 4 && (
               <button
                 onClick={() => setCurrentStep(prev => prev - 1)}
                 className="px-8 py-4 border-2 border-gray-300 rounded-xl text-gray-700 font-bold hover:bg-gray-50 hover:border-gray-400 transition-all duration-300"
@@ -1071,7 +1554,53 @@ const BookingModal = ({ open, onClose, baseService, servicesList = [], onConfirm
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7l5 5m0 0l-5 5m5-5H6" />
                 </svg>
               </button>
-            ) : (
+            ) : currentStep === 3 ? (
+              paymentMethod === 'upi' ? (
+                <button
+                  onClick={handleProceedToPayment}
+                  disabled={status === 'submitting'}
+                  className="ml-auto px-8 py-4 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-xl font-bold hover:from-blue-700 hover:to-indigo-700 transition-all duration-300 shadow-lg shadow-blue-500/30 hover:shadow-xl hover:-translate-y-0.5 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+                >
+                  {status === 'submitting' ? (
+                    <>
+                      <svg className="w-5 h-5 animate-spin" viewBox="0 0 24 24" fill="none">
+                        <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" strokeOpacity="0.2" />
+                        <path d="M22 12a10 10 0 00-10-10" stroke="currentColor" strokeWidth="4" strokeLinecap="round" />
+                      </svg>
+                      Processing...
+                    </>
+                  ) : (
+                    <>
+                      Continue to Payment
+                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7l5 5m0 0l-5 5m5-5H6" />
+                      </svg>
+                    </>
+                  )}
+                </button>
+              ) : (
+                <button
+                  onClick={handleConfirm}
+                  disabled={status === 'submitting'}
+                  className="ml-auto px-8 py-4 bg-gradient-to-r from-emerald-600 to-green-600 text-white rounded-xl font-bold hover:from-emerald-700 hover:to-green-700 transition-all duration-300 shadow-lg shadow-emerald-500/30 hover:shadow-xl hover:-translate-y-0.5 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+                >
+                  {status === 'submitting' ? (
+                    <>
+                      <svg className="w-5 h-5 animate-spin" viewBox="0 0 24 24" fill="none">
+                        <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" strokeOpacity="0.2" />
+                        <path d="M22 12a10 10 0 00-10-10" stroke="currentColor" strokeWidth="4" strokeLinecap="round" />
+                      </svg>
+                      Processing...
+                    </>
+                  ) : (
+                    <>
+                      <CheckCircle className="w-5 h-5" />
+                      Confirm Booking
+                    </>
+                  )}
+                </button>
+              )
+            ) : currentStep === 4 && paymentStatus === 'success' ? (
               <button
                 onClick={handleConfirm}
                 disabled={status === 'submitting'}
@@ -1092,7 +1621,7 @@ const BookingModal = ({ open, onClose, baseService, servicesList = [], onConfirm
                   </>
                 )}
               </button>
-            )}
+            ) : null}
           </div>
         </div>
       </div>
