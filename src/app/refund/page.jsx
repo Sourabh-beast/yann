@@ -39,7 +39,7 @@ export default function RefundPolicyPage() {
               {/* Quick Summary */}
               <section className="mb-10">
                 <h2 className="text-2xl font-bold text-gray-900 mb-4 pb-2 border-b border-gray-200">2. Quick Summary</h2>
-                
+
                 <div className="overflow-x-auto">
                   <table className="w-full border-collapse border border-gray-200 rounded-lg overflow-hidden">
                     <thead>
@@ -81,7 +81,7 @@ export default function RefundPolicyPage() {
               {/* Customer Cancellation */}
               <section className="mb-10">
                 <h2 className="text-2xl font-bold text-gray-900 mb-4 pb-2 border-b border-gray-200">3. Customer Cancellation Policy</h2>
-                
+
                 <h3 className="text-lg font-semibold text-gray-800 mt-6 mb-3">3.1 How to Cancel</h3>
                 <p className="text-gray-700 leading-relaxed mb-3">You can cancel your booking through:</p>
                 <ul className="list-disc pl-6 text-gray-700 space-y-2 mb-4">
@@ -91,7 +91,7 @@ export default function RefundPolicyPage() {
                 </ul>
 
                 <h3 className="text-lg font-semibold text-gray-800 mt-6 mb-3">3.2 Cancellation Windows</h3>
-                
+
                 <div className="space-y-4">
                   <div className="bg-green-50 border-l-4 border-green-500 p-4 rounded-r-lg">
                     <h4 className="font-bold text-green-900 mb-2">✓ Full Refund (100%)</h4>
@@ -136,7 +136,7 @@ export default function RefundPolicyPage() {
               {/* Service Partner Cancellation */}
               <section className="mb-10">
                 <h2 className="text-2xl font-bold text-gray-900 mb-4 pb-2 border-b border-gray-200">4. Service Partner Cancellation</h2>
-                
+
                 <h3 className="text-lg font-semibold text-gray-800 mt-6 mb-3">4.1 When Partner Cancels</h3>
                 <p className="text-gray-700 leading-relaxed mb-4">
                   If a Service Partner cancels your confirmed booking:
@@ -180,7 +180,7 @@ export default function RefundPolicyPage() {
               {/* Service-Specific Policies */}
               <section className="mb-10">
                 <h2 className="text-2xl font-bold text-gray-900 mb-4 pb-2 border-b border-gray-200">6. Service-Specific Policies</h2>
-                
+
                 <div className="space-y-6">
                   {/* Pujari Services */}
                   <div className="bg-orange-50 border border-orange-200 rounded-xl p-5">
@@ -230,7 +230,7 @@ export default function RefundPolicyPage() {
               {/* Unsatisfactory Service */}
               <section className="mb-10">
                 <h2 className="text-2xl font-bold text-gray-900 mb-4 pb-2 border-b border-gray-200">7. Service Quality Issues</h2>
-                
+
                 <h3 className="text-lg font-semibold text-gray-800 mt-6 mb-3">7.1 Reporting Issues</h3>
                 <p className="text-gray-700 leading-relaxed mb-4">
                   If you are unsatisfied with the service quality, you must report the issue within:
@@ -274,7 +274,7 @@ export default function RefundPolicyPage() {
               {/* Property Damage */}
               <section className="mb-10">
                 <h2 className="text-2xl font-bold text-gray-900 mb-4 pb-2 border-b border-gray-200">8. Property Damage Claims</h2>
-                
+
                 <h3 className="text-lg font-semibold text-gray-800 mt-6 mb-3">8.1 Reporting Damage</h3>
                 <p className="text-gray-700 leading-relaxed mb-4">
                   If property damage occurs during service:
@@ -308,7 +308,7 @@ export default function RefundPolicyPage() {
               {/* Refund Processing */}
               <section className="mb-10">
                 <h2 className="text-2xl font-bold text-gray-900 mb-4 pb-2 border-b border-gray-200">9. Refund Processing</h2>
-                
+
                 <h3 className="text-lg font-semibold text-gray-800 mt-6 mb-3">9.1 Refund Methods</h3>
                 <p className="text-gray-700 leading-relaxed mb-3">Refunds will be processed to the original payment method:</p>
                 <ul className="list-disc pl-6 text-gray-700 space-y-2 mb-4">
@@ -332,7 +332,7 @@ export default function RefundPolicyPage() {
               {/* Non-Refundable Items */}
               <section className="mb-10">
                 <h2 className="text-2xl font-bold text-gray-900 mb-4 pb-2 border-b border-gray-200">10. Non-Refundable Items</h2>
-                
+
                 <div className="bg-gray-100 border border-gray-300 rounded-xl p-5">
                   <p className="text-gray-800 mb-3">The following are <strong>NOT eligible for refunds</strong>:</p>
                   <ul className="list-disc pl-5 text-gray-700 space-y-2">
@@ -351,7 +351,7 @@ export default function RefundPolicyPage() {
               {/* Disputes */}
               <section className="mb-10">
                 <h2 className="text-2xl font-bold text-gray-900 mb-4 pb-2 border-b border-gray-200">11. Dispute Resolution</h2>
-                
+
                 <h3 className="text-lg font-semibold text-gray-800 mt-6 mb-3">11.1 Escalation Process</h3>
                 <p className="text-gray-700 leading-relaxed mb-3">If you disagree with a refund decision:</p>
                 <ol className="list-decimal pl-6 text-gray-700 space-y-2 mb-4">
@@ -377,14 +377,14 @@ export default function RefundPolicyPage() {
                 <p className="text-gray-700 leading-relaxed mb-4">
                   For refund requests or questions about this policy:
                 </p>
-                
+
                 <div className="bg-blue-50 border border-blue-200 rounded-xl p-6">
                   <h4 className="font-bold text-blue-900 mb-4">YANN Customer Support</h4>
                   <div className="space-y-2 text-blue-800">
-                    <p><strong>Email:</strong> support@yann.in</p>
-                    <p><strong>Refund Queries:</strong> refunds@yann.in</p>
-                    <p><strong>Phone:</strong> +91-XXXXXXXXXX (9 AM - 9 PM IST)</p>
-                    <p><strong>WhatsApp:</strong> +91-XXXXXXXXXX</p>
+                    <p><strong>Email:</strong> info.shuttleride@gmail.com</p>
+                    <p><strong>Refund Queries:</strong> info.shuttleride@gmail.com</p>
+                    <p><strong>Phone:</strong> +91 7827273057 (9 AM - 9 PM IST)</p>
+                    <p><strong>WhatsApp:</strong> +91 7827273057</p>
                   </div>
                 </div>
 

@@ -243,31 +243,6 @@ const Testimonials = () => {
           </button>
         </div>
 
-        {/* Auto-play Toggle */}
-        <div className="flex justify-center mb-16">
-          <button
-            onClick={() => setIsAutoPlaying(!isAutoPlaying)}
-            className="inline-flex items-center space-x-2 px-4 py-2 rounded-full bg-white shadow-md hover:shadow-lg transition-all duration-300 text-sm font-medium text-gray-700 hover:text-blue-600"
-          >
-            {isAutoPlaying ? (
-              <>
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 9v6m4-6v6m7-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-                </svg>
-                <span>Pause</span>
-              </>
-            ) : (
-              <>
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z" />
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                </svg>
-                <span>Play</span>
-              </>
-            )}
-          </button>
-        </div>
-
         {/* Enhanced Stats Section */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-6 md:gap-8">
           {[
