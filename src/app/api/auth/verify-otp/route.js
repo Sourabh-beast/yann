@@ -119,9 +119,10 @@ export async function POST(req) {
         message: "OTP verified successfully",
         provider: sanitizeProvider(provider),
         audience: "provider",
+        token: token, // Include token for mobile app
       });
 
-      // Set cookie with proper settings for mobile apps
+      // Set cookie with proper settings for website
       const isProduction = process.env.NODE_ENV === "production";
       response.cookies.set({
         name: TOKEN_COOKIE_NAME,
@@ -171,9 +172,10 @@ export async function POST(req) {
       message: intent === "signup" ? "Resident account created" : "OTP verified successfully",
       homeowner: sanitizeHomeowner(homeowner),
       audience: "homeowner",
+      token: token, // Include token for mobile app
     });
 
-    // Set cookie with proper settings for mobile apps
+    // Set cookie with proper settings for website
     const isProduction = process.env.NODE_ENV === "production";
     response.cookies.set({
       name: "yann_home_session",

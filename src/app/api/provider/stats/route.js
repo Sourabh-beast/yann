@@ -9,13 +9,24 @@ const PROVIDER_COOKIE = 'yann_session';
 
 /**
  * Helper to get authenticated provider from session
+ * Supports both cookie-based (website) and token-based (mobile app) authentication
  */
-async function getAuthenticatedProvider() {
+async function getAuthenticatedProvider(request) {
   if (!process.env.JWT_SECRET) {
     return { error: 'Server configuration error', status: 500 };
   }
 
-  const token = cookies().get(PROVIDER_COOKIE)?.value;
+  // Support both cookie-based (website) and token-based (mobile app) authentication
+  let token = cookies().get(PROVIDER_COOKIE)?.value;
+  
+  // If no cookie, check Authorization header for mobile app
+  if (!token) {
+    const authHeader = request?.headers?.get('authorization');
+    if (authHeader?.startsWith('Bearer ')) {
+      token = authHeader.substring(7);
+    }
+  }
+  
   if (!token) {
     return { error: 'Unauthorized - Please login', status: 401 };
   }
@@ -40,122 +51,124 @@ async function getAuthenticatedProvider() {
 }
 
 /**
- * GET /api/provider/bookings
- * Get all bookings for the authenticated provider
- * Query params: status (optional) - filter by status
+ * GET /api/provider/stats
+ * Get statistics for the authenticated provider
  */
 export async function GET(request) {
   try {
     await connectDB();
 
-    const authResult = await getAuthenticatedProvider();
+    const authResult = await getAuthenticatedProvider(request);
     if (authResult.error) {
       return NextResponse.json(
-        { success: false, message: authResult.error, bookings: [] },
+        { success: false, message: authResult.error },
         { status: authResult.status }
       );
     }
 
     const { provider } = authResult;
-    const { searchParams } = new URL(request.url);
-    const statusFilter = searchParams.get('status');
 
-    console.log(`📋 Fetching bookings for provider: ${provider.name} (${provider._id})`);
+    console.log(`📊 Fetching stats for provider: ${provider.name}`);
 
-    // Build query - ONLY bookings assigned to this provider
-    const query = {
-      assignedProvider: provider._id
-    };
+    // Get booking counts by status
+    const [
+      pendingCount,
+      acceptedCount,
+      inProgressCount,
+      completedCount,
+      cancelledCount,
+      totalBookings
+    ] = await Promise.all([
+      Booking.countDocuments({ assignedProvider: provider._id, status: 'pending' }),
+      Booking.countDocuments({ assignedProvider: provider._id, status: 'accepted' }),
+      Booking.countDocuments({ assignedProvider: provider._id, status: 'in_progress' }),
+      Booking.countDocuments({ assignedProvider: provider._id, status: 'completed' }),
+      Booking.countDocuments({ assignedProvider: provider._id, status: 'cancelled' }),
+      Booking.countDocuments({ assignedProvider: provider._id })
+    ]);
 
-    // Add status filter if provided
-    if (statusFilter && statusFilter !== 'all') {
-      query.status = statusFilter;
-    }
-
-    // Get bookings assigned to this provider
-    const bookings = await Booking.find(query)
-      .sort({ createdAt: -1 })
-      .populate('customerId', 'name email phone');
-
-    console.log(`✅ Found ${bookings.length} bookings for provider ${provider.name}`);
-
-    // Also get pending requests (bookings not yet assigned but matching provider's services)
-    const pendingRequests = await Booking.find({
+    // Get pending requests (not yet assigned)
+    const pendingRequestsCount = await Booking.countDocuments({
       serviceName: { $in: provider.services },
       status: 'pending',
-      assignedProvider: null,
-      'providerResponses.providerId': { $ne: provider._id }
-    }).sort({ createdAt: -1 });
+      assignedProvider: null
+    });
 
-    console.log(`📢 Found ${pendingRequests.length} pending requests for provider's services`);
+    // Calculate earnings
+    const completedBookings = await Booking.find({
+      assignedProvider: provider._id,
+      status: 'completed'
+    }).select('totalPrice bookingDate completedAt');
 
-    const mappedBookings = bookings.map((booking) => ({
-      id: booking._id.toString(),
-      _id: booking._id.toString(),
-      serviceId: booking.serviceId,
-      serviceName: booking.serviceName,
-      serviceCategory: booking.serviceCategory,
-      status: booking.status,
-      bookingDate: booking.bookingDate,
-      bookingTime: booking.bookingTime,
-      totalPrice: booking.totalPrice,
-      basePrice: booking.basePrice,
-      customerName: booking.customerName,
-      customerPhone: booking.customerPhone,
-      customerAddress: booking.customerAddress,
-      paymentMethod: booking.paymentMethod,
-      paymentStatus: booking.paymentStatus,
-      customer: booking.customerId ? {
-        id: booking.customerId._id?.toString(),
-        name: booking.customerId.name,
-        email: booking.customerId.email,
-        phone: booking.customerId.phone,
-      } : null,
-      driverDetails: booking.driverDetails || null,
-      extras: booking.extras || [],
-      notes: booking.notes || '',
-      startedAt: booking.startedAt,
-      completedAt: booking.completedAt,
-      createdAt: booking.createdAt,
-      updatedAt: booking.updatedAt,
-    }));
+    const now = new Date();
+    const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const startOfWeek = new Date(now);
+    startOfWeek.setDate(now.getDate() - now.getDay());
+    startOfWeek.setHours(0, 0, 0, 0);
+    const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
 
-    const mappedPendingRequests = pendingRequests.map((booking) => ({
-      id: booking._id.toString(),
-      _id: booking._id.toString(),
-      serviceId: booking.serviceId,
-      serviceName: booking.serviceName,
-      serviceCategory: booking.serviceCategory,
-      status: booking.status,
-      bookingDate: booking.bookingDate,
-      bookingTime: booking.bookingTime,
-      totalPrice: booking.totalPrice,
-      basePrice: booking.basePrice,
-      customerName: booking.customerName,
-      customerPhone: booking.customerPhone,
-      customerAddress: booking.customerAddress,
-      paymentMethod: booking.paymentMethod,
-      notes: booking.notes || '',
-      driverDetails: booking.driverDetails || null,
-      createdAt: booking.createdAt,
-    }));
+    const totalEarnings = completedBookings.reduce((sum, b) => sum + (b.totalPrice || 0), 0);
+    
+    const todayEarnings = completedBookings
+      .filter(b => new Date(b.completedAt || b.bookingDate) >= startOfToday)
+      .reduce((sum, b) => sum + (b.totalPrice || 0), 0);
+
+    const weeklyEarnings = completedBookings
+      .filter(b => new Date(b.completedAt || b.bookingDate) >= startOfWeek)
+      .reduce((sum, b) => sum + (b.totalPrice || 0), 0);
+
+    const monthlyEarnings = completedBookings
+      .filter(b => new Date(b.completedAt || b.bookingDate) >= startOfMonth)
+      .reduce((sum, b) => sum + (b.totalPrice || 0), 0);
+
+    // Get upcoming bookings (next 7 days)
+    const nextWeek = new Date(now);
+    nextWeek.setDate(now.getDate() + 7);
+    
+    const upcomingBookings = await Booking.countDocuments({
+      assignedProvider: provider._id,
+      status: { $in: ['accepted', 'in_progress'] },
+      bookingDate: { $gte: startOfToday, $lte: nextWeek }
+    });
 
     return NextResponse.json({
       success: true,
-      bookings: mappedBookings,
-      pendingRequests: mappedPendingRequests,
-      meta: {
-        total: mappedBookings.length,
-        pendingCount: mappedPendingRequests.length,
-        providerId: provider._id.toString(),
-        providerName: provider.name
+      stats: {
+        // Booking counts
+        totalBookings,
+        pendingRequests: pendingRequestsCount,
+        pendingCount,
+        acceptedCount,
+        inProgressCount,
+        completedCount,
+        cancelledCount,
+        upcomingBookings,
+
+        // Earnings
+        totalEarnings,
+        todayEarnings,
+        weeklyEarnings,
+        monthlyEarnings,
+
+        // Provider info
+        rating: provider.rating || 0,
+        totalReviews: provider.totalReviews || 0,
+        servicesCount: provider.services?.length || 0,
+        status: provider.status
+      },
+      provider: {
+        id: provider._id.toString(),
+        name: provider.name,
+        email: provider.email,
+        services: provider.services,
+        status: provider.status
       }
     });
 
   } catch (error) {
-    console.error('Error fetching provider bookings:', error);
+    console.error('Error fetching provider stats:', error);
     return NextResponse.json(
-      { success: false, message: 'Failed to fetch bookings', bookings: [] },
+      { success: false, message: 'Failed to fetch stats' },
       { status: 500 }
     );
   }
