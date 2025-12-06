@@ -430,8 +430,8 @@ export default function TermsOfServicePage() {
                   <h4 className="font-bold text-blue-900 mb-4">YANN Technologies Private Limited</h4>
                   <div className="space-y-2 text-blue-800">
                     <p><strong>Legal Department</strong></p>
-                    <p><strong>Email:</strong> info.shuttleride@gmail.com</p>
-                    <p><strong>Support:</strong> info.shuttleride@gmail.com</p>
+                    <p><strong>Email:</strong> info.yannhome@gmail.com</p>
+                    <p><strong>Support:</strong> info.yannhome@gmail.com</p>
                     <p><strong>Phone:</strong> +91 7827273057</p>
                     <p><strong>Address:</strong></p>
                     <p className="pl-4">

@@ -43,9 +43,9 @@ export default function HelpPage() {
     {
       icon: Mail,
       title: 'Email Us',
-      detail: 'info.shuttleride@gmail.com',
+      detail: 'info.yannhome@gmail.com',
       subtext: 'Response within 24 hours',
-      action: 'mailto:info.shuttleride@gmail.com',
+      action: 'mailto:info.yannhome@gmail.com',
       actionText: 'Send Email',
       color: 'from-blue-500 to-indigo-600',
     },

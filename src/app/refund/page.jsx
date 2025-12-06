@@ -381,8 +381,8 @@ export default function RefundPolicyPage() {
                 <div className="bg-blue-50 border border-blue-200 rounded-xl p-6">
                   <h4 className="font-bold text-blue-900 mb-4">YANN Customer Support</h4>
                   <div className="space-y-2 text-blue-800">
-                    <p><strong>Email:</strong> info.shuttleride@gmail.com</p>
-                    <p><strong>Refund Queries:</strong> info.shuttleride@gmail.com</p>
+                    <p><strong>Email:</strong> info.yannhome@gmail.com</p>
+                    <p><strong>Refund Queries:</strong> info.yannhome@gmail.com</p>
                     <p><strong>Phone:</strong> +91 7827273057 (9 AM - 9 PM IST)</p>
                     <p><strong>WhatsApp:</strong> +91 7827273057</p>
                   </div>
