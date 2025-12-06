@@ -22,8 +22,48 @@ export async function GET() {
           _id: '$services',
           count: { $sum: 1 },
           avgRating: { $avg: '$rating' },
-          minPrice: { $min: { $arrayElemAt: ['$serviceRates.price', 0] } },
+          prices: { $push: '$serviceRates' },
         },
+      },
+      // Add a stage to find min/max prices for each service
+      {
+        $addFields: {
+          allPrices: {
+            $reduce: {
+              input: '$prices',
+              initialValue: [],
+              in: {
+                $concatArrays: [
+                  '$$value',
+                  {
+                    $map: {
+                      input: '$$this',
+                      as: 'rate',
+                      in: {
+                        $cond: [
+                          { $eq: ['$$rate.serviceName', '$_id'] },
+                          '$$rate.price',
+                          null
+                        ]
+                      }
+                    }
+                  }
+                ]
+              }
+            }
+          }
+        }
+      },
+      {
+        $addFields: {
+          validPrices: {
+            $filter: {
+              input: '$allPrices',
+              as: 'price',
+              cond: { $and: [{ $ne: ['$$price', null] }, { $gt: ['$$price', 0] }] }
+            }
+          }
+        }
       },
       // Sort by count (most popular first)
       { $sort: { count: -1 } },
@@ -34,6 +74,8 @@ export async function GET() {
           service: '$_id',
           providerCount: '$count',
           avgRating: { $round: ['$avgRating', 1] },
+          minPrice: { $min: '$validPrices' },
+          maxPrice: { $max: '$validPrices' },
         },
       },
     ]);
