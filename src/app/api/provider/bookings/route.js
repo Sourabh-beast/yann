@@ -9,13 +9,24 @@ const PROVIDER_COOKIE = 'yann_session';
 
 /**
  * Helper to get authenticated provider from session
+ * Supports both cookie-based (website) and token-based (mobile app) authentication
  */
-async function getAuthenticatedProvider() {
+async function getAuthenticatedProvider(request) {
   if (!process.env.JWT_SECRET) {
     return { error: 'Server configuration error', status: 500 };
   }
 
-  const token = cookies().get(PROVIDER_COOKIE)?.value;
+  // Support both cookie-based (website) and token-based (mobile app) authentication
+  let token = cookies().get(PROVIDER_COOKIE)?.value;
+  
+  // If no cookie, check Authorization header for mobile app
+  if (!token) {
+    const authHeader = request.headers.get('authorization');
+    if (authHeader?.startsWith('Bearer ')) {
+      token = authHeader.substring(7);
+    }
+  }
+  
   if (!token) {
     return { error: 'Unauthorized - Please login', status: 401 };
   }
@@ -48,7 +59,7 @@ export async function GET(request) {
   try {
     await connectDB();
 
-    const authResult = await getAuthenticatedProvider();
+    const authResult = await getAuthenticatedProvider(request);
     if (authResult.error) {
       return NextResponse.json(
         { success: false, message: authResult.error, bookings: [] },

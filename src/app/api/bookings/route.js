@@ -11,7 +11,7 @@ const HOME_COOKIE = 'yann_home_session';
  * GET /api/bookings
  * Get all bookings for the authenticated homeowner
  */
-export async function GET() {
+export async function GET(request) {
   try {
     await connectDB();
 
@@ -23,7 +23,17 @@ export async function GET() {
       );
     }
 
-    const token = cookies().get(HOME_COOKIE)?.value;
+    // Support both cookie-based (website) and token-based (mobile app) authentication
+    let token = cookies().get(HOME_COOKIE)?.value;
+    
+    // If no cookie, check Authorization header for mobile app
+    if (!token) {
+      const authHeader = request.headers.get('authorization');
+      if (authHeader?.startsWith('Bearer ')) {
+        token = authHeader.substring(7);
+      }
+    }
+    
     if (!token) {
       return NextResponse.json(
         { success: false, message: 'Unauthorized', data: [] },
@@ -56,10 +66,10 @@ export async function GET() {
       );
     }
 
-    // Get bookings for this homeowner
-    const bookings = await Booking.find({ customerEmail: homeowner.email })
+    // Get bookings for this homeowner (using customerId, not customerEmail)
+    const bookings = await Booking.find({ customerId: homeowner._id })
       .sort({ createdAt: -1 })
-      .populate('providerId', 'name email phone rating profileImage');
+      .populate('assignedProvider', 'name email phone rating profileImage');
 
     const mappedBookings = bookings.map((booking) => ({
       id: booking._id.toString(),
@@ -73,17 +83,17 @@ export async function GET() {
       basePrice: booking.basePrice,
       customerName: booking.customerName,
       customerPhone: booking.customerPhone,
-      customerEmail: booking.customerEmail,
       customerAddress: booking.customerAddress,
       paymentMethod: booking.paymentMethod,
       paymentStatus: booking.paymentStatus,
-      provider: booking.providerId ? {
-        id: booking.providerId._id.toString(),
-        name: booking.providerId.name,
-        email: booking.providerId.email,
-        phone: booking.providerId.phone,
-        rating: booking.providerId.rating,
-        profileImage: booking.providerId.profileImage,
+      providerName: booking.providerName,
+      provider: booking.assignedProvider ? {
+        id: booking.assignedProvider._id.toString(),
+        name: booking.assignedProvider.name,
+        email: booking.assignedProvider.email,
+        phone: booking.assignedProvider.phone,
+        rating: booking.assignedProvider.rating,
+        profileImage: booking.assignedProvider.profileImage,
       } : null,
       negotiation: booking.negotiation || null,
       driverDetails: booking.driverDetails || null,
