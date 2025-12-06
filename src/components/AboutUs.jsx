@@ -86,8 +86,8 @@ export default function AboutUs() {
   ];
 
   const stats = [
-    { value: "100K+", label: "Happy Customers", icon: "👥" },
-    { value: "5K+", label: "Service Partners", icon: "🤝" },
+    { value: "10K+", label: "Happy Customers", icon: "👥" },
+    { value: "500+", label: "Service Partners", icon: "🤝" },
     { value: "50+", label: "Service Types", icon: "🛠️" },
     { value: "500+", label: "Cities Covered", icon: "🌍" }
   ];
