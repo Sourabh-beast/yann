@@ -1,12 +1,44 @@
-import { NextResponse } from 'next/server';
-import connectDB from '@/lib/connectDB';
-import Service from '@/models/Service';
+// Run this script to seed all 36 services to MongoDB
+// Usage: node scripts/seed-services.js
 
-// Static fallback services if database is empty - All 36 Yann services
-const STATIC_SERVICES = [
-  // ===== DRIVER SERVICES (2) =====
+import mongoose from 'mongoose';
+import dotenv from 'dotenv';
+import path from 'path';
+import { fileURLToPath } from 'url';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
+// Load environment variables
+dotenv.config({ path: path.join(__dirname, '../.env.local') });
+
+const MONGODB_URI = process.env.MONGODB_URI;
+
+if (!MONGODB_URI) {
+  console.error('❌ MONGODB_URI not found in environment variables');
+  console.log('Make sure .env.local exists with MONGODB_URI');
+  process.exit(1);
+}
+
+// Service Schema (matching your Service model)
+const serviceSchema = new mongoose.Schema({
+  title: { type: String, required: true, unique: true },
+  description: { type: String, required: true },
+  category: { type: String, required: true },
+  price: { type: String, default: 'Varies' },
+  icon: { type: String, default: '🏠' },
+  features: [{ type: String }],
+  popular: { type: Boolean, default: false },
+  isActive: { type: Boolean, default: true },
+  order: { type: Number, default: 0 }
+}, { timestamps: true });
+
+const Service = mongoose.models.Service || mongoose.model('Service', serviceSchema);
+
+// All 36 Yann Services (NEW)
+const SERVICES = [
+  // ===== DRIVER SERVICES (3) =====
   {
-    id: 1,
     title: 'Full-Day Personal Driver',
     description: 'Full-day personal driver for your transportation needs',
     category: 'driver',
@@ -14,9 +46,9 @@ const STATIC_SERVICES = [
     icon: '🚙',
     popular: true,
     features: ['Full-day service', 'All routes', 'Professional & courteous'],
+    order: 1
   },
   {
-    id: 2,
     title: 'Outstation Driving Service',
     description: 'Long-distance and outstation driving services',
     category: 'driver',
@@ -24,11 +56,11 @@ const STATIC_SERVICES = [
     icon: '🛣️',
     popular: false,
     features: ['Long-distance trips', 'Experienced drivers', 'Safe & reliable'],
+    order: 2
   },
 
   // ===== PUJARI SERVICES (20) =====
   {
-    id: 3,
     title: 'Lakshmi Puja',
     description: 'Lakshmi Puja ceremony for prosperity and wealth',
     category: 'pujari',
@@ -36,9 +68,9 @@ const STATIC_SERVICES = [
     icon: '✨',
     popular: true,
     features: ['Home puja', 'Complete rituals', 'Priest included'],
+    order: 3
   },
   {
-    id: 4,
     title: 'Satyanarayan Katha',
     description: 'Traditional Satyanarayan Katha ceremony at home',
     category: 'pujari',
@@ -46,9 +78,9 @@ const STATIC_SERVICES = [
     icon: '📖',
     popular: false,
     features: ['Full ceremony', 'Priest & materials', 'Traditional method'],
+    order: 4
   },
   {
-    id: 5,
     title: 'Ganesh Puja at Home',
     description: 'Ganesh Puja ceremony performed at your home',
     category: 'pujari',
@@ -56,9 +88,9 @@ const STATIC_SERVICES = [
     icon: '🐘',
     popular: true,
     features: ['Home ceremony', 'All rituals', 'Complete setup'],
+    order: 5
   },
   {
-    id: 6,
     title: 'Griha Pravesh Puja',
     description: 'New house blessing and Griha Pravesh ceremony',
     category: 'pujari',
@@ -66,9 +98,9 @@ const STATIC_SERVICES = [
     icon: '🏠',
     popular: true,
     features: ['House blessing', 'Complete rituals', 'Expert priest'],
+    order: 6
   },
   {
-    id: 7,
     title: 'Vastu Shanti Puja',
     description: 'Vastu Shanti ceremony to balance home energies',
     category: 'pujari',
@@ -76,9 +108,9 @@ const STATIC_SERVICES = [
     icon: '⚖️',
     popular: false,
     features: ['Energy balancing', 'Expert guidance', 'Full ritual'],
+    order: 7
   },
   {
-    id: 8,
     title: 'Havan Ceremony',
     description: 'Holy Havan ceremony with fire rituals',
     category: 'pujari',
@@ -86,9 +118,9 @@ const STATIC_SERVICES = [
     icon: '🔥',
     popular: false,
     features: ['Fire rituals', 'Vedic chanting', 'All materials included'],
+    order: 8
   },
   {
-    id: 9,
     title: 'Rudrabhishek Puja',
     description: 'Sacred Rudrabhishek ceremony for Lord Shiva',
     category: 'pujari',
@@ -96,9 +128,9 @@ const STATIC_SERVICES = [
     icon: '🕉️',
     popular: false,
     features: ['Holy ceremony', 'Expert priest', 'All materials'],
+    order: 9
   },
   {
-    id: 10,
     title: 'Vivah (Wedding Ceremony)',
     description: 'Complete wedding ceremony with traditional rituals',
     category: 'pujari',
@@ -106,9 +138,9 @@ const STATIC_SERVICES = [
     icon: '💒',
     popular: true,
     features: ['Full ceremony', 'Multiple priests', 'Complete setup'],
+    order: 10
   },
   {
-    id: 11,
     title: 'Ring Ceremony',
     description: 'Ring ceremony and engagement rituals',
     category: 'pujari',
@@ -116,9 +148,9 @@ const STATIC_SERVICES = [
     icon: '💍',
     popular: false,
     features: ['Engagement ceremony', 'Expert priests', 'Full ritual'],
+    order: 11
   },
   {
-    id: 12,
     title: 'Ramayan Path',
     description: 'Continuous recitation of the Ramayan',
     category: 'pujari',
@@ -126,9 +158,9 @@ const STATIC_SERVICES = [
     icon: '📚',
     popular: false,
     features: ['Vedic recitation', 'Experienced priests', 'Sacred ritual'],
+    order: 12
   },
   {
-    id: 13,
     title: 'Mahamrityunjay Jaap',
     description: 'Sacred Mahamrityunjay mantra chanting ceremony',
     category: 'pujari',
@@ -136,9 +168,9 @@ const STATIC_SERVICES = [
     icon: '💫',
     popular: false,
     features: ['Healing ceremony', 'Mantra chanting', 'Spiritual benefit'],
+    order: 13
   },
   {
-    id: 14,
     title: 'Gayatri Jaap',
     description: 'Gayatri mantra recitation ceremony',
     category: 'pujari',
@@ -146,9 +178,9 @@ const STATIC_SERVICES = [
     icon: '☀️',
     popular: false,
     features: ['Mantra chanting', 'Expert priest', 'Spiritual awakening'],
+    order: 14
   },
   {
-    id: 15,
     title: 'Pitra Shanti Puja',
     description: 'Ancestral peace ceremony for departed souls',
     category: 'pujari',
@@ -156,9 +188,9 @@ const STATIC_SERVICES = [
     icon: '🕯️',
     popular: false,
     features: ['Ancestor blessing', 'Traditional ritual', 'Expert priest'],
+    order: 15
   },
   {
-    id: 16,
     title: 'Nav Graha Shanti',
     description: 'Nine planets peace ceremony',
     category: 'pujari',
@@ -166,9 +198,9 @@ const STATIC_SERVICES = [
     icon: '⭐',
     popular: false,
     features: ['Planetary healing', 'Vedic ritual', 'Expert priest'],
+    order: 16
   },
   {
-    id: 17,
     title: 'Bhoomi Poojan',
     description: 'Ground breaking ceremony for construction',
     category: 'pujari',
@@ -176,19 +208,19 @@ const STATIC_SERVICES = [
     icon: '🏗️',
     popular: false,
     features: ['Construction blessing', 'Complete ritual', 'Safety blessing'],
+    order: 17
   },
   {
-    id: 18,
     title: 'Vaahan Poojan',
     description: 'Vehicle blessing ceremony',
     category: 'pujari',
     price: 'Varies',
-    icon: '🚙',
+    icon: '🚗',
     popular: false,
     features: ['Vehicle blessing', 'Safety ritual', 'Expert priest'],
+    order: 18
   },
   {
-    id: 19,
     title: 'Shraadh Karm',
     description: 'Sacred death ritual ceremony',
     category: 'pujari',
@@ -196,9 +228,9 @@ const STATIC_SERVICES = [
     icon: '🙏',
     popular: false,
     features: ['Death ritual', 'Traditional ceremony', 'Expert guidance'],
+    order: 19
   },
   {
-    id: 20,
     title: 'Janmadin Poojan',
     description: 'Birthday blessing ceremony',
     category: 'pujari',
@@ -206,9 +238,9 @@ const STATIC_SERVICES = [
     icon: '🎂',
     popular: false,
     features: ['Birthday blessing', 'Special rituals', 'Expert priest'],
+    order: 20
   },
   {
-    id: 21,
     title: 'Sundarkand Path',
     description: 'Sundar Kand recitation ceremony',
     category: 'pujari',
@@ -216,11 +248,11 @@ const STATIC_SERVICES = [
     icon: '📖',
     popular: false,
     features: ['Vedic recitation', 'Sacred ceremony', 'Spiritual benefit'],
+    order: 21
   },
 
   // ===== CLEANING SERVICES (13) =====
   {
-    id: 22,
     title: 'Deep House Cleaning',
     description: 'Thorough deep cleaning of your entire house',
     category: 'cleaning',
@@ -228,9 +260,9 @@ const STATIC_SERVICES = [
     icon: '🏠',
     popular: true,
     features: ['Complete deep clean', 'All rooms', 'Professional equipment'],
+    order: 22
   },
   {
-    id: 23,
     title: 'Regular House Cleaning',
     description: 'Regular maintenance cleaning for your home',
     category: 'cleaning',
@@ -238,9 +270,9 @@ const STATIC_SERVICES = [
     icon: '✨',
     popular: true,
     features: ['Weekly/monthly service', 'Reliable team', 'Flexible schedule'],
+    order: 23
   },
   {
-    id: 24,
     title: 'Bathroom Deep Clean',
     description: 'Specialized bathroom and toilet deep cleaning',
     category: 'cleaning',
@@ -248,9 +280,9 @@ const STATIC_SERVICES = [
     icon: '🚽',
     popular: false,
     features: ['Deep sanitization', 'Odor removal', 'Professional products'],
+    order: 24
   },
   {
-    id: 25,
     title: 'Move-in/Move-out Cleaning',
     description: 'Complete cleaning for moving in or out',
     category: 'cleaning',
@@ -258,9 +290,9 @@ const STATIC_SERVICES = [
     icon: '📦',
     popular: false,
     features: ['Thorough cleaning', 'Deposit protection', 'Fast service'],
+    order: 25
   },
   {
-    id: 26,
     title: 'Kitchen Deep Clean',
     description: 'Professional kitchen deep cleaning service',
     category: 'cleaning',
@@ -268,9 +300,9 @@ const STATIC_SERVICES = [
     icon: '🍳',
     popular: false,
     features: ['Appliance cleaning', 'Degreasing', 'Sanitization'],
+    order: 26
   },
   {
-    id: 27,
     title: 'Office Cleaning',
     description: 'Professional office space cleaning',
     category: 'cleaning',
@@ -278,9 +310,9 @@ const STATIC_SERVICES = [
     icon: '🏢',
     popular: false,
     features: ['Office maintenance', 'Daily/weekly service', 'Professional team'],
+    order: 27
   },
   {
-    id: 28,
     title: 'Laundry & Ironing',
     description: 'Professional laundry and ironing service',
     category: 'cleaning',
@@ -288,9 +320,9 @@ const STATIC_SERVICES = [
     icon: '👔',
     popular: false,
     features: ['Washing & ironing', 'Careful handling', 'Quick turnaround'],
+    order: 28
   },
   {
-    id: 29,
     title: 'Sofa & Upholstery Clean',
     description: 'Sofa, upholstery and fabric cleaning',
     category: 'cleaning',
@@ -298,9 +330,9 @@ const STATIC_SERVICES = [
     icon: '🛋️',
     popular: false,
     features: ['Fabric safe', 'Stain removal', 'Fresh & clean'],
+    order: 29
   },
   {
-    id: 30,
     title: 'Post-Construction Cleaning',
     description: 'Complete cleaning after construction work',
     category: 'cleaning',
@@ -308,9 +340,9 @@ const STATIC_SERVICES = [
     icon: '🏗️',
     popular: false,
     features: ['Dust removal', 'Professional team', 'Complete cleanup'],
+    order: 30
   },
   {
-    id: 31,
     title: 'Dry Cleaning Service',
     description: 'Professional dry cleaning for clothes',
     category: 'cleaning',
@@ -318,9 +350,9 @@ const STATIC_SERVICES = [
     icon: '👕',
     popular: false,
     features: ['Expert cleaning', 'Stain removal', 'Quick service'],
+    order: 31
   },
   {
-    id: 32,
     title: 'Carpet Cleaning',
     description: 'Professional carpet and rug cleaning',
     category: 'cleaning',
@@ -328,19 +360,19 @@ const STATIC_SERVICES = [
     icon: '🧺',
     popular: false,
     features: ['Deep cleaning', 'Stain removal', 'Fresh carpets'],
+    order: 32
   },
   {
-    id: 33,
     title: 'Chimney & Exhaust Cleaning',
     description: 'Kitchen chimney and exhaust cleaning service',
     category: 'cleaning',
     price: 'Varies',
-    icon: '🔥',
+    icon: '🌬️',
     popular: false,
     features: ['Deep cleaning', 'Filter replacement', 'Professional service'],
+    order: 33
   },
   {
-    id: 34,
     title: 'Water Tank Cleaning',
     description: 'Water tank and pipeline cleaning service',
     category: 'cleaning',
@@ -348,9 +380,9 @@ const STATIC_SERVICES = [
     icon: '💧',
     popular: false,
     features: ['Sanitization', 'Professional equipment', 'Safe drinking water'],
+    order: 34
   },
   {
-    id: 35,
     title: 'Window Cleaning',
     description: 'Professional window cleaning service',
     category: 'cleaning',
@@ -358,9 +390,9 @@ const STATIC_SERVICES = [
     icon: '🪟',
     popular: false,
     features: ['Glass cleaning', 'Frame cleaning', 'High-rise service'],
+    order: 35
   },
   {
-    id: 36,
     title: 'Balcony Cleaning',
     description: 'Complete balcony and terrace cleaning',
     category: 'cleaning',
@@ -368,129 +400,48 @@ const STATIC_SERVICES = [
     icon: '🌳',
     popular: false,
     features: ['Floor cleaning', 'Railing cleaning', 'Disinfection'],
-  },
+    order: 36
+  }
 ];
 
-/**
- * GET /api/services
- * Fetch all services from MongoDB
- * Query params: category (optional)
- */
-export async function GET(request) {
+async function seedServices() {
   try {
-    await connectDB();
+    console.log('🔌 Connecting to MongoDB...');
+    await mongoose.connect(MONGODB_URI);
+    console.log('✅ Connected to MongoDB');
 
-    const { searchParams } = new URL(request.url);
-    const category = searchParams.get('category');
+    // Delete ALL existing services first
+    console.log('\n🗑️  Deleting all existing services...');
+    const deleteResult = await Service.deleteMany({});
+    console.log(`   Deleted ${deleteResult.deletedCount} old services`);
 
-    // Build query - only active services
-    const query = { isActive: { $ne: false } };
-    if (category) {
-      query.category = category;
+    console.log('\n📦 Seeding 36 services...\n');
+
+    let created = 0;
+
+    for (const service of SERVICES) {
+      await Service.create({ ...service, isActive: true });
+      console.log(`  ✅ Created: ${service.title}`);
+      created++;
     }
 
-    // Get services from database
-    const services = await Service.find(query)
-      .sort({ order: 1, popular: -1, createdAt: -1 })
-      .select('-__v');
+    console.log('\n' + '='.repeat(40));
+    console.log(`📊 Summary:`);
+    console.log(`   Deleted: ${deleteResult.deletedCount} old services`);
+    console.log(`   Created: ${created} new services`);
+    console.log('='.repeat(40));
 
-    // If no services in database, return static services as fallback
-    if (services.length === 0) {
-      console.log('No services in database, returning static fallback');
-      let staticData = STATIC_SERVICES;
-      if (category) {
-        staticData = staticData.filter(s => s.category === category);
-      }
-      return NextResponse.json({
-        success: true,
-        data: staticData,
-      });
-    }
+    // Verify
+    const totalInDB = await Service.countDocuments();
+    console.log(`\n✅ Total services in database: ${totalInDB}`);
 
-    const mappedServices = services.map(service => ({
-      id: service._id.toString(),
-      title: service.title,
-      description: service.description,
-      category: service.category,
-      price: service.price,
-      features: service.features || [],
-      icon: service.icon || '🏠',
-      popular: service.popular || false,
-    }));
-
-    return NextResponse.json({
-      success: true,
-      data: mappedServices,
-    });
   } catch (error) {
-    console.error('Error fetching services:', error);
-    // Return static services on error
-    return NextResponse.json({
-      success: true,
-      data: STATIC_SERVICES,
-    });
+    console.error('❌ Error seeding services:', error);
+  } finally {
+    await mongoose.disconnect();
+    console.log('\n🔌 Disconnected from MongoDB');
+    process.exit(0);
   }
 }
 
-/**
- * POST /api/services
- * Create a new service (admin only)
- */
-export async function POST(request) {
-  try {
-    await connectDB();
-
-    let payload;
-    try {
-      payload = await request.json();
-    } catch (err) {
-      return NextResponse.json(
-        { success: false, message: 'Invalid request body' },
-        { status: 400 }
-      );
-    }
-
-    const { title, description, category, price, features, icon, popular } = payload;
-
-    if (!title || !description || !category || !price) {
-      return NextResponse.json(
-        { success: false, message: 'Title, description, category, and price are required' },
-        { status: 400 }
-      );
-    }
-
-    const service = await Service.create({
-      title,
-      description,
-      category,
-      price,
-      features: features || [],
-      icon: icon || '🏠',
-      popular: popular || false,
-    });
-
-    return NextResponse.json(
-      {
-        success: true,
-        message: 'Service created successfully',
-        data: {
-          id: service._id.toString(),
-          title: service.title,
-          description: service.description,
-          category: service.category,
-          price: service.price,
-          features: service.features,
-          icon: service.icon,
-          popular: service.popular,
-        }
-      },
-      { status: 201 }
-    );
-  } catch (error) {
-    console.error('Error creating service:', error);
-    return NextResponse.json(
-      { success: false, message: 'Failed to create service' },
-      { status: 500 }
-    );
-  }
-}
+seedServices();
