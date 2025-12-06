@@ -244,8 +244,8 @@ const Footer = () => {
                 </div>
                 <div>
                   <p className="text-white font-semibold mb-1">Email Support</p>
-                  <a href="mailto:info.shuttleride@gmail.com" className="text-purple-400 hover:text-purple-300 transition-colors font-bold">
-                    info.shuttleride@gmail.com
+                  <a href="mailto:info.yannhome@gmail.com" className="text-purple-400 hover:text-purple-300 transition-colors font-bold">
+                    info.yannhome@gmail.com
                   </a>
                   <p className="text-gray-500 text-xs mt-1">Quick response</p>
                 </div>
