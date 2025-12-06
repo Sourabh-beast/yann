@@ -36,7 +36,7 @@ export default function TermsOfServicePage() {
               {/* 1. Acceptance of Terms */}
               <section className="mb-10">
                 <h2 className="text-2xl font-bold text-gray-900 mb-4 pb-2 border-b border-gray-200">1. Acceptance of Terms</h2>
-                
+
                 <h3 className="text-lg font-semibold text-gray-800 mt-6 mb-3">1.1 Agreement</h3>
                 <p className="text-gray-700 leading-relaxed mb-4">
                   These Terms of Service ("Terms") constitute a legally binding agreement between you ("User," "you," or "your") and YANN Technologies Private Limited ("YANN," "Company," "we," "our," or "us"), a company incorporated under the laws of India.
@@ -67,7 +67,7 @@ export default function TermsOfServicePage() {
               {/* 2. User Accounts */}
               <section className="mb-10">
                 <h2 className="text-2xl font-bold text-gray-900 mb-4 pb-2 border-b border-gray-200">2. User Accounts</h2>
-                
+
                 <h3 className="text-lg font-semibold text-gray-800 mt-6 mb-3">2.1 Account Registration</h3>
                 <p className="text-gray-700 leading-relaxed mb-4">
                   To access certain features, you must create an account by providing accurate information and verifying your identity through OTP or other verification methods.
@@ -103,7 +103,7 @@ export default function TermsOfServicePage() {
               {/* 3. Services & Bookings */}
               <section className="mb-10">
                 <h2 className="text-2xl font-bold text-gray-900 mb-4 pb-2 border-b border-gray-200">3. Services & Bookings</h2>
-                
+
                 <h3 className="text-lg font-semibold text-gray-800 mt-6 mb-3">3.1 Service Marketplace</h3>
                 <p className="text-gray-700 leading-relaxed mb-4">
                   YANN acts as an intermediary platform connecting Customers with Service Partners. We do not directly provide home services. Service Partners are independent contractors, not employees of YANN.
@@ -138,7 +138,7 @@ export default function TermsOfServicePage() {
               {/* 4. Pricing & Payments */}
               <section className="mb-10">
                 <h2 className="text-2xl font-bold text-gray-900 mb-4 pb-2 border-b border-gray-200">4. Pricing & Payments</h2>
-                
+
                 <h3 className="text-lg font-semibold text-gray-800 mt-6 mb-3">4.1 Service Pricing</h3>
                 <ul className="list-disc pl-6 text-gray-700 space-y-2 mb-4">
                   <li>Prices are set by Service Partners and displayed on the Platform</li>
@@ -181,7 +181,7 @@ export default function TermsOfServicePage() {
                 <p className="text-gray-700 leading-relaxed mb-4">
                   Please refer to our detailed <a href="/refund" className="text-blue-600 hover:underline font-medium">Refund & Cancellation Policy</a> for complete information. Key points:
                 </p>
-                
+
                 <div className="bg-blue-50 border border-blue-200 rounded-xl p-4">
                   <h4 className="font-semibold text-blue-900 mb-3">Cancellation Summary:</h4>
                   <ul className="text-blue-800 text-sm space-y-2">
@@ -196,7 +196,7 @@ export default function TermsOfServicePage() {
               {/* 6. User Conduct */}
               <section className="mb-10">
                 <h2 className="text-2xl font-bold text-gray-900 mb-4 pb-2 border-b border-gray-200">6. User Conduct</h2>
-                
+
                 <h3 className="text-lg font-semibold text-gray-800 mt-6 mb-3">6.1 Acceptable Use</h3>
                 <p className="text-gray-700 leading-relaxed mb-3">You agree to:</p>
                 <ul className="list-disc pl-6 text-gray-700 space-y-2 mb-4">
@@ -249,7 +249,7 @@ export default function TermsOfServicePage() {
               {/* 8. Intellectual Property */}
               <section className="mb-10">
                 <h2 className="text-2xl font-bold text-gray-900 mb-4 pb-2 border-b border-gray-200">8. Intellectual Property</h2>
-                
+
                 <h3 className="text-lg font-semibold text-gray-800 mt-6 mb-3">8.1 YANN's Intellectual Property</h3>
                 <p className="text-gray-700 leading-relaxed mb-4">
                   The YANN name, logo, website, mobile application, content, features, and functionality are owned by YANN Technologies Private Limited and are protected by copyright, trademark, and other intellectual property laws.
@@ -281,7 +281,7 @@ export default function TermsOfServicePage() {
               {/* 9. Disclaimers */}
               <section className="mb-10">
                 <h2 className="text-2xl font-bold text-gray-900 mb-4 pb-2 border-b border-gray-200">9. Disclaimers</h2>
-                
+
                 <div className="bg-gray-100 border-2 border-gray-300 rounded-xl p-5">
                   <h3 className="text-lg font-bold text-gray-900 mb-3">9.1 Platform "As Is"</h3>
                   <p className="text-gray-700 text-sm leading-relaxed mb-4">
@@ -304,7 +304,7 @@ export default function TermsOfServicePage() {
               {/* 10. Limitation of Liability */}
               <section className="mb-10">
                 <h2 className="text-2xl font-bold text-gray-900 mb-4 pb-2 border-b border-gray-200">10. Limitation of Liability</h2>
-                
+
                 <div className="bg-amber-50 border-2 border-amber-200 rounded-xl p-5">
                   <p className="text-amber-900 text-sm leading-relaxed mb-4">
                     TO THE MAXIMUM EXTENT PERMITTED BY LAW, YANN AND ITS OFFICERS, DIRECTORS, EMPLOYEES, AND AGENTS SHALL NOT BE LIABLE FOR:
@@ -340,7 +340,7 @@ export default function TermsOfServicePage() {
               {/* 12. Dispute Resolution */}
               <section className="mb-10">
                 <h2 className="text-2xl font-bold text-gray-900 mb-4 pb-2 border-b border-gray-200">12. Dispute Resolution</h2>
-                
+
                 <h3 className="text-lg font-semibold text-gray-800 mt-6 mb-3">12.1 Customer Support</h3>
                 <p className="text-gray-700 leading-relaxed mb-4">
                   For any service-related issues, please first contact our customer support team. We will attempt to resolve disputes informally within 7-14 business days.
@@ -392,7 +392,7 @@ export default function TermsOfServicePage() {
               {/* 15. General Provisions */}
               <section className="mb-10">
                 <h2 className="text-2xl font-bold text-gray-900 mb-4 pb-2 border-b border-gray-200">15. General Provisions</h2>
-                
+
                 <h3 className="text-lg font-semibold text-gray-800 mt-6 mb-3">15.1 Entire Agreement</h3>
                 <p className="text-gray-700 leading-relaxed mb-4">
                   These Terms, along with our Privacy Policy and other referenced policies, constitute the entire agreement between you and YANN.
@@ -425,18 +425,18 @@ export default function TermsOfServicePage() {
                 <p className="text-gray-700 leading-relaxed mb-4">
                   For questions about these Terms of Service, please contact us:
                 </p>
-                
+
                 <div className="bg-blue-50 border border-blue-200 rounded-xl p-6">
                   <h4 className="font-bold text-blue-900 mb-4">YANN Technologies Private Limited</h4>
                   <div className="space-y-2 text-blue-800">
                     <p><strong>Legal Department</strong></p>
-                    <p><strong>Email:</strong> legal@yann.in</p>
-                    <p><strong>Support:</strong> support@yann.in</p>
-                    <p><strong>Phone:</strong> +91-XXXXXXXXXX</p>
+                    <p><strong>Email:</strong> info.yannhome@gmail.com</p>
+                    <p><strong>Support:</strong> info.yannhome@gmail.com</p>
+                    <p><strong>Phone:</strong> +91 7827273057</p>
                     <p><strong>Address:</strong></p>
                     <p className="pl-4">
-                      [Your Registered Address]<br />
-                      [City, State, PIN Code]<br />
+                      Plot no. 16, Street no. 2, Goverdhan Patti,<br />
+                      Sec-86, Gurgaon, Haryana, 122004<br />
                       India
                     </p>
                   </div>

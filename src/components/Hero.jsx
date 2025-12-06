@@ -137,7 +137,7 @@ const Hero = () => {
                 href="/services"
                 className="group px-8 py-4 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-xl font-semibold shadow-lg hover:shadow-xl transform hover:scale-105 transition-all duration-300 flex items-center justify-center"
               >
-                Book the Service
+                Book a Service
                 <svg className="w-5 h-5 ml-2 group-hover:translate-x-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7l5 5m0 0l-5 5m5-5H6" />
                 </svg>
@@ -153,7 +153,7 @@ const Hero = () => {
             {/* Stats */}
             <div className="grid grid-cols-3 gap-6 max-w-lg mx-auto lg:mx-0">
               {[
-                { value: '5K+', label: 'Happy Customers' },
+                { value: '10K+', label: 'Happy Customers' },
                 { value: '500+', label: 'Verified Professionals' },
                 { value: '24/7', label: 'Support' },
               ].map((stat, index) => (

@@ -24,7 +24,7 @@ export default function PrivacyPolicyPage() {
           {/* Content */}
           <article className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 sm:p-10">
             <div className="prose prose-gray max-w-none">
-              
+
               {/* Introduction */}
               <section className="mb-10">
                 <h2 className="text-2xl font-bold text-gray-900 mb-4 pb-2 border-b border-gray-200">1. Introduction</h2>
@@ -42,14 +42,13 @@ export default function PrivacyPolicyPage() {
               {/* Information We Collect */}
               <section className="mb-10">
                 <h2 className="text-2xl font-bold text-gray-900 mb-4 pb-2 border-b border-gray-200">2. Information We Collect</h2>
-                
+
                 <h3 className="text-lg font-semibold text-gray-800 mt-6 mb-3">2.1 Personal Information</h3>
                 <p className="text-gray-700 leading-relaxed mb-3">We collect personal information that you voluntarily provide when you:</p>
                 <ul className="list-disc pl-6 text-gray-700 space-y-2 mb-4">
                   <li>Register for an account (Customer or Partner)</li>
                   <li>Book or provide services through our Platform</li>
                   <li>Contact us for support or inquiries</li>
-                  <li>Subscribe to newsletters or promotional communications</li>
                   <li>Participate in surveys, contests, or promotions</li>
                 </ul>
 
@@ -102,7 +101,7 @@ export default function PrivacyPolicyPage() {
               <section className="mb-10">
                 <h2 className="text-2xl font-bold text-gray-900 mb-4 pb-2 border-b border-gray-200">3. How We Use Your Information</h2>
                 <p className="text-gray-700 leading-relaxed mb-4">We use the collected information for the following purposes:</p>
-                
+
                 <div className="space-y-4">
                   <div className="bg-gray-50 rounded-lg p-4">
                     <h4 className="font-semibold text-gray-900 mb-2">🏠 Service Delivery</h4>
@@ -226,7 +225,7 @@ export default function PrivacyPolicyPage() {
                   <li>Resolve disputes and enforce agreements</li>
                   <li>Maintain business records as required by law</li>
                 </ul>
-                
+
                 <div className="bg-gray-50 rounded-lg p-4">
                   <h4 className="font-semibold text-gray-900 mb-2">Retention Periods:</h4>
                   <ul className="text-gray-700 text-sm space-y-1">
@@ -242,7 +241,7 @@ export default function PrivacyPolicyPage() {
               <section className="mb-10">
                 <h2 className="text-2xl font-bold text-gray-900 mb-4 pb-2 border-b border-gray-200">7. Your Rights</h2>
                 <p className="text-gray-700 leading-relaxed mb-4">Under applicable privacy laws, you have the following rights:</p>
-                
+
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div className="bg-green-50 border border-green-200 rounded-lg p-4">
                     <h4 className="font-semibold text-green-900 mb-2">✓ Right to Access</h4>
@@ -314,17 +313,17 @@ export default function PrivacyPolicyPage() {
                 <p className="text-gray-700 leading-relaxed mb-4">
                   If you have any questions, concerns, or requests regarding this Privacy Policy or our data practices, please contact us:
                 </p>
-                
+
                 <div className="bg-blue-50 border border-blue-200 rounded-xl p-6">
                   <h4 className="font-bold text-blue-900 mb-4">YANN Data Protection Officer</h4>
                   <div className="space-y-2 text-blue-800">
-                    <p><strong>Email:</strong> privacy@yann.in</p>
-                    <p><strong>Phone:</strong> +91-XXXXXXXXXX</p>
+                    <p><strong>Email:</strong> info.yannhome@gmail.com</p>
+                    <p><strong>Phone:</strong> +91 7827273057</p>
                     <p><strong>Address:</strong></p>
                     <p className="pl-4">
                       YANN Technologies Pvt. Ltd.<br />
-                      [Your Registered Address]<br />
-                      [City, State, PIN Code]<br />
+                      Plot no. 16, Street no. 2, Goverdhan Patti,<br />
+                      Sec-86, Gurgaon, Haryana, 122004<br />
                       India
                     </p>
                   </div>

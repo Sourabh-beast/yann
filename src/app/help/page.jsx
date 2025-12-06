@@ -4,13 +4,13 @@ import { useState } from 'react';
 import Link from 'next/link';
 import Navbar from '@/components/Navbar';
 import Footer from '@/components/Footer';
-import { 
-  Phone, 
-  Mail, 
-  MessageCircle, 
-  Clock, 
-  MapPin, 
-  ChevronDown, 
+import {
+  Phone,
+  Mail,
+  MessageCircle,
+  Clock,
+  MapPin,
+  ChevronDown,
   ChevronUp,
   Search,
   HelpCircle,
@@ -43,9 +43,9 @@ export default function HelpPage() {
     {
       icon: Mail,
       title: 'Email Us',
-      detail: 'support@yannhome.com',
+      detail: 'info.yannhome@gmail.com',
       subtext: 'Response within 24 hours',
-      action: 'mailto:support@yannhome.com',
+      action: 'mailto:info.yannhome@gmail.com',
       actionText: 'Send Email',
       color: 'from-blue-500 to-indigo-600',
     },
@@ -188,45 +188,45 @@ export default function HelpPage() {
 
   const filteredFaqs = searchQuery
     ? faqs.map(cat => ({
-        ...cat,
-        questions: cat.questions.filter(
-          faq => 
-            faq.q.toLowerCase().includes(searchQuery.toLowerCase()) ||
-            faq.a.toLowerCase().includes(searchQuery.toLowerCase())
-        ),
-      })).filter(cat => cat.questions.length > 0)
+      ...cat,
+      questions: cat.questions.filter(
+        faq =>
+          faq.q.toLowerCase().includes(searchQuery.toLowerCase()) ||
+          faq.a.toLowerCase().includes(searchQuery.toLowerCase())
+      ),
+    })).filter(cat => cat.questions.length > 0)
     : faqs;
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-blue-50">
       <Navbar />
-      
+
       {/* Hero Section */}
       <section className="relative pt-32 pb-20 overflow-hidden">
         <div className="absolute inset-0 bg-gradient-to-br from-blue-600 via-indigo-600 to-purple-700" />
         <div className="absolute inset-0 bg-[url('/grid.svg')] opacity-10" />
-        
+
         <div className="absolute top-20 left-10 w-72 h-72 bg-white/10 rounded-full blur-3xl animate-pulse" />
         <div className="absolute bottom-10 right-10 w-96 h-96 bg-purple-500/20 rounded-full blur-3xl animate-pulse delay-1000" />
-        
+
         <div className="container mx-auto px-4 relative z-10">
           <div className="max-w-4xl mx-auto text-center text-white">
             <div className="inline-flex items-center gap-2 px-4 py-2 bg-white/10 backdrop-blur-sm rounded-full text-sm font-medium mb-6">
               <HelpCircle className="w-4 h-4" />
               Help & Support
             </div>
-            
+
             <h1 className="text-5xl md:text-6xl font-bold mb-6 leading-tight">
               How Can We
               <span className="block bg-gradient-to-r from-yellow-300 to-orange-300 bg-clip-text text-transparent">
                 Help You Today?
               </span>
             </h1>
-            
+
             <p className="text-xl text-blue-100 mb-8 max-w-2xl mx-auto">
               Find answers to common questions, get in touch with our support team, or browse helpful resources.
             </p>
-            
+
             {/* Search Bar */}
             <div className="max-w-2xl mx-auto relative">
               <Search className="absolute left-5 top-1/2 transform -translate-y-1/2 w-6 h-6 text-gray-400" />
@@ -247,7 +247,7 @@ export default function HelpPage() {
         <div className="container mx-auto px-4">
           <div className="grid md:grid-cols-3 gap-6 max-w-5xl mx-auto">
             {contactMethods.map((method, index) => (
-              <div 
+              <div
                 key={index}
                 className="bg-white rounded-3xl shadow-xl p-8 hover:shadow-2xl transition-all duration-300 hover:-translate-y-2 border border-gray-100"
               >
@@ -281,7 +281,7 @@ export default function HelpPage() {
               Select a category to find relevant information and answers
             </p>
           </div>
-          
+
           <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6 max-w-5xl mx-auto">
             {helpCategories.map((category, index) => (
               <div
@@ -308,7 +308,7 @@ export default function HelpPage() {
               Quick answers to common questions about our services
             </p>
           </div>
-          
+
           <div className="max-w-4xl mx-auto">
             {filteredFaqs.length === 0 ? (
               <div className="text-center py-12 bg-white rounded-2xl">
@@ -330,18 +330,16 @@ export default function HelpPage() {
                       return (
                         <div
                           key={faqIndex}
-                          className={`bg-white rounded-xl border-2 transition-all duration-300 ${
-                            isOpen ? 'border-blue-200 shadow-lg' : 'border-gray-100 hover:border-gray-200'
-                          }`}
+                          className={`bg-white rounded-xl border-2 transition-all duration-300 ${isOpen ? 'border-blue-200 shadow-lg' : 'border-gray-100 hover:border-gray-200'
+                            }`}
                         >
                           <button
                             onClick={() => setOpenFaq(isOpen ? null : key)}
                             className="w-full px-6 py-5 flex items-center justify-between text-left"
                           >
                             <span className="font-semibold text-gray-900 pr-4">{faq.q}</span>
-                            <div className={`flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center transition-colors ${
-                              isOpen ? 'bg-blue-100 text-blue-600' : 'bg-gray-100 text-gray-500'
-                            }`}>
+                            <div className={`flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center transition-colors ${isOpen ? 'bg-blue-100 text-blue-600' : 'bg-gray-100 text-gray-500'
+                              }`}>
                               {isOpen ? <ChevronUp className="w-5 h-5" /> : <ChevronDown className="w-5 h-5" />}
                             </div>
                           </button>
@@ -369,17 +367,17 @@ export default function HelpPage() {
           <div className="max-w-4xl mx-auto bg-gradient-to-br from-blue-600 via-indigo-600 to-purple-700 rounded-3xl p-12 text-center text-white relative overflow-hidden">
             <div className="absolute top-0 right-0 w-64 h-64 bg-white/10 rounded-full blur-3xl" />
             <div className="absolute bottom-0 left-0 w-48 h-48 bg-purple-500/20 rounded-full blur-2xl" />
-            
+
             <div className="relative z-10">
               <div className="inline-flex items-center justify-center w-20 h-20 bg-white/20 backdrop-blur-sm rounded-full mb-6">
                 <MessageCircle className="w-10 h-10" />
               </div>
-              
+
               <h2 className="text-3xl font-bold mb-4">Still Have Questions?</h2>
               <p className="text-blue-100 text-lg mb-8 max-w-xl mx-auto">
                 Can't find what you're looking for? Our friendly support team is here to help you 24/7.
               </p>
-              
+
               <div className="flex flex-wrap justify-center gap-4">
                 <a
                   href="tel:+917827273057"
@@ -419,7 +417,7 @@ export default function HelpPage() {
                   India - 122004
                 </p>
               </div>
-              
+
               <div className="bg-gradient-to-br from-gray-50 to-emerald-50 rounded-2xl p-8">
                 <h3 className="text-xl font-bold text-gray-900 mb-6 flex items-center gap-2">
                   <Clock className="w-6 h-6 text-emerald-600" />
