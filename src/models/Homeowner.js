@@ -2,13 +2,21 @@ import mongoose from "mongoose";
 
 const addressSchema = new mongoose.Schema(
   {
-    label: { type: String, trim: true, maxlength: 40, default: "Home" },
-    street: { type: String, trim: true, maxlength: 120, default: "" },
+    label: { type: String, required: true, trim: true, maxlength: 40, default: "Home" },
+    name: { type: String, required: true, trim: true, maxlength: 60 },
+    phone: { type: String, required: true, trim: true, maxlength: 15 },
+    apartment: { type: String, trim: true, maxlength: 40, default: "" },
+    building: { type: String, trim: true, maxlength: 60, default: "" },
+    street: { type: String, required: true, trim: true, maxlength: 120 },
     city: { type: String, trim: true, maxlength: 60, default: "" },
     state: { type: String, trim: true, maxlength: 60, default: "" },
     postalCode: { type: String, trim: true, maxlength: 12, default: "" },
+    fullAddress: { type: String, trim: true, maxlength: 300, default: "" },
+    latitude: { type: Number },
+    longitude: { type: Number },
+    isPrimary: { type: Boolean, default: false },
   },
-  { _id: false }
+  { _id: true } // Enable _id for subdocuments
 );
 
 const homeownerSchema = new mongoose.Schema(
