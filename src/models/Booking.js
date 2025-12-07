@@ -48,6 +48,14 @@ const bookingSchema = new mongoose.Schema({
     type: String,
     required: true
   },
+  latitude: {
+    type: Number,
+    default: null
+  },
+  longitude: {
+    type: Number,
+    default: null
+  },
 
   // Booking Schedule
   bookingDate: {
@@ -291,5 +299,4 @@ bookingSchema.methods.calculateTotal = function() {
 };
 
 export default mongoose.models.Booking || mongoose.model('Booking', bookingSchema);
-
-// Motoroirot
+// Motoriot
