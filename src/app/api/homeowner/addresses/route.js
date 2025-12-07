@@ -72,12 +72,20 @@ export async function GET(request) {
       success: true,
       addresses: addresses.map((addr, index) => ({
         id: addr._id?.toString() || `addr-${index}`,
+        _id: addr._id?.toString() || `addr-${index}`,
         label: addr.label || "Home",
+        name: addr.name || "",
+        phone: addr.phone || "",
+        apartment: addr.apartment || "",
+        building: addr.building || "",
         street: addr.street || "",
         city: addr.city || "",
         state: addr.state || "",
         postalCode: addr.postalCode || "",
-        isPrimary: index === 0, // First address is primary
+        fullAddress: addr.fullAddress || `${addr.street}, ${addr.city}`,
+        latitude: addr.latitude,
+        longitude: addr.longitude,
+        isPrimary: addr.isPrimary || index === 0,
       })),
     });
   } catch (error) {
@@ -108,19 +116,27 @@ export async function POST(request) {
     const body = await request.json();
 
     // Validate required fields
-    if (!body.label || !body.street || !body.city) {
+    if (!body.label || !body.name || !body.phone || !body.street) {
       return NextResponse.json(
-        { success: false, message: "Label, street, and city are required" },
+        { success: false, message: "Label, name, phone, and street are required" },
         { status: 400 }
       );
     }
 
     const newAddress = {
       label: body.label.trim(),
+      name: body.name.trim(),
+      phone: body.phone.trim(),
+      apartment: body.apartment?.trim() || "",
+      building: body.building?.trim() || "",
       street: body.street.trim(),
-      city: body.city.trim(),
+      city: body.city?.trim() || "",
       state: body.state?.trim() || "",
       postalCode: body.postalCode?.trim() || "",
+      fullAddress: body.fullAddress?.trim() || "",
+      latitude: body.latitude,
+      longitude: body.longitude,
+      isPrimary: body.isPrimary || homeowner.addressBook.length === 0,
     };
 
     // Add to addressBook
@@ -134,12 +150,20 @@ export async function POST(request) {
       message: "Address added successfully",
       address: {
         id: savedAddress._id.toString(),
+        _id: savedAddress._id.toString(),
         label: savedAddress.label,
+        name: savedAddress.name,
+        phone: savedAddress.phone,
+        apartment: savedAddress.apartment,
+        building: savedAddress.building,
         street: savedAddress.street,
         city: savedAddress.city,
         state: savedAddress.state,
         postalCode: savedAddress.postalCode,
-        isPrimary: homeowner.addressBook.length === 1,
+        fullAddress: savedAddress.fullAddress,
+        latitude: savedAddress.latitude,
+        longitude: savedAddress.longitude,
+        isPrimary: savedAddress.isPrimary,
       },
     }, { status: 201 });
   } catch (error) {
