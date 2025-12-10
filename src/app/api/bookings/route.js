@@ -34,6 +34,9 @@ export async function GET(request) {
       }
     }
     
+// akjfhkjadjknakjxnckjlaldkj
+// kajdhflkjabdkjc akljc
+
     if (!token) {
       return NextResponse.json(
         { success: false, message: 'Unauthorized', data: [] },
