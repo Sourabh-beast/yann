@@ -1,45 +1,79 @@
 import { NextResponse } from 'next/server';
-import connectDB from '@/lib/mongodb';
+import { cookies } from 'next/headers';
+import jwt from 'jsonwebtoken';
+import connectDB from '@/lib/connectDB';
 import Conversation from '@/models/Conversation';
 import Message from '@/models/Message';
 import Homeowner from '@/models/Homeowner';
-import Provider from '@/models/Provider';
+
+const HOME_COOKIE = 'yann_home_session';
 
 /**
  * POST /api/chat/conversations/[id]/send
- * Send a new message in a conversation
+ * Send a message in a conversation
  */
 export async function POST(request, { params }) {
   try {
     await connectDB();
 
-    const userId = request.headers.get('x-user-id');
-    const userRole = request.headers.get('x-user-role');
+    // Get conversation ID from params
+    const { id: conversationId } = params;
 
-    if (!userId) {
+    // Verify authentication
+    if (!process.env.JWT_SECRET) {
+      return NextResponse.json(
+        { success: false, message: 'Server configuration error' },
+        { status: 500 }
+      );
+    }
+
+    let token = cookies().get(HOME_COOKIE)?.value;
+    
+    if (!token) {
+      const authHeader = request.headers.get('authorization');
+      if (authHeader?.startsWith('Bearer ')) {
+        token = authHeader.substring(7);
+      }
+    }
+    
+    if (!token) {
       return NextResponse.json(
         { success: false, message: 'Unauthorized' },
         { status: 401 }
       );
     }
 
-    const { id: conversationId } = params;
-    const body = await request.json();
-    const { message, messageType = 'text', attachmentUrl = null } = body;
-
-    if (!message || message.trim() === '') {
+    let decoded;
+    try {
+      decoded = jwt.verify(token, process.env.JWT_SECRET);
+    } catch (error) {
       return NextResponse.json(
-        { success: false, message: 'Message cannot be empty' },
+        { success: false, message: 'Invalid or expired token' },
+        { status: 401 }
+      );
+    }
+
+    const homeowner = await Homeowner.findById(decoded.id);
+    if (!homeowner) {
+      return NextResponse.json(
+        { success: false, message: 'User not found' },
+        { status: 404 }
+      );
+    }
+
+    // Get message content from request body
+    const { message, recipientId } = await request.json();
+
+    if (!message || !message.trim()) {
+      return NextResponse.json(
+        { success: false, message: 'Message content is required' },
         { status: 400 }
       );
     }
 
-    // Verify conversation exists and user is a participant
-    const conversation = await Conversation.findOne({
-      _id: conversationId,
-      'participantDetails.id': userId
-    });
-
+    // Find the conversation
+    const conversation = await Conversation.findById(conversationId);
+    
     if (!conversation) {
       return NextResponse.json(
         { success: false, message: 'Conversation not found' },
@@ -47,87 +81,56 @@ export async function POST(request, { params }) {
       );
     }
 
-    // Get sender details
-    const UserModel = userRole === 'provider' ? Provider : Homeowner;
-    const sender = await UserModel.findById(userId).select('name email');
-
-    if (!sender) {
-      return NextResponse.json(
-        { success: false, message: 'Sender not found' },
-        { status: 404 }
-      );
-    }
-
-    // Get recipient ID (the other participant)
-    const recipientDetail = conversation.participantDetails.find(
-      p => p.id.toString() !== userId
+    // Verify user is part of the conversation
+    const isParticipant = conversation.participants.some(
+      (p) => p.toString() === homeowner._id.toString()
     );
 
-    if (!recipientDetail) {
+    if (!isParticipant) {
       return NextResponse.json(
-        { success: false, message: 'Recipient not found' },
-        { status: 404 }
+        { success: false, message: 'You are not a participant in this conversation' },
+        { status: 403 }
       );
     }
 
-    // Create the message
+    // Create new message
     const newMessage = await Message.create({
-      conversationId,
-      senderId: userId,
-      senderModel: userRole === 'provider' ? 'Provider' : 'Homeowner',
-      senderDetails: {
-        id: userId,
-        name: sender.name,
-        email: sender.email,
-        role: userRole
-      },
-      recipientId: recipientDetail.id,
+      conversationId: conversation._id,
+      senderId: homeowner._id,
+      senderModel: 'Homeowner',
       message: message.trim(),
-      messageType,
-      attachmentUrl,
-      attachmentType: attachmentUrl ? 'image' : null,
-      status: 'sent'
+      read: false,
     });
 
-    // Update conversation's last message and unread count
-    const recipientId = recipientDetail.id.toString();
-    const currentUnreadCount = conversation.unreadCount.get(recipientId) || 0;
+    // Update conversation's last message and timestamp
+    conversation.lastMessage = message.trim();
+    conversation.lastMessageAt = new Date();
+    await conversation.save();
 
-    await Conversation.findByIdAndUpdate(conversationId, {
-      lastMessage: {
-        message: message.trim(),
-        senderId: userId,
-        createdAt: newMessage.createdAt,
-        read: false
-      },
-      $set: {
-        [`unreadCount.${recipientId}`]: currentUnreadCount + 1
-      },
-      updatedAt: new Date()
-    });
+    // Populate sender details
+    await newMessage.populate('senderId', 'name email profileImage');
 
     // Format response
     const formattedMessage = {
       id: newMessage._id.toString(),
       conversationId: newMessage.conversationId.toString(),
-      senderId: userId,
-      senderName: sender.name,
-      recipientId: recipientDetail.id.toString(),
+      senderId: newMessage.senderId._id.toString(),
+      senderName: newMessage.senderId.name,
+      senderImage: newMessage.senderId.profileImage || null,
       message: newMessage.message,
-      messageType: newMessage.messageType,
-      attachmentUrl: newMessage.attachmentUrl,
-      read: false,
-      status: 'sent',
-      createdAt: newMessage.createdAt
+      read: newMessage.read,
+      createdAt: newMessage.createdAt,
+      updatedAt: newMessage.updatedAt,
     };
 
     return NextResponse.json({
       success: true,
-      message: formattedMessage
-    }, { status: 201 });
+      message: 'Message sent successfully',
+      data: formattedMessage,
+    });
 
   } catch (error) {
-    console.error('Send message error:', error);
+    console.error('Error sending message:', error);
     return NextResponse.json(
       { 
         success: false, 
