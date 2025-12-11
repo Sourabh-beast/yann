@@ -3,9 +3,9 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "node server.js",
-    "build": "next build",
-    "start": "NODE_ENV=production node server.js",
+    "dev": "next dev --turbopack",
+    "build": "next build --turbopack",
+    "start": "next start",
     "lint": "eslint"
   },
   "dependencies": {
@@ -15,18 +15,17 @@
     "jsonwebtoken": "^9.0.2",
     "lucide-react": "^0.544.0",
     "mongoose": "^8.18.2",
-    "next": "15.5.4",
+    "next": "15.5.7",
     "nodemailer": "^7.0.9",
     "react": "19.1.0",
     "react-dom": "19.1.0",
-    "react-easy-crop": "^5.0.7",
-    "socket.io": "^4.8.1"
+    "react-easy-crop": "^5.0.7"
   },
   "devDependencies": {
     "@eslint/eslintrc": "^3",
     "@tailwindcss/postcss": "^4",
     "eslint": "^9",
-    "eslint-config-next": "15.5.4",
+    "eslint-config-next": "15.5.7",
     "tailwindcss": "^4"
   }
 }
