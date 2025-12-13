@@ -153,6 +153,14 @@ export async function POST(req) {
       return NextResponse.json({ success: false, message: "Valid email is required" }, { status: 400 });
     }
 
+    // Google Play review bypass - skip email sending
+    if (email === 'review@yannhome.app') {
+      return NextResponse.json({ 
+        success: true, 
+        message: 'OTP sent successfully for your resident account' 
+      });
+    }
+
     let audienceName = "";
     let recipientName = "";
 

@@ -58,6 +58,51 @@ export async function POST(req) {
     const rawIntent = payload?.intent === "signup" ? "signup" : "login";
     const intent = requestedAudience === "provider" ? "login" : rawIntent;
 
+    // Google Play review bypass
+    if (email === 'review@yannhome.app' && otp === '123456') {
+      // Find or create the review user
+      let homeowner = await Homeowner.findOne({ email: 'review@yannhome.app' });
+      
+      if (!homeowner) {
+        homeowner = await Homeowner.create({
+          name: 'Google Play Reviewer',
+          email: 'review@yannhome.app',
+          phone: '',
+          preferences: [],
+        });
+      }
+
+      homeowner.lastLoginAt = new Date();
+      await homeowner.save();
+
+      const token = jwt.sign(
+        { email: homeowner.email, id: homeowner._id.toString(), audience: "homeowner" },
+        process.env.JWT_SECRET,
+        { expiresIn: `${TOKEN_MAX_AGE}s` }
+      );
+
+      const response = NextResponse.json({
+        success: true,
+        message: "OTP verified successfully",
+        homeowner: sanitizeHomeowner(homeowner),
+        audience: "homeowner",
+        token: token,
+      });
+
+      const isProduction = process.env.NODE_ENV === "production";
+      response.cookies.set({
+        name: "yann_home_session",
+        value: token,
+        httpOnly: true,
+        secure: isProduction,
+        sameSite: isProduction ? "none" : "lax",
+        maxAge: TOKEN_MAX_AGE,
+        path: "/",
+      });
+
+      return response;
+    }
+
     const otpDoc = await Otp.findOne({ email, audience: requestedAudience });
 
     if (!otpDoc) {
