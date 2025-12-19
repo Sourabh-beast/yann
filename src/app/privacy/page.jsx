@@ -170,7 +170,7 @@ export default function PrivacyPolicyPage() {
                   We engage third-party companies to perform services on our behalf, including:
                 </p>
                 <ul className="list-disc pl-6 text-gray-700 space-y-2 mb-4">
-                  <li>Payment processing (Cashfree, Razorpay)</li>
+                  <li>Payment processing (Razorpay)</li>
                   <li>Cloud hosting (AWS, Google Cloud)</li>
                   <li>SMS/Email services (MSG91, SendGrid)</li>
                   <li>Analytics (Google Analytics)</li>

@@ -300,10 +300,6 @@ export default function CookiePolicyPage() {
                       <span className="font-semibold">Google Ads:</span>
                       <a href="https://policies.google.com/technologies/ads" target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline text-sm">Ad Policy</a>
                     </li>
-                    <li className="flex items-start gap-2">
-                      <span className="font-semibold">Cashfree (Payments):</span>
-                      <a href="https://www.cashfree.com/privacy-policy" target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline text-sm">Privacy Policy</a>
-                    </li>
                   </ul>
                 </div>
               </section>
