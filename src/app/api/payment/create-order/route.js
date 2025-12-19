@@ -1,76 +1,66 @@
 import { NextResponse } from 'next/server';
+import Razorpay from 'razorpay';
+
+// Initialize Razorpay instance
+const razorpay = new Razorpay({
+  key_id: process.env.RAZORPAY_KEY_ID,
+  key_secret: process.env.RAZORPAY_KEY_SECRET,
+});
 
 export async function POST(request) {
   try {
     const body = await request.json();
-    const { 
-      orderId, 
-      orderAmount, 
-      customerName, 
-      customerEmail, 
-      customerPhone,
-      bookingId 
-    } = body;
+    const { amount, customerName, customerPhone, customerEmail, serviceName, bookingId } = body;
 
     // Validate required fields
-    if (!orderId || !orderAmount || !customerPhone) {
+    if (!amount || amount <= 0) {
       return NextResponse.json(
-        { success: false, message: 'Missing required fields' },
+        { success: false, message: 'Valid amount is required' },
         { status: 400 }
       );
     }
 
-    const orderRequest = {
-      order_id: orderId,
-      order_amount: orderAmount,
-      order_currency: 'INR',
-      customer_details: {
-        customer_id: `cust_${Date.now()}`,
-        customer_name: customerName || 'Customer',
-        customer_email: customerEmail || 'customer@yann.in',
-        customer_phone: customerPhone,
-      },
-      order_meta: {
-        return_url: `${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/payment/status?order_id={order_id}`,
-        notify_url: `${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/api/payment/webhook`,
-      },
-      order_note: bookingId ? `Booking ID: ${bookingId}` : 'YANN Service Booking',
-    };
-
-    // Create order using Cashfree API
-    const response = await fetch('https://api.cashfree.com/pg/orders', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'x-client-id': process.env.CASHFREE_APP_ID,
-        'x-client-secret': process.env.CASHFREE_SECRET_KEY,
-        'x-api-version': '2023-08-01',
-      },
-      body: JSON.stringify(orderRequest),
-    });
-
-    const data = await response.json();
-
-    if (response.ok && data.payment_session_id) {
-      return NextResponse.json({
-        success: true,
-        order_id: data.order_id,
-        payment_session_id: data.payment_session_id,
-        order_status: data.order_status,
-        cf_order_id: data.cf_order_id,
-      });
+    // Check if Razorpay keys are configured
+    if (!process.env.RAZORPAY_KEY_ID || !process.env.RAZORPAY_KEY_SECRET) {
+      console.error('Missing Razorpay API keys');
+      return NextResponse.json(
+        { success: false, message: 'Payment gateway not configured' },
+        { status: 500 }
+      );
     }
 
-    console.error('Cashfree order creation failed:', data);
-    return NextResponse.json(
-      { success: false, message: data.message || 'Failed to create order' },
-      { status: 500 }
-    );
+    // Create Razorpay order
+    const options = {
+      amount: Math.round(amount * 100), // Razorpay expects amount in paise
+      currency: 'INR',
+      receipt: `YANN_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+      notes: {
+        serviceName: serviceName || 'Service Booking',
+        customerName: customerName || 'Guest',
+        customerPhone: customerPhone || '',
+        bookingId: bookingId || '',
+      },
+    };
+
+    const order = await razorpay.orders.create(options);
+
+    console.log('Razorpay order created:', { orderId: order.id, amount: order.amount });
+
+    return NextResponse.json({
+      success: true,
+      orderId: order.id,
+      amount: order.amount,
+      currency: order.currency,
+      keyId: process.env.RAZORPAY_KEY_ID, // Send key_id for frontend
+      customerName,
+      customerPhone,
+      customerEmail,
+    });
 
   } catch (error) {
-    console.error('Cashfree create order error:', error);
+    console.error('Razorpay create order error:', error);
     return NextResponse.json(
-      { success: false, message: error.message || 'Payment order creation failed' },
+      { success: false, message: error.message || 'Failed to create payment order' },
       { status: 500 }
     );
   }

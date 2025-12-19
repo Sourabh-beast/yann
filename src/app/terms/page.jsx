@@ -159,7 +159,7 @@ export default function TermsOfServicePage() {
 
                 <h3 className="text-lg font-semibold text-gray-800 mt-6 mb-3">4.3 Payment Processing</h3>
                 <p className="text-gray-700 leading-relaxed mb-4">
-                  Online payments are processed through secure third-party payment gateways (Cashfree/Razorpay). YANN does not store your complete payment card details.
+                  Online payments are processed through secure third-party payment gateways (Razorpay). YANN does not store your complete payment card details.
                 </p>
 
                 <h3 className="text-lg font-semibold text-gray-800 mt-6 mb-3">4.4 Platform Fee</h3>

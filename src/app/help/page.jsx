@@ -130,7 +130,7 @@ export default function HelpPage() {
         },
         {
           q: 'Is online payment secure?',
-          a: 'Absolutely! All payments are processed through Cashfree, a PCI-DSS compliant payment gateway. Your card details are encrypted and never stored on our servers.',
+          a: 'Absolutely! All payments are processed through Razorpay, a PCI-DSS compliant payment gateway. Your card details are encrypted and never stored on our servers.',
         },
         {
           q: 'How do refunds work?',

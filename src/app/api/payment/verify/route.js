@@ -1,72 +1,96 @@
 import { NextResponse } from 'next/server';
+import crypto from 'crypto';
 
 export async function POST(request) {
   try {
-    const { orderId } = await request.json();
+    const body = await request.json();
+    const { razorpay_order_id, razorpay_payment_id, razorpay_signature } = body;
 
-    if (!orderId) {
+    // Validate required fields
+    if (!razorpay_order_id || !razorpay_payment_id || !razorpay_signature) {
       return NextResponse.json(
-        { success: false, error: 'Order ID required' },
+        { success: false, message: 'Missing payment verification details' },
         { status: 400 }
       );
     }
 
-    // Determine environment
-    const isSandbox = process.env.CASHFREE_ENV === 'sandbox';
-    const baseUrl = isSandbox 
-      ? 'https://sandbox.cashfree.com/pg' 
-      : 'https://api.cashfree.com/pg';
-
-    // Fetch order status from Cashfree
-    const response = await fetch(`${baseUrl}/orders/${orderId}/payments`, {
-      method: 'GET',
-      headers: {
-        'x-client-id': process.env.CASHFREE_APP_ID,
-        'x-client-secret': process.env.CASHFREE_SECRET_KEY,
-        'x-api-version': '2023-08-01',
-      },
-    });
-
-    const payments = await response.json();
-
-    if (response.ok && Array.isArray(payments) && payments.length > 0) {
-      const payment = payments[0];
-      
-      return NextResponse.json({
-        success: true,
-        status: payment.payment_status,
-        paymentId: payment.cf_payment_id,
-        paymentMethod: payment.payment_method?.upi?.channel || 
-                       payment.payment_method?.card?.card_network ||
-                       payment.payment_group || 'other',
-        amount: payment.payment_amount,
-        paymentTime: payment.payment_completion_time,
-      });
+    // Check if Razorpay secret is configured
+    if (!process.env.RAZORPAY_KEY_SECRET) {
+      console.error('Missing Razorpay secret key');
+      return NextResponse.json(
+        { success: false, message: 'Payment gateway not configured' },
+        { status: 500 }
+      );
     }
 
-    // If no payments found, check order status
-    const orderResponse = await fetch(`${baseUrl}/orders/${orderId}`, {
-      method: 'GET',
-      headers: {
-        'x-client-id': process.env.CASHFREE_APP_ID,
-        'x-client-secret': process.env.CASHFREE_SECRET_KEY,
-        'x-api-version': '2023-08-01',
-      },
-    });
+    // Verify the payment signature
+    const sign = razorpay_order_id + '|' + razorpay_payment_id;
+    const expectedSign = crypto
+      .createHmac('sha256', process.env.RAZORPAY_KEY_SECRET)
+      .update(sign)
+      .digest('hex');
 
-    const orderData = await orderResponse.json();
+    const isAuthentic = expectedSign === razorpay_signature;
 
+    if (isAuthentic) {
+      console.log('Payment verified successfully:', { 
+        orderId: razorpay_order_id, 
+        paymentId: razorpay_payment_id 
+      });
+
+      return NextResponse.json({
+        success: true,
+        message: 'Payment verified successfully',
+        orderId: razorpay_order_id,
+        paymentId: razorpay_payment_id,
+        status: 'SUCCESS',
+      });
+    } else {
+      console.error('Payment verification failed - signature mismatch');
+      return NextResponse.json(
+        { 
+          success: false, 
+          message: 'Payment verification failed',
+          status: 'FAILED' 
+        },
+        { status: 400 }
+      );
+    }
+
+  } catch (error) {
+    console.error('Razorpay verify error:', error);
+    return NextResponse.json(
+      { success: false, message: error.message || 'Payment verification failed' },
+      { status: 500 }
+    );
+  }
+}
+
+// GET endpoint to check order status (optional - for polling)
+export async function GET(request) {
+  try {
+    const { searchParams } = new URL(request.url);
+    const orderId = searchParams.get('orderId');
+
+    if (!orderId) {
+      return NextResponse.json(
+        { success: false, message: 'Order ID is required' },
+        { status: 400 }
+      );
+    }
+
+    // For GET requests, we just acknowledge the order ID
+    // Actual status should be verified via POST with signature
     return NextResponse.json({
       success: true,
-      status: orderData.order_status === 'PAID' ? 'SUCCESS' : orderData.order_status,
-      orderStatus: orderData.order_status,
-      amount: orderData.order_amount,
+      orderId,
+      message: 'Use POST with signature for verification',
     });
 
   } catch (error) {
-    console.error('Cashfree verify error:', error);
+    console.error('Razorpay status check error:', error);
     return NextResponse.json(
-      { success: false, error: error.message },
+      { success: false, message: error.message },
       { status: 500 }
     );
   }
