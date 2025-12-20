@@ -137,6 +137,46 @@ const serviceProviderSchema = new mongoose.Schema({
   totalReviews: {
     type: Number,
     default: 0
+  },
+
+  // Admin controls
+  isBlocked: {
+    type: Boolean,
+    default: false
+  },
+  blockedAt: {
+    type: Date
+  },
+  blockedReason: {
+    type: String,
+    default: ''
+  },
+
+  // Document verification
+  documents: {
+    aadhaar: {
+      number: String,
+      verified: { type: Boolean, default: false },
+      verifiedAt: Date,
+      imageUrl: String
+    },
+    pan: {
+      number: String,
+      verified: { type: Boolean, default: false },
+      verifiedAt: Date,
+      imageUrl: String
+    },
+    bankDetails: {
+      accountNumber: String,
+      ifscCode: String,
+      bankName: String,
+      verified: { type: Boolean, default: false },
+      verifiedAt: Date
+    }
+  },
+  isVerified: {
+    type: Boolean,
+    default: false
   }
 }, {
   timestamps: true // Adds createdAt and updatedAt fields

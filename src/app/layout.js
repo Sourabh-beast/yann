@@ -1,5 +1,5 @@
 import './globals.css';
-import Navbar from '@/components/Navbar';
+import NavbarWrapper from '@/components/NavbarWrapper';
 import PageLoader from '@/components/PageLoader';
 
 export const metadata = {
@@ -23,7 +23,7 @@ export default function RootLayout({ children }) {
     <html lang="en">
       <body className="antialiased">
         <PageLoader />
-        <Navbar />
+        <NavbarWrapper />
         {children}
       </body>
     </html>

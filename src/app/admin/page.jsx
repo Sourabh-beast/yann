@@ -1,7 +1,7 @@
 'use client'
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { Users, Briefcase, ClipboardList, TrendingUp, Activity, CheckCircle, Clock, XCircle, Menu, X, LogOut, AlertTriangle } from 'lucide-react';
+import { Users, Briefcase, ClipboardList, TrendingUp, Activity, CheckCircle, Clock, XCircle, Menu, X, LogOut, AlertTriangle, DollarSign, Package, Settings, BarChart3, Star, Bell, Gift, HeadphonesIcon, FileText } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 
 export default function AdminPage() {
@@ -46,9 +46,18 @@ export default function AdminPage() {
 
   const sidebarItems = [
     { label: 'Dashboard', href: '/admin', icon: Activity },
+    { label: 'Analytics', href: '/admin/analytics', icon: BarChart3 },
+    { label: 'Services', href: '/admin/services', icon: Package },
     { label: 'Service Providers', href: '/admin/providers', icon: Briefcase },
     { label: 'Homeowners', href: '/admin/homeowners', icon: Users },
-    { label: 'Requests', href: '/admin/requests', icon: ClipboardList },
+    { label: 'Bookings', href: '/admin/requests', icon: ClipboardList },
+    { label: 'Reviews', href: '/admin/reviews', icon: Star },
+    { label: 'Financials', href: '/admin/financials', icon: DollarSign },
+    { label: 'Notifications', href: '/admin/notifications', icon: Bell },
+    { label: 'Promotions', href: '/admin/promotions', icon: Gift },
+    { label: 'Support Tickets', href: '/admin/support', icon: HeadphonesIcon },
+    { label: 'Audit Logs', href: '/admin/logs', icon: FileText },
+    { label: 'Settings', href: '/admin/settings', icon: Settings },
   ];
 
   return (
@@ -70,7 +79,7 @@ export default function AdminPage() {
           <p className="text-sm text-gray-500 mt-1">Management Panel</p>
         </div>
         
-        <nav className="p-4">
+        <nav className="p-4 overflow-y-auto" style={{ maxHeight: 'calc(100vh - 180px)' }}>
           <ul className="space-y-2">
             {sidebarItems.map((item) => {
               const Icon = item.icon;
@@ -103,7 +112,7 @@ export default function AdminPage() {
       </aside>
 
       {/* Main Content */}
-      <main className="lg:ml-64 p-4 lg:p-8">
+      <main className="lg:ml-64 p-4 lg:p-8 pt-16 lg:pt-8">
         {/* Header */}
         <header className="mb-8">
           <h2 className="text-3xl font-bold text-gray-900 mb-2">Dashboard Overview</h2>
