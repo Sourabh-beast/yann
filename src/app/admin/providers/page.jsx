@@ -2,7 +2,7 @@
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { Users, Briefcase, ClipboardList, Activity, Menu, X, Search, Filter, CheckCircle, XCircle, Clock, LogOut, Eye, Phone, Mail, MapPin, IndianRupee, AlertCircle, Plus } from 'lucide-react';
+import { Users, Briefcase, ClipboardList, Activity, Menu, X, Search, Filter, CheckCircle, XCircle, Clock, LogOut, Eye, Phone, Mail, MapPin, IndianRupee, AlertCircle, Plus, Ban, Trash2, ShieldCheck, Download, DollarSign, Package, Settings, BarChart3, Star, Bell, Gift, HeadphonesIcon, FileText } from 'lucide-react';
 
 export default function ProvidersPage() {
   const router = useRouter();
@@ -16,6 +16,10 @@ export default function ProvidersPage() {
   const [pagination, setPagination] = useState(null);
   const [selectedProvider, setSelectedProvider] = useState(null);
   const [detailModalOpen, setDetailModalOpen] = useState(false);
+  const [blockModal, setBlockModal] = useState(null);
+  const [deleteModal, setDeleteModal] = useState(null);
+  const [blockReason, setBlockReason] = useState('');
+  const [actionLoading, setActionLoading] = useState(false);
 
   useEffect(() => {
     fetchProviders();
@@ -104,11 +108,108 @@ export default function ProvidersPage() {
     setDetailModalOpen(true);
   };
 
+  const handleBlockProvider = async (provider) => {
+    setActionLoading(true);
+    try {
+      const res = await fetch('/api/admin/providers', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ 
+          id: provider._id, 
+          action: provider.isBlocked ? 'unblock' : 'block',
+          reason: blockReason
+        })
+      });
+      const data = await res.json();
+      if (data.success) {
+        fetchProviders();
+        setBlockModal(null);
+        setBlockReason('');
+        alert(provider.isBlocked ? '✅ Provider unblocked!' : '✅ Provider blocked!');
+      } else {
+        alert('❌ ' + data.message);
+      }
+    } catch (error) {
+      console.error('Error blocking provider:', error);
+      alert('❌ Failed to update provider');
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  const handleDeleteProvider = async (provider) => {
+    setActionLoading(true);
+    try {
+      const res = await fetch('/api/admin/providers', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id: provider._id, action: 'delete' })
+      });
+      const data = await res.json();
+      if (data.success) {
+        fetchProviders();
+        setDeleteModal(null);
+        alert('✅ Provider deleted!');
+      } else {
+        alert('❌ ' + data.message);
+      }
+    } catch (error) {
+      console.error('Error deleting provider:', error);
+      alert('❌ Failed to delete provider');
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  const handleVerifyProvider = async (provider) => {
+    try {
+      const res = await fetch('/api/admin/providers', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id: provider._id, action: 'verify' })
+      });
+      const data = await res.json();
+      if (data.success) {
+        fetchProviders();
+        alert('✅ Provider verified!');
+      }
+    } catch (error) {
+      console.error('Error verifying provider:', error);
+    }
+  };
+
+  const handleExport = async () => {
+    try {
+      const res = await fetch('/api/admin/export?type=providers&format=csv');
+      const blob = await res.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `providers_export_${new Date().toISOString().split('T')[0]}.csv`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      window.URL.revokeObjectURL(url);
+    } catch (error) {
+      console.error('Error exporting:', error);
+      alert('❌ Failed to export');
+    }
+  };
+
   const sidebarItems = [
     { label: 'Dashboard', href: '/admin', icon: Activity },
+    { label: 'Analytics', href: '/admin/analytics', icon: BarChart3 },
+    { label: 'Services', href: '/admin/services', icon: Package },
     { label: 'Service Providers', href: '/admin/providers', icon: Briefcase },
     { label: 'Homeowners', href: '/admin/homeowners', icon: Users },
-    { label: 'Requests', href: '/admin/requests', icon: ClipboardList },
+    { label: 'Bookings', href: '/admin/requests', icon: ClipboardList },
+    { label: 'Reviews', href: '/admin/reviews', icon: Star },
+    { label: 'Financials', href: '/admin/financials', icon: DollarSign },
+    { label: 'Notifications', href: '/admin/notifications', icon: Bell },
+    { label: 'Promotions', href: '/admin/promotions', icon: Gift },
+    { label: 'Support Tickets', href: '/admin/support', icon: HeadphonesIcon },
+    { label: 'Audit Logs', href: '/admin/logs', icon: FileText },
+    { label: 'Settings', href: '/admin/settings', icon: Settings },
   ];
 
   return (
@@ -130,7 +231,7 @@ export default function ProvidersPage() {
           <p className="text-sm text-gray-500 mt-1">Management Panel</p>
         </div>
         
-        <nav className="p-4">
+        <nav className="p-4 overflow-y-auto" style={{ maxHeight: 'calc(100vh - 180px)' }}>
           <ul className="space-y-2">
             {sidebarItems.map((item) => {
               const Icon = item.icon;
@@ -166,11 +267,20 @@ export default function ProvidersPage() {
       </aside>
 
       {/* Main Content */}
-      <main className="lg:ml-64 p-4 lg:p-8">
+      <main className="lg:ml-64 p-4 lg:p-8 pt-16 lg:pt-8">
         {/* Header */}
-        <header className="mb-8">
-          <h2 className="text-3xl font-bold text-gray-900 mb-2">Service Providers</h2>
-          <p className="text-gray-600">Manage and monitor all service providers on the platform.</p>
+        <header className="mb-8 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+          <div>
+            <h2 className="text-3xl font-bold text-gray-900 mb-2">Service Providers</h2>
+            <p className="text-gray-600">Manage and monitor all service providers on the platform.</p>
+          </div>
+          <button
+            onClick={handleExport}
+            className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-xl hover:bg-green-700 transition"
+          >
+            <Download className="w-4 h-4" />
+            Export CSV
+          </button>
         </header>
 
         {/* Filters */}
@@ -278,6 +388,33 @@ export default function ProvidersPage() {
                             title="View Details"
                           >
                             <Eye className="w-4 h-4" />
+                          </button>
+                          {!provider.isVerified && (
+                            <button
+                              onClick={() => handleVerifyProvider(provider)}
+                              className="p-2 bg-purple-100 text-purple-700 rounded-lg hover:bg-purple-200 transition-colors"
+                              title="Verify"
+                            >
+                              <ShieldCheck className="w-4 h-4" />
+                            </button>
+                          )}
+                          <button
+                            onClick={() => setBlockModal(provider)}
+                            className={`p-2 rounded-lg transition-colors ${
+                              provider.isBlocked 
+                                ? 'bg-green-100 text-green-700 hover:bg-green-200' 
+                                : 'bg-orange-100 text-orange-700 hover:bg-orange-200'
+                            }`}
+                            title={provider.isBlocked ? 'Unblock' : 'Block'}
+                          >
+                            <Ban className="w-4 h-4" />
+                          </button>
+                          <button
+                            onClick={() => setDeleteModal(provider)}
+                            className="p-2 bg-red-100 text-red-700 rounded-lg hover:bg-red-200 transition-colors"
+                            title="Delete"
+                          >
+                            <Trash2 className="w-4 h-4" />
                           </button>
                           {provider.status === 'pending' && (
                             <>
@@ -539,6 +676,95 @@ export default function ProvidersPage() {
                 className="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors font-medium"
               >
                 Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Block/Unblock Modal */}
+      {blockModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm px-4">
+          <div className="w-full max-w-md rounded-3xl bg-white p-8 shadow-2xl">
+            <div className="flex items-start gap-4">
+              <div className={`flex h-12 w-12 items-center justify-center rounded-full ${blockModal.isBlocked ? 'bg-green-100 text-green-600' : 'bg-orange-100 text-orange-600'}`}>
+                <Ban className="h-6 w-6" />
+              </div>
+              <div>
+                <h3 className="text-lg font-semibold text-gray-900">
+                  {blockModal.isBlocked ? 'Unblock Provider' : 'Block Provider'}
+                </h3>
+                <p className="mt-1 text-sm text-gray-600">
+                  {blockModal.isBlocked 
+                    ? `Are you sure you want to unblock ${blockModal.name}?`
+                    : `Are you sure you want to block ${blockModal.name}?`
+                  }
+                </p>
+              </div>
+            </div>
+            {!blockModal.isBlocked && (
+              <div className="mt-4">
+                <label className="block text-sm font-medium text-gray-700 mb-1">Reason for blocking</label>
+                <textarea
+                  value={blockReason}
+                  onChange={(e) => setBlockReason(e.target.value)}
+                  rows={2}
+                  className="w-full px-4 py-2 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  placeholder="Enter reason..."
+                />
+              </div>
+            )}
+            <div className="mt-6 flex justify-end gap-3">
+              <button
+                onClick={() => { setBlockModal(null); setBlockReason(''); }}
+                className="px-5 py-2.5 border border-gray-200 text-gray-600 rounded-xl hover:bg-gray-50 transition font-medium"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={() => handleBlockProvider(blockModal)}
+                disabled={actionLoading}
+                className={`px-5 py-2.5 rounded-xl transition font-medium ${
+                  blockModal.isBlocked 
+                    ? 'bg-green-600 text-white hover:bg-green-700' 
+                    : 'bg-orange-600 text-white hover:bg-orange-700'
+                } disabled:opacity-50`}
+              >
+                {actionLoading ? 'Processing...' : blockModal.isBlocked ? 'Unblock' : 'Block'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Delete Modal */}
+      {deleteModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm px-4">
+          <div className="w-full max-w-md rounded-3xl bg-white p-8 shadow-2xl">
+            <div className="flex items-start gap-4">
+              <div className="flex h-12 w-12 items-center justify-center rounded-full bg-red-100 text-red-600">
+                <Trash2 className="h-6 w-6" />
+              </div>
+              <div>
+                <h3 className="text-lg font-semibold text-gray-900">Delete Provider</h3>
+                <p className="mt-1 text-sm text-gray-600">
+                  Are you sure you want to delete {deleteModal.name}? This action cannot be undone.
+                </p>
+              </div>
+            </div>
+            <div className="mt-6 flex justify-end gap-3">
+              <button
+                onClick={() => setDeleteModal(null)}
+                className="px-5 py-2.5 border border-gray-200 text-gray-600 rounded-xl hover:bg-gray-50 transition font-medium"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={() => handleDeleteProvider(deleteModal)}
+                disabled={actionLoading}
+                className="px-5 py-2.5 bg-red-600 text-white rounded-xl hover:bg-red-700 transition font-medium disabled:opacity-50"
+              >
+                {actionLoading ? 'Deleting...' : 'Delete'}
               </button>
             </div>
           </div>

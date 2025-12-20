@@ -41,6 +41,34 @@ const ServiceSchema = new mongoose.Schema({
     type: Boolean,
     default: true,
   },
+  // Base price for admin control
+  basePrice: {
+    type: Number,
+    default: 0,
+  },
+  minPrice: {
+    type: Number,
+    default: 0,
+  },
+  maxPrice: {
+    type: Number,
+    default: 0,
+  },
+  // Duration in minutes
+  estimatedDuration: {
+    type: Number,
+    default: 60,
+  },
+  // Image/icon
+  image: {
+    type: String,
+    default: '',
+  },
+  // Tags for search
+  tags: [{
+    type: String,
+    trim: true,
+  }],
   createdAt: {
     type: Date,
     default: Date.now,

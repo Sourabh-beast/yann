@@ -114,3 +114,148 @@ export async function PATCH(request) {
     );
   }
 }
+
+// POST - Block/Unblock or Delete provider
+export async function POST(request) {
+  try {
+    await connectDB();
+
+    const { id, action, reason } = await request.json();
+
+    if (!id || !action) {
+      return NextResponse.json(
+        { success: false, message: 'Provider ID and action are required' },
+        { status: 400 }
+      );
+    }
+
+    if (action === 'block') {
+      const provider = await ServiceProvider.findByIdAndUpdate(
+        id,
+        {
+          isBlocked: true,
+          blockedAt: new Date(),
+          blockedReason: reason || 'Blocked by admin',
+          status: 'inactive'
+        },
+        { new: true }
+      );
+
+      if (!provider) {
+        return NextResponse.json(
+          { success: false, message: 'Provider not found' },
+          { status: 404 }
+        );
+      }
+
+      return NextResponse.json({
+        success: true,
+        message: 'Provider blocked successfully',
+        data: provider
+      });
+    }
+
+    if (action === 'unblock') {
+      const provider = await ServiceProvider.findByIdAndUpdate(
+        id,
+        {
+          isBlocked: false,
+          blockedAt: null,
+          blockedReason: '',
+          status: 'active'
+        },
+        { new: true }
+      );
+
+      if (!provider) {
+        return NextResponse.json(
+          { success: false, message: 'Provider not found' },
+          { status: 404 }
+        );
+      }
+
+      return NextResponse.json({
+        success: true,
+        message: 'Provider unblocked successfully',
+        data: provider
+      });
+    }
+
+    if (action === 'delete') {
+      const provider = await ServiceProvider.findByIdAndDelete(id);
+
+      if (!provider) {
+        return NextResponse.json(
+          { success: false, message: 'Provider not found' },
+          { status: 404 }
+        );
+      }
+
+      return NextResponse.json({
+        success: true,
+        message: 'Provider deleted successfully'
+      });
+    }
+
+    if (action === 'verify') {
+      const provider = await ServiceProvider.findByIdAndUpdate(
+        id,
+        { isVerified: true },
+        { new: true }
+      );
+
+      if (!provider) {
+        return NextResponse.json(
+          { success: false, message: 'Provider not found' },
+          { status: 404 }
+        );
+      }
+
+      return NextResponse.json({
+        success: true,
+        message: 'Provider verified successfully',
+        data: provider
+      });
+    }
+
+    if (action === 'verify-document') {
+      const { documentType } = await request.json();
+      const updatePath = `documents.${documentType}.verified`;
+      const updateData = {
+        [updatePath]: true,
+        [`documents.${documentType}.verifiedAt`]: new Date()
+      };
+
+      const provider = await ServiceProvider.findByIdAndUpdate(
+        id,
+        updateData,
+        { new: true }
+      );
+
+      if (!provider) {
+        return NextResponse.json(
+          { success: false, message: 'Provider not found' },
+          { status: 404 }
+        );
+      }
+
+      return NextResponse.json({
+        success: true,
+        message: `${documentType} verified successfully`,
+        data: provider
+      });
+    }
+
+    return NextResponse.json(
+      { success: false, message: 'Invalid action' },
+      { status: 400 }
+    );
+  } catch (error) {
+    console.error('Error processing provider action:', error);
+    return NextResponse.json(
+      { success: false, message: 'Failed to process action' },
+      { status: 500 }
+    );
+  }
+}
+

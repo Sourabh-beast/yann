@@ -1,0 +1,618 @@
+'use client'
+import { useState, useEffect } from 'react';
+import Link from 'next/link';
+import { useRouter } from 'next/navigation';
+import { 
+  Users, Briefcase, ClipboardList, Activity, Menu, X, Search, 
+  DollarSign, Package, Settings, LogOut, TrendingUp, TrendingDown,
+  Calendar, CreditCard, RefreshCw, AlertTriangle, CheckCircle, Clock,
+  ArrowUpRight, ArrowDownRight, Filter, Download, Eye, XCircle,
+  BarChart3, Star, Bell, Gift, HeadphonesIcon, FileText
+} from 'lucide-react';
+
+export default function FinancialsPage() {
+  const router = useRouter();
+  const [loading, setLoading] = useState(true);
+  const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [activeTab, setActiveTab] = useState('overview'); // overview, transactions, refunds, disputes
+  
+  // Data states
+  const [revenue, setRevenue] = useState(null);
+  const [transactions, setTransactions] = useState([]);
+  const [disputes, setDisputes] = useState([]);
+  const [period, setPeriod] = useState('monthly');
+  
+  // Filters
+  const [transactionFilter, setTransactionFilter] = useState({ type: '', status: '' });
+  const [searchTerm, setSearchTerm] = useState('');
+
+  // Modals
+  const [refundModal, setRefundModal] = useState(null);
+  const [disputeModal, setDisputeModal] = useState(null);
+  const [refundForm, setRefundForm] = useState({ amount: 0, reason: '' });
+
+  useEffect(() => {
+    fetchData();
+  }, [period, activeTab]);
+
+  const fetchData = async () => {
+    setLoading(true);
+    try {
+      // Fetch revenue data
+      const revenueRes = await fetch(`/api/admin/revenue?period=${period}`);
+      const revenueData = await revenueRes.json();
+      if (revenueData.success) {
+        setRevenue(revenueData.data);
+      }
+
+      // Fetch transactions
+      const transRes = await fetch('/api/admin/transactions');
+      const transData = await transRes.json();
+      if (transData.success) {
+        setTransactions(transData.data.transactions);
+      }
+
+      // Fetch disputes
+      const disputeRes = await fetch('/api/admin/disputes');
+      const disputeData = await disputeRes.json();
+      if (disputeData.success) {
+        setDisputes(disputeData.data.disputes);
+      }
+    } catch (error) {
+      console.error('Error fetching data:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleRefund = async () => {
+    if (!refundModal || !refundForm.reason || refundForm.amount <= 0) {
+      alert('Please fill all fields');
+      return;
+    }
+
+    try {
+      const res = await fetch('/api/admin/transactions', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          bookingId: refundModal._id,
+          amount: refundForm.amount,
+          reason: refundForm.reason,
+          processedBy: 'admin'
+        })
+      });
+
+      const data = await res.json();
+      if (data.success) {
+        alert('✅ Refund processed successfully!');
+        setRefundModal(null);
+        setRefundForm({ amount: 0, reason: '' });
+        fetchData();
+      } else {
+        alert('❌ ' + data.message);
+      }
+    } catch (error) {
+      console.error('Error processing refund:', error);
+      alert('❌ Failed to process refund');
+    }
+  };
+
+  const handleResolveDispute = async (transactionId, resolution, status) => {
+    try {
+      const res = await fetch('/api/admin/disputes', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          transactionId,
+          resolution,
+          status,
+          processedBy: 'admin'
+        })
+      });
+
+      const data = await res.json();
+      if (data.success) {
+        alert('✅ Dispute updated!');
+        setDisputeModal(null);
+        fetchData();
+      } else {
+        alert('❌ ' + data.message);
+      }
+    } catch (error) {
+      console.error('Error updating dispute:', error);
+    }
+  };
+
+  const sidebarItems = [
+    { label: 'Dashboard', href: '/admin', icon: Activity },
+    { label: 'Analytics', href: '/admin/analytics', icon: BarChart3 },
+    { label: 'Services', href: '/admin/services', icon: Package },
+    { label: 'Service Providers', href: '/admin/providers', icon: Briefcase },
+    { label: 'Homeowners', href: '/admin/homeowners', icon: Users },
+    { label: 'Bookings', href: '/admin/requests', icon: ClipboardList },
+    { label: 'Reviews', href: '/admin/reviews', icon: Star },
+    { label: 'Financials', href: '/admin/financials', icon: DollarSign },
+    { label: 'Notifications', href: '/admin/notifications', icon: Bell },
+    { label: 'Promotions', href: '/admin/promotions', icon: Gift },
+    { label: 'Support Tickets', href: '/admin/support', icon: HeadphonesIcon },
+    { label: 'Audit Logs', href: '/admin/logs', icon: FileText },
+    { label: 'Settings', href: '/admin/settings', icon: Settings },
+  ];
+
+  const formatCurrency = (amount) => {
+    return new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 }).format(amount || 0);
+  };
+
+  return (
+    <div className="min-h-screen bg-gradient-to-br from-gray-50 via-blue-50/30 to-purple-50/20">
+      {/* Mobile Menu Button */}
+      <button
+        onClick={() => setSidebarOpen(!sidebarOpen)}
+        className="lg:hidden fixed top-4 left-4 z-50 p-2 bg-white rounded-lg shadow-lg"
+      >
+        {sidebarOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
+      </button>
+
+      {/* Sidebar */}
+      <aside className={`fixed top-0 left-0 h-full w-64 bg-white border-r border-gray-200 shadow-xl z-40 transform transition-transform duration-300 ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'} lg:translate-x-0`}>
+        <div className="p-6 border-b border-gray-200">
+          <h1 className="text-2xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
+            YANN Admin
+          </h1>
+          <p className="text-sm text-gray-500 mt-1">Management Panel</p>
+        </div>
+        
+        <nav className="p-4 overflow-y-auto" style={{ maxHeight: 'calc(100vh - 180px)' }}>
+          <ul className="space-y-2">
+            {sidebarItems.map((item) => {
+              const Icon = item.icon;
+              const isActive = item.href === '/admin/financials';
+              return (
+                <li key={item.href}>
+                  <Link
+                    href={item.href}
+                    onClick={() => setSidebarOpen(false)}
+                    className={`flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-300 font-medium ${
+                      isActive 
+                        ? 'bg-gradient-to-r from-blue-500 to-purple-500 text-white shadow-lg' 
+                        : 'text-gray-700 hover:bg-gradient-to-r hover:from-blue-50 hover:to-purple-50 hover:text-blue-600'
+                    }`}
+                  >
+                    <Icon className="w-5 h-5" />
+                    {item.label}
+                  </Link>
+                </li>
+              );
+            })}
+          </ul>
+        </nav>
+
+        <div className="absolute bottom-0 left-0 right-0 p-4 border-t border-gray-200 bg-white">
+          <button
+            onClick={async () => {
+              await fetch('/api/admin/logout', { method: 'POST' });
+              router.push('/admin/login');
+            }}
+            className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-red-600 hover:bg-red-50 transition-all duration-300 font-medium"
+          >
+            <LogOut className="w-5 h-5" />
+            Logout
+          </button>
+        </div>
+      </aside>
+
+      {/* Main Content */}
+      <main className="lg:ml-64 p-4 lg:p-8 pt-16 lg:pt-8">
+        {/* Header */}
+        <header className="mb-8 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+          <div>
+            <h2 className="text-3xl font-bold text-gray-900 mb-2">Financial Dashboard</h2>
+            <p className="text-gray-600">Track revenue, transactions, refunds and disputes.</p>
+          </div>
+          <div className="flex items-center gap-3">
+            <select
+              value={period}
+              onChange={(e) => setPeriod(e.target.value)}
+              className="px-4 py-2 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500"
+            >
+              <option value="daily">Today</option>
+              <option value="weekly">This Week</option>
+              <option value="monthly">This Month</option>
+              <option value="yearly">This Year</option>
+            </select>
+            <button
+              onClick={fetchData}
+              className="p-2 bg-white border border-gray-200 rounded-xl hover:bg-gray-50 transition"
+            >
+              <RefreshCw className="w-5 h-5 text-gray-600" />
+            </button>
+          </div>
+        </header>
+
+        {/* Tabs */}
+        <div className="flex gap-2 mb-6 overflow-x-auto pb-2">
+          {[
+            { id: 'overview', label: 'Overview', icon: TrendingUp },
+            { id: 'transactions', label: 'Transactions', icon: CreditCard },
+            { id: 'refunds', label: 'Refunds', icon: RefreshCw },
+            { id: 'disputes', label: 'Disputes', icon: AlertTriangle }
+          ].map((tab) => {
+            const Icon = tab.icon;
+            return (
+              <button
+                key={tab.id}
+                onClick={() => setActiveTab(tab.id)}
+                className={`flex items-center gap-2 px-4 py-2 rounded-xl font-medium whitespace-nowrap transition ${
+                  activeTab === tab.id
+                    ? 'bg-gradient-to-r from-blue-600 to-purple-600 text-white'
+                    : 'bg-white text-gray-600 hover:bg-gray-50'
+                }`}
+              >
+                <Icon className="w-4 h-4" />
+                {tab.label}
+              </button>
+            );
+          })}
+        </div>
+
+        {loading ? (
+          <div className="flex items-center justify-center h-64 bg-white rounded-2xl shadow-lg">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+          </div>
+        ) : (
+          <>
+            {/* Overview Tab */}
+            {activeTab === 'overview' && revenue && (
+              <>
+                {/* Stats Cards */}
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+                  <StatCard
+                    title="Total Revenue"
+                    value={formatCurrency(revenue.summary.totalRevenue)}
+                    subtitle={`${revenue.summary.totalBookings} bookings`}
+                    icon={DollarSign}
+                    trend={revenue.summary.revenueGrowth}
+                    gradient="from-green-500 to-emerald-600"
+                  />
+                  <StatCard
+                    title="Net Revenue"
+                    value={formatCurrency(revenue.summary.netRevenue)}
+                    subtitle="After refunds"
+                    icon={TrendingUp}
+                    gradient="from-blue-500 to-blue-600"
+                  />
+                  <StatCard
+                    title="Commission Earned"
+                    value={formatCurrency(revenue.summary.totalCommission)}
+                    subtitle="Platform fee"
+                    icon={CreditCard}
+                    gradient="from-purple-500 to-purple-600"
+                  />
+                  <StatCard
+                    title="Total Refunds"
+                    value={formatCurrency(revenue.summary.totalRefunds)}
+                    subtitle="Processed refunds"
+                    icon={RefreshCw}
+                    gradient="from-red-500 to-red-600"
+                    negative
+                  />
+                </div>
+
+                {/* Charts */}
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
+                  {/* Revenue by Category */}
+                  <div className="bg-white rounded-2xl p-6 shadow-lg border border-gray-100">
+                    <h3 className="text-xl font-bold text-gray-900 mb-4">Revenue by Category</h3>
+                    <div className="space-y-3">
+                      {revenue.charts.revenueByCategory?.map((cat, idx) => (
+                        <div key={idx} className="flex items-center justify-between">
+                          <span className="text-sm font-medium text-gray-700 capitalize">{cat._id || 'Other'}</span>
+                          <div className="flex items-center gap-3">
+                            <div className="w-32 h-2 bg-gray-200 rounded-full overflow-hidden">
+                              <div 
+                                className="h-full bg-gradient-to-r from-blue-500 to-purple-500 rounded-full"
+                                style={{ width: `${(cat.revenue / revenue.summary.totalRevenue) * 100}%` }}
+                              />
+                            </div>
+                            <span className="text-sm font-bold text-gray-900 w-24 text-right">
+                              {formatCurrency(cat.revenue)}
+                            </span>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Top Services */}
+                  <div className="bg-white rounded-2xl p-6 shadow-lg border border-gray-100">
+                    <h3 className="text-xl font-bold text-gray-900 mb-4">Top Services by Revenue</h3>
+                    <div className="space-y-3">
+                      {revenue.charts.topServices?.slice(0, 5).map((service, idx) => (
+                        <div key={idx} className="flex items-center justify-between p-3 bg-gray-50 rounded-xl">
+                          <div className="flex items-center gap-3">
+                            <span className="w-6 h-6 flex items-center justify-center bg-blue-100 text-blue-600 rounded-full text-xs font-bold">
+                              {idx + 1}
+                            </span>
+                            <span className="font-medium text-gray-700">{service._id}</span>
+                          </div>
+                          <div className="text-right">
+                            <p className="font-bold text-gray-900">{formatCurrency(service.revenue)}</p>
+                            <p className="text-xs text-gray-500">{service.count} bookings</p>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+
+                {/* Payment Methods */}
+                <div className="bg-white rounded-2xl p-6 shadow-lg border border-gray-100">
+                  <h3 className="text-xl font-bold text-gray-900 mb-4">Revenue by Payment Method</h3>
+                  <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                    {revenue.charts.revenueByPaymentMethod?.map((method, idx) => (
+                      <div key={idx} className="p-4 bg-gray-50 rounded-xl text-center">
+                        <p className="text-sm text-gray-600 capitalize mb-1">{method._id || 'Other'}</p>
+                        <p className="text-2xl font-bold text-gray-900">{formatCurrency(method.revenue)}</p>
+                        <p className="text-xs text-gray-500">{method.count} transactions</p>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </>
+            )}
+
+            {/* Transactions Tab */}
+            {activeTab === 'transactions' && (
+              <div className="bg-white rounded-2xl shadow-lg border border-gray-100 overflow-hidden">
+                <div className="p-6 border-b border-gray-100">
+                  <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+                    <h3 className="text-xl font-bold text-gray-900">All Transactions</h3>
+                    <div className="flex gap-3">
+                      <div className="relative">
+                        <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
+                        <input
+                          type="text"
+                          placeholder="Search..."
+                          value={searchTerm}
+                          onChange={(e) => setSearchTerm(e.target.value)}
+                          className="pl-9 pr-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        />
+                      </div>
+                      <select
+                        value={transactionFilter.status}
+                        onChange={(e) => setTransactionFilter({...transactionFilter, status: e.target.value})}
+                        className="px-3 py-2 border border-gray-200 rounded-lg"
+                      >
+                        <option value="">All Status</option>
+                        <option value="completed">Completed</option>
+                        <option value="pending">Pending</option>
+                        <option value="failed">Failed</option>
+                        <option value="refunded">Refunded</option>
+                      </select>
+                    </div>
+                  </div>
+                </div>
+                <div className="overflow-x-auto">
+                  <table className="w-full">
+                    <thead className="bg-gray-50">
+                      <tr>
+                        <th className="text-left py-4 px-6 text-sm font-semibold text-gray-600">ID</th>
+                        <th className="text-left py-4 px-6 text-sm font-semibold text-gray-600">Service</th>
+                        <th className="text-left py-4 px-6 text-sm font-semibold text-gray-600">Customer</th>
+                        <th className="text-left py-4 px-6 text-sm font-semibold text-gray-600">Amount</th>
+                        <th className="text-left py-4 px-6 text-sm font-semibold text-gray-600">Method</th>
+                        <th className="text-left py-4 px-6 text-sm font-semibold text-gray-600">Status</th>
+                        <th className="text-left py-4 px-6 text-sm font-semibold text-gray-600">Date</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {transactions.length === 0 ? (
+                        <tr>
+                          <td colSpan="7" className="py-12 text-center text-gray-500">
+                            No transactions found
+                          </td>
+                        </tr>
+                      ) : (
+                        transactions.map((trans) => (
+                          <tr key={trans._id} className="border-t border-gray-100 hover:bg-gray-50">
+                            <td className="py-4 px-6 text-sm text-gray-600 font-mono">
+                              {trans._id?.slice(-8)}
+                            </td>
+                            <td className="py-4 px-6 text-sm font-medium text-gray-900">
+                              {trans.serviceName || 'N/A'}
+                            </td>
+                            <td className="py-4 px-6 text-sm text-gray-600">
+                              {trans.customerId?.name || 'Guest'}
+                            </td>
+                            <td className="py-4 px-6 text-sm font-bold text-gray-900">
+                              {formatCurrency(trans.amount)}
+                            </td>
+                            <td className="py-4 px-6 text-sm text-gray-600 capitalize">
+                              {trans.paymentMethod}
+                            </td>
+                            <td className="py-4 px-6">
+                              <span className={`px-3 py-1 rounded-full text-xs font-semibold ${getStatusClass(trans.status)}`}>
+                                {trans.status}
+                              </span>
+                            </td>
+                            <td className="py-4 px-6 text-sm text-gray-500">
+                              {new Date(trans.createdAt).toLocaleDateString('en-IN')}
+                            </td>
+                          </tr>
+                        ))
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            )}
+
+            {/* Refunds Tab */}
+            {activeTab === 'refunds' && (
+              <div className="bg-white rounded-2xl shadow-lg border border-gray-100 p-6">
+                <h3 className="text-xl font-bold text-gray-900 mb-4">Refund Management</h3>
+                <p className="text-gray-600 mb-6">Process refunds for completed bookings. Go to Bookings page to initiate refund.</p>
+                
+                <div className="space-y-4">
+                  {transactions.filter(t => t.type === 'refund').length === 0 ? (
+                    <div className="py-12 text-center text-gray-500">
+                      <RefreshCw className="w-12 h-12 mx-auto mb-4 text-gray-300" />
+                      <p>No refunds processed yet</p>
+                    </div>
+                  ) : (
+                    transactions.filter(t => t.type === 'refund').map((refund) => (
+                      <div key={refund._id} className="p-4 border border-gray-200 rounded-xl">
+                        <div className="flex items-center justify-between">
+                          <div>
+                            <p className="font-semibold text-gray-900">{refund.serviceName}</p>
+                            <p className="text-sm text-gray-600">Reason: {refund.refundReason}</p>
+                            <p className="text-xs text-gray-500">
+                              Processed: {new Date(refund.refundedAt).toLocaleDateString('en-IN')}
+                            </p>
+                          </div>
+                          <div className="text-right">
+                            <p className="text-xl font-bold text-red-600">-{formatCurrency(refund.refundAmount)}</p>
+                            <span className="px-2 py-1 bg-green-100 text-green-700 rounded-full text-xs">
+                              Completed
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+                    ))
+                  )}
+                </div>
+              </div>
+            )}
+
+            {/* Disputes Tab */}
+            {activeTab === 'disputes' && (
+              <div className="bg-white rounded-2xl shadow-lg border border-gray-100 p-6">
+                <h3 className="text-xl font-bold text-gray-900 mb-4">Payment Disputes</h3>
+                
+                <div className="space-y-4">
+                  {disputes.length === 0 ? (
+                    <div className="py-12 text-center text-gray-500">
+                      <AlertTriangle className="w-12 h-12 mx-auto mb-4 text-gray-300" />
+                      <p>No disputes found</p>
+                    </div>
+                  ) : (
+                    disputes.map((dispute) => (
+                      <div key={dispute._id} className="p-4 border border-gray-200 rounded-xl">
+                        <div className="flex items-start justify-between">
+                          <div>
+                            <p className="font-semibold text-gray-900">{dispute.serviceName}</p>
+                            <p className="text-sm text-gray-600">
+                              Raised by: {dispute.dispute?.raisedBy} | 
+                              Reason: {dispute.dispute?.reason}
+                            </p>
+                            <p className="text-xs text-gray-500">
+                              {new Date(dispute.dispute?.raisedAt).toLocaleDateString('en-IN')}
+                            </p>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <span className={`px-2 py-1 rounded-full text-xs font-semibold ${
+                              dispute.dispute?.status === 'open' ? 'bg-yellow-100 text-yellow-700' :
+                              dispute.dispute?.status === 'resolved' ? 'bg-green-100 text-green-700' :
+                              'bg-gray-100 text-gray-700'
+                            }`}>
+                              {dispute.dispute?.status}
+                            </span>
+                            {dispute.dispute?.status === 'open' && (
+                              <button
+                                onClick={() => setDisputeModal(dispute)}
+                                className="px-3 py-1 bg-blue-600 text-white rounded-lg text-sm"
+                              >
+                                Resolve
+                              </button>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    ))
+                  )}
+                </div>
+              </div>
+            )}
+          </>
+        )}
+      </main>
+
+      {/* Dispute Resolution Modal */}
+      {disputeModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm px-4">
+          <div className="w-full max-w-md rounded-3xl bg-white p-8 shadow-2xl">
+            <h3 className="text-xl font-bold text-gray-900 mb-4">Resolve Dispute</h3>
+            <div className="mb-4">
+              <p className="text-sm text-gray-600 mb-2">
+                <strong>Service:</strong> {disputeModal.serviceName}
+              </p>
+              <p className="text-sm text-gray-600 mb-2">
+                <strong>Reason:</strong> {disputeModal.dispute?.reason}
+              </p>
+            </div>
+            <div className="mb-4">
+              <label className="block text-sm font-medium text-gray-700 mb-1">Resolution</label>
+              <textarea
+                id="resolution"
+                rows={3}
+                className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500"
+                placeholder="Enter resolution details..."
+              />
+            </div>
+            <div className="flex justify-end gap-3">
+              <button
+                onClick={() => setDisputeModal(null)}
+                className="px-4 py-2 border border-gray-200 text-gray-600 rounded-xl hover:bg-gray-50"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={() => {
+                  const resolution = document.getElementById('resolution').value;
+                  handleResolveDispute(disputeModal._id, resolution, 'resolved');
+                }}
+                className="px-4 py-2 bg-green-600 text-white rounded-xl hover:bg-green-700"
+              >
+                Mark Resolved
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// Helper Components
+function StatCard({ title, value, subtitle, icon: Icon, trend, gradient, negative }) {
+  return (
+    <div className="bg-white rounded-2xl p-6 shadow-lg border border-gray-100 hover:shadow-xl transition-all duration-300">
+      <div className="flex items-center justify-between mb-4">
+        <div className={`w-12 h-12 bg-gradient-to-br ${gradient} rounded-xl flex items-center justify-center shadow-lg`}>
+          <Icon className="w-6 h-6 text-white" />
+        </div>
+        {trend !== undefined && (
+          <div className={`flex items-center gap-1 ${trend >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+            {trend >= 0 ? <ArrowUpRight className="w-4 h-4" /> : <ArrowDownRight className="w-4 h-4" />}
+            <span className="text-sm font-semibold">{Math.abs(trend)}%</span>
+          </div>
+        )}
+      </div>
+      <h3 className="text-sm font-medium text-gray-600 mb-1">{title}</h3>
+      <p className={`text-2xl font-bold ${negative ? 'text-red-600' : 'text-gray-900'} mb-1`}>{value}</p>
+      <p className="text-xs text-gray-500">{subtitle}</p>
+    </div>
+  );
+}
+
+function getStatusClass(status) {
+  const classes = {
+    completed: 'bg-green-100 text-green-700',
+    pending: 'bg-yellow-100 text-yellow-700',
+    failed: 'bg-red-100 text-red-700',
+    refunded: 'bg-purple-100 text-purple-700',
+    disputed: 'bg-orange-100 text-orange-700'
+  };
+  return classes[status] || 'bg-gray-100 text-gray-700';
+}

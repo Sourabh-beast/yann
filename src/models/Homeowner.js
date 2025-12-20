@@ -64,6 +64,37 @@ const homeownerSchema = new mongoose.Schema(
     lastLoginAt: {
       type: Date,
     },
+    // Admin controls
+    isBlocked: {
+      type: Boolean,
+      default: false,
+    },
+    blockedAt: {
+      type: Date,
+    },
+    blockedReason: {
+      type: String,
+      default: "",
+    },
+    // Document verification
+    documents: {
+      aadhaar: {
+        number: String,
+        verified: { type: Boolean, default: false },
+        verifiedAt: Date,
+        imageUrl: String,
+      },
+      pan: {
+        number: String,
+        verified: { type: Boolean, default: false },
+        verifiedAt: Date,
+        imageUrl: String,
+      },
+    },
+    isVerified: {
+      type: Boolean,
+      default: false,
+    },
   },
   { timestamps: true }
 );
