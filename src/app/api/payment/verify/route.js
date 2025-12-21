@@ -6,8 +6,15 @@ export async function POST(request) {
     const body = await request.json();
     const { razorpay_order_id, razorpay_payment_id, razorpay_signature } = body;
 
+    console.log('🔐 Payment verification request:', {
+      orderId: razorpay_order_id,
+      paymentId: razorpay_payment_id ? razorpay_payment_id.substring(0, 15) + '...' : 'missing',
+      hasSignature: !!razorpay_signature,
+    });
+
     // Validate required fields
     if (!razorpay_order_id || !razorpay_payment_id || !razorpay_signature) {
+      console.error('❌ Missing payment verification details');
       return NextResponse.json(
         { success: false, message: 'Missing payment verification details' },
         { status: 400 }
@@ -33,7 +40,7 @@ export async function POST(request) {
     const isAuthentic = expectedSign === razorpay_signature;
 
     if (isAuthentic) {
-      console.log('Payment verified successfully:', { 
+      console.log('✅ Payment verified successfully:', { 
         orderId: razorpay_order_id, 
         paymentId: razorpay_payment_id 
       });
@@ -46,11 +53,14 @@ export async function POST(request) {
         status: 'SUCCESS',
       });
     } else {
-      console.error('Payment verification failed - signature mismatch');
+      console.error('❌ Payment verification failed - signature mismatch', {
+        orderId: razorpay_order_id,
+        paymentId: razorpay_payment_id,
+      });
       return NextResponse.json(
         { 
           success: false, 
-          message: 'Payment verification failed',
+          message: 'Payment verification failed - Invalid signature',
           status: 'FAILED' 
         },
         { status: 400 }
@@ -58,7 +68,10 @@ export async function POST(request) {
     }
 
   } catch (error) {
-    console.error('Razorpay verify error:', error);
+    console.error('❌ Razorpay verify error:', {
+      message: error.message,
+      stack: error.stack,
+    });
     return NextResponse.json(
       { success: false, message: error.message || 'Payment verification failed' },
       { status: 500 }
