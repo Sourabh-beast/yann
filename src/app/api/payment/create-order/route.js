@@ -12,19 +12,54 @@ export async function POST(request) {
     const body = await request.json();
     const { amount, customerName, customerPhone, customerEmail, serviceName, bookingId } = body;
 
+    console.log('📥 Create order request:', {
+      amount,
+      customerName,
+      customerPhone: customerPhone ? customerPhone.substring(0, 5) + '...' : 'missing',
+      customerEmail: customerEmail || 'missing',
+      serviceName,
+    });
+
     // Validate required fields
     if (!amount || amount <= 0) {
+      console.error('❌ Invalid amount:', amount);
       return NextResponse.json(
         { success: false, message: 'Valid amount is required' },
         { status: 400 }
       );
     }
 
+    // Validate customer details
+    if (!customerPhone || customerPhone.length < 10) {
+      console.error('❌ Invalid phone number:', customerPhone);
+      return NextResponse.json(
+        { success: false, message: 'Valid phone number (10 digits) is required' },
+        { status: 400 }
+      );
+    }
+
+    if (!customerEmail) {
+      console.error('❌ Missing customer email');
+      return NextResponse.json(
+        { success: false, message: 'Customer email is required' },
+        { status: 400 }
+      );
+    }
+
     // Check if Razorpay keys are configured
     if (!process.env.RAZORPAY_KEY_ID || !process.env.RAZORPAY_KEY_SECRET) {
-      console.error('Missing Razorpay API keys');
+      console.error('❌ Missing Razorpay API keys in environment variables');
       return NextResponse.json(
         { success: false, message: 'Payment gateway not configured' },
+        { status: 500 }
+      );
+    }
+
+    // Validate Razorpay key format
+    if (!process.env.RAZORPAY_KEY_ID.startsWith('rzp_')) {
+      console.error('❌ Invalid Razorpay Key ID format');
+      return NextResponse.json(
+        { success: false, message: 'Payment gateway misconfigured' },
         { status: 500 }
       );
     }
@@ -38,13 +73,16 @@ export async function POST(request) {
         serviceName: serviceName || 'Service Booking',
         customerName: customerName || 'Guest',
         customerPhone: customerPhone || '',
+        customerEmail: customerEmail || '',
         bookingId: bookingId || '',
       },
     };
 
+    console.log('🔄 Creating Razorpay order with amount:', options.amount, 'paise (₹' + amount + ')');
+
     const order = await razorpay.orders.create(options);
 
-    console.log('Razorpay order created:', { orderId: order.id, amount: order.amount });
+    console.log('✅ Razorpay order created:', { orderId: order.id, amount: order.amount, currency: order.currency });
 
     return NextResponse.json({
       success: true,
@@ -58,7 +96,23 @@ export async function POST(request) {
     });
 
   } catch (error) {
-    console.error('Razorpay create order error:', error);
+    console.error('❌ Razorpay create order error:', {
+      message: error.message,
+      description: error.error?.description,
+      code: error.error?.code,
+    });
+
+    // Handle specific Razorpay errors
+    if (error.statusCode) {
+      return NextResponse.json(
+        { 
+          success: false, 
+          message: error.error?.description || 'Razorpay API error',
+        },
+        { status: error.statusCode }
+      );
+    }
+
     return NextResponse.json(
       { success: false, message: error.message || 'Failed to create payment order' },
       { status: 500 }
