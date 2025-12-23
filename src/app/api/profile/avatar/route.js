@@ -18,19 +18,26 @@ const validationErrorResponse = (message) =>
 const getAuthenticatedUser = async () => {
   const cookieStore = await cookies();
   const token = cookieStore.get(TOKEN_COOKIE_NAME)?.value;
+  
+  console.log('🔍 Avatar upload - checking auth');
+  console.log('Token exists:', !!token);
+  
   if (!token) {
+    console.log('❌ No token found in cookies');
     return null;
   }
 
   if (!process.env.JWT_SECRET) {
+    console.error('❌ JWT_SECRET not configured');
     throw new Error("JWT secret is not configured");
   }
 
   let decoded;
   try {
     decoded = jwt.verify(token, process.env.JWT_SECRET);
+    console.log('✅ Token decoded, email:', decoded.email, 'audience:', decoded.audience);
   } catch (error) {
-    console.error("Avatar upload token verification failed:", error);
+    console.error("❌ Avatar upload token verification failed:", error.message);
     return null;
   }
 
@@ -42,6 +49,12 @@ const getAuthenticatedUser = async () => {
   if (!user) {
     user = await Homeowner.findOne({ email: decoded.email });
     userType = 'homeowner';
+  }
+  
+  if (user) {
+    console.log('✅ User found:', userType, user.email);
+  } else {
+    console.log('❌ User not found for email:', decoded.email);
   }
   
   return user ? { user, userType } : null;
