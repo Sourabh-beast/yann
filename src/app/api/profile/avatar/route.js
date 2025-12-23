@@ -1,4 +1,4 @@
-QAAimport { NextResponse } from "next/server";
+import { NextResponse } from "next/server";
 import { cookies, headers } from "next/headers";
 import jwt from "jsonwebtoken";
 import connectDB from "@/lib/connectDB";

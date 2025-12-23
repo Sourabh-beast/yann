@@ -1,11 +1,16 @@
 import { NextResponse } from 'next/server';
 import Razorpay from 'razorpay';
 
-// Initialize Razorpay instance
-const razorpay = new Razorpay({
-  key_id: process.env.RAZORPAY_KEY_ID,
-  key_secret: process.env.RAZORPAY_KEY_SECRET,
-});
+// Lazy initialization function for Razorpay
+function getRazorpayInstance() {
+  if (!process.env.RAZORPAY_KEY_ID || !process.env.RAZORPAY_KEY_SECRET) {
+    return null;
+  }
+  return new Razorpay({
+    key_id: process.env.RAZORPAY_KEY_ID,
+    key_secret: process.env.RAZORPAY_KEY_SECRET,
+  });
+}
 
 export async function POST(request) {
   try {
@@ -60,6 +65,16 @@ export async function POST(request) {
       console.error('❌ Invalid Razorpay Key ID format');
       return NextResponse.json(
         { success: false, message: 'Payment gateway misconfigured' },
+        { status: 500 }
+      );
+    }
+
+    // Get Razorpay instance
+    const razorpay = getRazorpayInstance();
+    if (!razorpay) {
+      console.error('❌ Failed to initialize Razorpay');
+      return NextResponse.json(
+        { success: false, message: 'Payment gateway not configured' },
         { status: 500 }
       );
     }
