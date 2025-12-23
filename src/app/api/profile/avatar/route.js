@@ -18,58 +18,45 @@ const validationErrorResponse = (message) =>
 const getAuthenticatedUser = async () => {
   const cookieStore = await cookies();
   const token = cookieStore.get(TOKEN_COOKIE_NAME)?.value;
-  
-  console.log('🔍 Avatar upload - checking auth');
-  console.log('Token exists:', !!token);
-  
   if (!token) {
-    console.log('❌ No token found in cookies');
-    return null;
+    return { user: null, userType: null };
   }
 
   if (!process.env.JWT_SECRET) {
-    console.error('❌ JWT_SECRET not configured');
     throw new Error("JWT secret is not configured");
   }
 
   let decoded;
   try {
     decoded = jwt.verify(token, process.env.JWT_SECRET);
-    console.log('✅ Token decoded, email:', decoded.email, 'audience:', decoded.audience);
   } catch (error) {
-    console.error("❌ Avatar upload token verification failed:", error.message);
-    return null;
+    console.error("Avatar upload token verification failed:", error);
+    return { user: null, userType: null };
   }
 
-  // Try to find as provider first
+  // Try to find user as provider first
   let user = await ServiceProvider.findOne({ email: decoded.email });
-  let userType = 'provider';
-  
-  // If not found, try homeowner
-  if (!user) {
-    user = await Homeowner.findOne({ email: decoded.email });
-    userType = 'homeowner';
-  }
-  
   if (user) {
-    console.log('✅ User found:', userType, user.email);
-  } else {
-    console.log('❌ User not found for email:', decoded.email);
+    return { user, userType: 'provider' };
   }
-  
-  return user ? { user, userType } : null;
+
+  // If not found as provider, try homeowner
+  user = await Homeowner.findOne({ email: decoded.email });
+  if (user) {
+    return { user, userType: 'homeowner' };
+  }
+
+  return { user: null, userType: null };
 };
 
 export async function POST(req) {
   try {
     await connectDB();
 
-    const result = await getAuthenticatedUser();
-    if (!result) {
+    const { user, userType } = await getAuthenticatedUser();
+    if (!user) {
       return unauthorizedResponse("Authentication required");
     }
-
-    const { user, userType } = result;
 
     let payload;
     try {
@@ -101,32 +88,32 @@ export async function POST(req) {
       return validationErrorResponse("Image size should not exceed 2MB");
     }
 
-    // Update the appropriate field based on user type
+    // Update avatar based on user type
     if (userType === 'provider') {
       user.profileImage = imageData;
+      user.avatar = imageData; // Also set avatar for consistency
     } else {
       user.avatar = imageData;
+      user.profileImage = imageData; // Also set profileImage for consistency
     }
     
     await user.save();
 
-    // Return appropriate field name
-    const responseData = {
+    console.log(`✅ Avatar updated for ${userType}:`, user.email);
+
+    return NextResponse.json({
       success: true,
       message: "Profile picture updated successfully",
-    };
-
-    if (userType === 'provider') {
-      responseData.profileImage = user.profileImage;
-      responseData.data = { profileImage: user.profileImage };
-    } else {
-      responseData.avatar = user.avatar;
-      responseData.data = { avatar: user.avatar };
-    }
-
-    return NextResponse.json(responseData);
+      data: {
+        avatar: user.avatar || user.profileImage,
+        profileImage: user.profileImage || user.avatar,
+      }
+    });
   } catch (error) {
     console.error("Avatar upload error:", error);
-    return NextResponse.json({ success: false, message: "Unable to update profile picture" }, { status: 500 });
+    return NextResponse.json(
+      { success: false, message: "Unable to update profile picture" }, 
+      { status: 500 }
+    );
   }
 }
