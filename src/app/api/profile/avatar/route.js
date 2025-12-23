@@ -3,6 +3,7 @@ import { cookies } from "next/headers";
 import jwt from "jsonwebtoken";
 import connectDB from "@/lib/connectDB";
 import ServiceProvider from "@/models/ServiceProvider";
+import Homeowner from "@/models/Homeowner";
 
 const TOKEN_COOKIE_NAME = "yann_session";
 const DATA_URL_PATTERN = /^data:(image\/(png|jpeg|jpg|webp));base64,/i;
@@ -14,7 +15,7 @@ const unauthorizedResponse = (message = "Unauthorized") =>
 const validationErrorResponse = (message) =>
   NextResponse.json({ success: false, message }, { status: 400 });
 
-const getAuthenticatedProvider = async () => {
+const getAuthenticatedUser = async () => {
   const cookieStore = await cookies();
   const token = cookieStore.get(TOKEN_COOKIE_NAME)?.value;
   if (!token) {
@@ -33,18 +34,29 @@ const getAuthenticatedProvider = async () => {
     return null;
   }
 
-  const provider = await ServiceProvider.findOne({ email: decoded.email });
-  return provider;
+  // Try to find as provider first
+  let user = await ServiceProvider.findOne({ email: decoded.email });
+  let userType = 'provider';
+  
+  // If not found, try homeowner
+  if (!user) {
+    user = await Homeowner.findOne({ email: decoded.email });
+    userType = 'homeowner';
+  }
+  
+  return user ? { user, userType } : null;
 };
 
 export async function POST(req) {
   try {
     await connectDB();
 
-    const provider = await getAuthenticatedProvider();
-    if (!provider) {
+    const result = await getAuthenticatedUser();
+    if (!result) {
       return unauthorizedResponse("Authentication required");
     }
+
+    const { user, userType } = result;
 
     let payload;
     try {
@@ -76,14 +88,30 @@ export async function POST(req) {
       return validationErrorResponse("Image size should not exceed 2MB");
     }
 
-    provider.profileImage = imageData;
-    await provider.save();
+    // Update the appropriate field based on user type
+    if (userType === 'provider') {
+      user.profileImage = imageData;
+    } else {
+      user.avatar = imageData;
+    }
+    
+    await user.save();
 
-    return NextResponse.json({
+    // Return appropriate field name
+    const responseData = {
       success: true,
-      profileImage: provider.profileImage,
       message: "Profile picture updated successfully",
-    });
+    };
+
+    if (userType === 'provider') {
+      responseData.profileImage = user.profileImage;
+      responseData.data = { profileImage: user.profileImage };
+    } else {
+      responseData.avatar = user.avatar;
+      responseData.data = { avatar: user.avatar };
+    }
+
+    return NextResponse.json(responseData);
   } catch (error) {
     console.error("Avatar upload error:", error);
     return NextResponse.json({ success: false, message: "Unable to update profile picture" }, { status: 500 });
