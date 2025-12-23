@@ -1,11 +1,12 @@
-import { NextResponse } from "next/server";
-import { cookies } from "next/headers";
+QAAimport { NextResponse } from "next/server";
+import { cookies, headers } from "next/headers";
 import jwt from "jsonwebtoken";
 import connectDB from "@/lib/connectDB";
 import ServiceProvider from "@/models/ServiceProvider";
 import Homeowner from "@/models/Homeowner";
 
 const TOKEN_COOKIE_NAME = "yann_session";
+const HOMEOWNER_COOKIE_NAME = "yann_home_session";
 const DATA_URL_PATTERN = /^data:(image\/(png|jpeg|jpg|webp));base64,/i;
 const MAX_IMAGE_BYTES = 2 * 1024 * 1024; // 2MB
 
@@ -16,8 +17,19 @@ const validationErrorResponse = (message) =>
   NextResponse.json({ success: false, message }, { status: 400 });
 
 const getAuthenticatedUser = async () => {
+  // Try to get token from cookie first (for web)
   const cookieStore = await cookies();
-  const token = cookieStore.get(TOKEN_COOKIE_NAME)?.value;
+  let token = cookieStore.get(TOKEN_COOKIE_NAME)?.value || cookieStore.get(HOMEOWNER_COOKIE_NAME)?.value;
+  
+  // If no cookie, try Authorization header (for mobile)
+  if (!token) {
+    const headersList = await headers();
+    const authHeader = headersList.get('authorization');
+    if (authHeader && authHeader.startsWith('Bearer ')) {
+      token = authHeader.substring(7);
+    }
+  }
+
   if (!token) {
     return { user: null, userType: null };
   }
@@ -57,6 +69,8 @@ export async function POST(req) {
     if (!user) {
       return unauthorizedResponse("Authentication required");
     }
+
+    console.log(`✅ Authenticated ${userType}:`, user.email);
 
     let payload;
     try {
