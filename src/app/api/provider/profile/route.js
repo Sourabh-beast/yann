@@ -90,6 +90,18 @@ export async function GET() {
  * Update the authenticated provider's profile
  */
 export async function PUT(request) {
+  return handleProfileUpdate(request);
+}
+
+/**
+ * PATCH /api/provider/profile
+ * Update the authenticated provider's profile (partial update)
+ */
+export async function PATCH(request) {
+  return handleProfileUpdate(request);
+}
+
+async function handleProfileUpdate(request) {
   try {
     await connectDB();
 
@@ -134,7 +146,7 @@ export async function PUT(request) {
     }
 
     const body = await request.json();
-    const allowedUpdates = ['name', 'phone', 'profileImage', 'experience', 'workingHours'];
+    const allowedUpdates = ['name', 'phone', 'profileImage', 'experience', 'workingHours', 'bio', 'serviceRates'];
     
     for (const field of allowedUpdates) {
       if (body[field] !== undefined) {
@@ -154,6 +166,8 @@ export async function PUT(request) {
         phone: provider.phone,
         profileImage: provider.profileImage || '',
         experience: provider.experience,
+        bio: provider.bio || '',
+        serviceRates: provider.serviceRates || [],
         workingHours: provider.workingHours || null,
         status: provider.status
       }
