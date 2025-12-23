@@ -41,6 +41,11 @@ const serviceProviderSchema = new mongoose.Schema({
     default: ''
   },
 
+  avatar: {
+    type: String,
+    default: ''
+  },
+
   // Work Experience
   experience: {
     type: Number,
