@@ -13,6 +13,7 @@ const TOKEN_MAX_AGE = 60 * 60; // seconds
 
 const sanitizeProvider = (provider) => ({
   id: provider._id.toString(),
+  _id: provider._id.toString(), // Add for mobile app compatibility
   name: provider.name,
   email: provider.email,
   services: provider.services,
@@ -27,6 +28,7 @@ const sanitizeProvider = (provider) => ({
 
 const sanitizeHomeowner = (homeowner) => ({
   id: homeowner._id.toString(),
+  _id: homeowner._id.toString(), // Add for mobile app compatibility
   name: homeowner.name,
   email: homeowner.email,
   phone: homeowner.phone || "",
