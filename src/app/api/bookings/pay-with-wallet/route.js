@@ -63,33 +63,46 @@ export async function POST(req) {
 
     console.log('✅ Wallet debited:', { before: balanceBefore, after: balanceAfter, amount: totalPrice });
 
-    // Create booking
-    const booking = await Booking.create({
-      ...bookingData,
-      paymentMethod: 'wallet',
-      paymentStatus: 'paid'
-    });
+    let booking;
+    try {
+      // Create booking
+      booking = await Booking.create({
+        ...bookingData,
+        paymentMethod: 'wallet',
+        paymentStatus: 'paid'
+      });
 
-    console.log('✅ Booking created:', booking._id);
+      console.log('✅ Booking created:', booking._id);
 
-    // Log transaction
-    await Transaction.create({
-      bookingId: booking._id,
-      customerId: userId,
-      providerId: bookingData.providerId,
-      type: 'wallet_debit',
-      amount: totalPrice,
-      balanceBefore,
-      balanceAfter,
-      description: `Payment for booking #${booking._id}`,
-      status: 'completed',
-      paymentMethod: 'wallet',
-      currency: 'INR',
-      serviceName: bookingData.serviceName,
-      serviceCategory: bookingData.serviceCategory
-    });
+      // Log transaction
+      await Transaction.create({
+        bookingId: booking._id,
+        customerId: userId,
+        providerId: bookingData.providerId,
+        type: 'wallet_debit',
+        amount: totalPrice,
+        balanceBefore,
+        balanceAfter,
+        description: `Payment for booking #${booking._id}`,
+        status: 'completed',
+        paymentMethod: 'wallet',
+        currency: 'INR',
+        serviceName: bookingData.serviceName,
+        serviceCategory: bookingData.serviceCategory
+      });
 
-    console.log('✅ Transaction logged');
+      console.log('✅ Transaction logged');
+    } catch (bookingError) {
+      // CRITICAL: Rollback wallet deduction if booking creation fails
+      console.error('❌ Booking creation failed, rolling back wallet deduction:', bookingError.message);
+      
+      user.wallet.balance = balanceBefore;
+      await user.save();
+      
+      console.log('✅ Wallet balance restored:', balanceBefore);
+      
+      throw new Error(`Booking creation failed: ${bookingError.message}`);
+    }
 
     return NextResponse.json({
       success: true,
