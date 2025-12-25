@@ -1,17 +1,16 @@
 import mongoose from 'mongoose';
 
 const transactionSchema = new mongoose.Schema({
-  // Reference to booking
+  // Reference to booking (optional for wallet transactions)
   bookingId: {
     type: mongoose.Schema.Types.ObjectId,
-    ref: 'Booking',
-    required: true
+    ref: 'Booking'
   },
 
   // Transaction Type
   type: {
     type: String,
-    enum: ['payment', 'refund', 'commission', 'payout'],
+    enum: ['payment', 'refund', 'commission', 'payout', 'wallet_topup', 'wallet_debit', 'wallet_refund'],
     required: true
   },
 
@@ -99,6 +98,11 @@ const transactionSchema = new mongoose.Schema({
   // Service Details (denormalized for quick access)
   serviceName: String,
   serviceCategory: String,
+
+  // Wallet-specific fields
+  balanceBefore: Number,
+  balanceAfter: Number,
+  description: String,
 
   // Metadata
   notes: String,
