@@ -41,6 +41,7 @@ export async function GET(request) {
           rating: provider.rating || 0,
           totalReviews: provider.totalReviews || 0,
           price,
+          serviceRates: provider.serviceRates || [],
           workingHours: provider.workingHours || null,
           profileImage: provider.profileImage || ''
         };
