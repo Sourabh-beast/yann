@@ -85,10 +85,15 @@ export async function POST(req) {
     }
 
     // Create Razorpay order
+    // Receipt must be max 40 chars - use short format
+    const shortUserId = userId.substring(userId.length - 8); // Last 8 chars of user ID
+    const timestamp = Date.now().toString().substring(7); // Last 6 digits of timestamp
+    const receipt = `WT_${shortUserId}_${timestamp}`; // Format: WT_12345678_123456 (max 21 chars)
+    
     const orderOptions = {
       amount: Math.round(amount * 100), // Convert to paise
       currency: 'INR',
-      receipt: `wallet_topup_${userId}_${Date.now()}`,
+      receipt: receipt,
       notes: {
         userId: userId,
         type: 'WALLET_TOPUP',
