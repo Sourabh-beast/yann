@@ -56,10 +56,20 @@ export async function POST(req) {
 
     await connectDB();
 
+    // Validate MongoDB ObjectId format
+    const mongoose = require('mongoose');
+    if (!mongoose.Types.ObjectId.isValid(userId)) {
+      console.error('❌ Invalid user ID format:', userId, '(not a valid MongoDB ObjectId)');
+      return NextResponse.json(
+        { success: false, message: 'Invalid user ID format - please log out and log back in' },
+        { status: 400 }
+      );
+    }
+
     const user = await Homeowner.findById(userId);
     if (!user) {
       console.error('❌ User not found:', userId);
-      return NextResponse.json({ success: false, message: 'User not found' }, { status: 404 });
+      return NextResponse.json({ success: false, message: 'User not found - please log out and log back in' }, { status: 404 });
     }
 
     console.log('✅ User found:', user.name);
