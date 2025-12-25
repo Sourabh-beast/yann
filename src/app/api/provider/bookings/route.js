@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { cookies } from 'next/headers';
+import { cookies, headers } from 'next/headers';
 import jwt from 'jsonwebtoken';
 import connectDB from '@/lib/connectDB';
 import Booking from '@/models/Booking';
@@ -9,17 +9,24 @@ const PROVIDER_COOKIE = 'yann_session';
 
 /**
  * Helper to get authenticated provider from session
- * Supports both cookie-based (website) and token-based (mobile app) authentication
+ * Supports: cookie-based (website), token-based (mobile), and x-user-id header (mobile)
  */
 async function getAuthenticatedProvider(request) {
-  if (!process.env.JWT_SECRET) {
-    return { error: 'Server configuration error', status: 500 };
+  // First try x-user-id header (mobile app sends this)
+  const headersList = headers();
+  const userId = headersList.get('x-user-id');
+  
+  if (userId) {
+    const provider = await ServiceProvider.findById(userId);
+    if (provider) {
+      console.log(`📱 Found provider via x-user-id: ${provider.name}`);
+      return { provider };
+    }
   }
 
-  // Support both cookie-based (website) and token-based (mobile app) authentication
+  // Then try JWT from cookie or Authorization header
   let token = cookies().get(PROVIDER_COOKIE)?.value;
   
-  // If no cookie, check Authorization header for mobile app
   if (!token) {
     const authHeader = request.headers.get('authorization');
     if (authHeader?.startsWith('Bearer ')) {
@@ -27,27 +34,21 @@ async function getAuthenticatedProvider(request) {
     }
   }
   
-  if (!token) {
-    return { error: 'Unauthorized - Please login', status: 401 };
+  if (token && process.env.JWT_SECRET) {
+    try {
+      const decoded = jwt.verify(token, process.env.JWT_SECRET);
+      const providerId = decoded.id || decoded.userId;
+      const provider = await ServiceProvider.findById(providerId);
+      if (provider) {
+        console.log(`🔑 Found provider via JWT: ${provider.name}`);
+        return { provider };
+      }
+    } catch (error) {
+      console.log('JWT verification failed:', error.message);
+    }
   }
 
-  let decoded;
-  try {
-    decoded = jwt.verify(token, process.env.JWT_SECRET);
-  } catch (error) {
-    return { error: 'Session expired - Please login again', status: 401 };
-  }
-
-  if (decoded?.audience !== 'provider') {
-    return { error: 'Unauthorized - Provider access only', status: 401 };
-  }
-
-  const provider = await ServiceProvider.findById(decoded.id);
-  if (!provider) {
-    return { error: 'Provider not found', status: 404 };
-  }
-
-  return { provider };
+  return { error: 'Unauthorized - Please login', status: 401 };
 }
 
 /**
