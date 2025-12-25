@@ -57,6 +57,10 @@ const transactionSchema = new mongoose.Schema({
 
   // Refund Details
   refundReason: String,
+  refunded: {
+    type: Boolean,
+    default: false
+  },
   refundedAt: Date,
   refundAmount: {
     type: Number,
