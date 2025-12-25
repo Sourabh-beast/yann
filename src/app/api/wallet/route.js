@@ -1,28 +1,28 @@
 import { NextResponse } from 'next/server';
-import dbConnect from '@/lib/dbConnect';
+import connectDB from '@/lib/connectDB';
 import Homeowner from '@/models/Homeowner';
 import Transaction from '@/models/Transaction';
-import { getServerSession } from 'next-auth';
-import { authOptions } from '@/app/api/auth/[...nextauth]/route';
 
 export async function GET(req) {
   try {
-    const session = await getServerSession(authOptions);
-    if (!session?.user?.id) {
+    // Extract user ID from request headers (sent by mobile app)
+    const userId = req.headers.get('x-user-id');
+    
+    if (!userId) {
       return NextResponse.json({ success: false, message: 'Unauthorized' }, { status: 401 });
     }
 
-    await dbConnect();
+    await connectDB();
 
     // Get user wallet balance
-    const user = await Homeowner.findById(session.user.id).select('wallet');
+    const user = await Homeowner.findById(userId).select('wallet');
     if (!user) {
       return NextResponse.json({ success: false, message: 'User not found' }, { status: 404 });
     }
 
     // Get recent wallet transactions (last 50)
     const transactions = await Transaction.find({
-      customerId: session.user.id,
+      customerId: userId,
       type: { $in: ['wallet_topup', 'wallet_debit', 'wallet_refund'] }
     })
       .sort({ createdAt: -1 })
