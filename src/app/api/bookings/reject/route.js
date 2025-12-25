@@ -3,6 +3,8 @@ import connectDB from '@/lib/connectDB';
 import Booking from '@/models/Booking';
 import ServiceProvider from '@/models/ServiceProvider';
 import ResidentRequest from '@/models/ResidentRequest';
+import Homeowner from '@/models/Homeowner';
+import Transaction from '@/models/Transaction';
 
 export async function POST(request) {
   try {
@@ -54,6 +56,40 @@ export async function POST(request) {
       }
       await booking.save();
 
+      // 💰 WALLET REFUND: If payment was via wallet, refund to member
+      if (booking.paymentMethod === 'wallet' && booking.paymentStatus === 'completed') {
+        const refundAmount = booking.totalPrice;
+        const homeowner = await Homeowner.findById(booking.homeowner);
+        
+        if (homeowner) {
+          // Add back to member's wallet
+          homeowner.walletBalance = (homeowner.walletBalance || 0) + refundAmount;
+          await homeowner.save();
+          
+          // Create refund transaction record
+          await Transaction.create({
+            userId: booking.homeowner,
+            userType: 'homeowner',
+            type: 'refund',
+            amount: refundAmount,
+            description: `Refund for rejected booking: ${booking.serviceName}`,
+            reference: `REFUND_${bookingId}`,
+            status: 'completed',
+            metadata: {
+              bookingId: bookingId,
+              serviceName: booking.serviceName,
+              reason: 'All providers rejected'
+            }
+          });
+          
+          // Update booking payment status
+          booking.paymentStatus = 'refunded';
+          await booking.save();
+          
+          console.log(`💰 Refunded ₹${refundAmount} to member ${homeowner.name}'s wallet`);
+        }
+      }
+
       if (booking.residentRequest) {
         const requestUpdate = { status: 'denied' };
         if (booking.negotiation) {
@@ -94,3 +130,4 @@ export async function POST(request) {
     );
   }
 }
+

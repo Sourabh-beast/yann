@@ -3,6 +3,8 @@ import connectDB from '@/lib/connectDB';
 import Booking from '@/models/Booking';
 import ServiceProvider from '@/models/ServiceProvider';
 import ResidentRequest from '@/models/ResidentRequest';
+import Homeowner from '@/models/Homeowner';
+import Transaction from '@/models/Transaction';
 
 export async function POST(request) {
   try {
@@ -72,6 +74,38 @@ export async function POST(request) {
 
     await booking.save();
 
+    // 💰 WALLET TRANSFER: If payment was via wallet, transfer to provider's wallet
+    if (booking.paymentMethod === 'wallet' && booking.paymentStatus === 'completed') {
+      const transferAmount = booking.totalPrice;
+      
+      // Initialize provider wallet if not exists
+      if (!provider.walletBalance) {
+        provider.walletBalance = 0;
+      }
+      
+      // Add to provider's wallet
+      provider.walletBalance += transferAmount;
+      await provider.save();
+      
+      // Create transaction record for provider
+      await Transaction.create({
+        userId: providerId,
+        userType: 'provider',
+        type: 'wallet_credit',
+        amount: transferAmount,
+        description: `Earnings from booking: ${booking.serviceName}`,
+        reference: `BOOKING_${bookingId}`,
+        status: 'completed',
+        metadata: {
+          bookingId: bookingId,
+          serviceName: booking.serviceName,
+          customerName: booking.customerName
+        }
+      });
+      
+      console.log(`💰 Transferred ₹${transferAmount} to provider ${provider.name}'s wallet`);
+    }
+
     if (booking.residentRequest) {
       const requestUpdate = {
         status: 'accepted',
@@ -124,3 +158,4 @@ export async function POST(request) {
     );
   }
 }
+
