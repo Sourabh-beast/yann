@@ -1,15 +1,15 @@
 import { NextResponse } from 'next/server';
-import dbConnect from '@/lib/dbConnect';
+import connectDB from '@/lib/connectDB';
 import Booking from '@/models/Booking';
 import Homeowner from '@/models/Homeowner';
 import Transaction from '@/models/Transaction';
-import { getServerSession } from 'next-auth';
-import { authOptions } from '@/app/api/auth/[...nextauth]/route';
 
 export async function POST(req) {
   try {
-    const session = await getServerSession(authOptions);
-    if (!session?.user?.id) {
+    // Extract user ID from request headers (sent by mobile app)
+    const userId = req.headers.get('x-user-id');
+    
+    if (!userId) {
       return NextResponse.json({ success: false, message: 'Unauthorized' }, { status: 401 });
     }
 
@@ -19,7 +19,7 @@ export async function POST(req) {
       return NextResponse.json({ success: false, message: 'Booking ID required' }, { status: 400 });
     }
 
-    await dbConnect();
+    await connectDB();
 
     // Find booking
     const booking = await Booking.findById(bookingId);
@@ -28,7 +28,7 @@ export async function POST(req) {
     }
 
     // Verify ownership
-    if (booking.customerId.toString() !== session.user.id) {
+    if (booking.customerId.toString() !== userId) {
       return NextResponse.json({ success: false, message: 'Not authorized' }, { status: 403 });
     }
 
@@ -38,7 +38,7 @@ export async function POST(req) {
     }
 
     // Get user for wallet refund
-    const user = await Homeowner.findById(session.user.id);
+    const user = await Homeowner.findById(userId);
     if (!user) {
       return NextResponse.json({ success: false, message: 'User not found' }, { status: 404 });
     }

@@ -1,8 +1,6 @@
 import { NextResponse } from 'next/server';
-import dbConnect from '@/lib/dbConnect';
+import connectDB from '@/lib/connectDB';
 import Homeowner from '@/models/Homeowner';
-import { getServerSession } from 'next-auth';
-import { authOptions } from '@/app/api/auth/[...nextauth]/route';
 import Razorpay from 'razorpay';
 
 const razorpay = new Razorpay({
@@ -12,8 +10,10 @@ const razorpay = new Razorpay({
 
 export async function POST(req) {
   try {
-    const session = await getServerSession(authOptions);
-    if (!session?.user?.id) {
+    // Extract user ID from request headers (sent by mobile app)
+    const userId = req.headers.get('x-user-id');
+    
+    if (!userId) {
       return NextResponse.json({ success: false, message: 'Unauthorized' }, { status: 401 });
     }
 
@@ -24,9 +24,9 @@ export async function POST(req) {
       return NextResponse.json({ success: false, message: 'Invalid amount' }, { status: 400 });
     }
 
-    await dbConnect();
+    await connectDB();
 
-    const user = await Homeowner.findById(session.user.id);
+    const user = await Homeowner.findById(userId);
     if (!user) {
       return NextResponse.json({ success: false, message: 'User not found' }, { status: 404 });
     }
@@ -35,9 +35,9 @@ export async function POST(req) {
     const order = await razorpay.orders.create({
       amount: Math.round(amount * 100), // Convert to paise
       currency: 'INR',
-      receipt: `wallet_topup_${session.user.id}_${Date.now()}`,
+      receipt: `wallet_topup_${userId}_${Date.now()}`,
       notes: {
-        userId: session.user.id,
+        userId: userId,
         type: 'WALLET_TOPUP'
       }
     });

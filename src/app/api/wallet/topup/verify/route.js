@@ -1,9 +1,7 @@
 import { NextResponse } from 'next/server';
-import dbConnect from '@/lib/dbConnect';
+import connectDB from '@/lib/connectDB';
 import Homeowner from '@/models/Homeowner';
 import Transaction from '@/models/Transaction';
-import { getServerSession } from 'next-auth';
-import { authOptions } from '@/app/api/auth/[...nextauth]/route';
 import crypto from 'crypto';
 import Razorpay from 'razorpay';
 
@@ -14,8 +12,10 @@ const razorpay = new Razorpay({
 
 export async function POST(req) {
   try {
-    const session = await getServerSession(authOptions);
-    if (!session?.user?.id) {
+    // Extract user ID from request headers (sent by mobile app)
+    const userId = req.headers.get('x-user-id');
+    
+    if (!userId) {
       return NextResponse.json({ success: false, message: 'Unauthorized' }, { status: 401 });
     }
 
@@ -32,14 +32,14 @@ export async function POST(req) {
       return NextResponse.json({ success: false, message: 'Invalid signature' }, { status: 400 });
     }
 
-    await dbConnect();
+    await connectDB();
 
     // Fetch order details from Razorpay to get amount
     const order = await razorpay.orders.fetch(razorpay_order_id);
     const amountToAdd = order.amount / 100; // Convert from paise to rupees
 
     // Update user wallet
-    const user = await Homeowner.findById(session.user.id);
+    const user = await Homeowner.findById(userId);
     if (!user) {
       return NextResponse.json({ success: false, message: 'User not found' }, { status: 404 });
     }
@@ -55,7 +55,7 @@ export async function POST(req) {
 
     // Log transaction
     await Transaction.create({
-      customerId: session.user.id,
+      customerId: userId,
       type: 'wallet_topup',
       amount: amountToAdd,
       balanceBefore,

@@ -1,24 +1,24 @@
 import { NextResponse } from 'next/server';
-import dbConnect from '@/lib/dbConnect';
+import connectDB from '@/lib/connectDB';
 import Homeowner from '@/models/Homeowner';
 import Booking from '@/models/Booking';
 import Transaction from '@/models/Transaction';
-import { getServerSession } from 'next-auth';
-import { authOptions } from '@/app/api/auth/[...nextauth]/route';
 
 export async function POST(req) {
   try {
-    const session = await getServerSession(authOptions);
-    if (!session?.user?.id) {
+    // Extract user ID from request headers (sent by mobile app)
+    const userId = req.headers.get('x-user-id');
+    
+    if (!userId) {
       return NextResponse.json({ success: false, message: 'Unauthorized' }, { status: 401 });
     }
 
     const bookingData = await req.json();
     const { totalPrice } = bookingData;
 
-    await dbConnect();
+    await connectDB();
 
-    const user = await Homeowner.findById(session.user.id);
+    const user = await Homeowner.findById(userId);
     if (!user) {
       return NextResponse.json({ success: false, message: 'User not found' }, { status: 404 });
     }
@@ -52,7 +52,7 @@ export async function POST(req) {
     // Log transaction
     await Transaction.create({
       bookingId: booking._id,
-      customerId: session.user.id,
+      customerId: userId,
       providerId: bookingData.providerId,
       type: 'wallet_debit',
       amount: totalPrice,
