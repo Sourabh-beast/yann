@@ -85,7 +85,7 @@ const bookingSchema = new mongoose.Schema({
   // Payment Details (different for pujari vs others)
   paymentMethod: {
     type: String,
-    enum: ['cash', 'upi', 'card', 'one-time', 'monthly', 'online'],
+    enum: ['cash', 'upi', 'card', 'one-time', 'monthly', 'online', 'wallet'],
     default: 'cash'
   },
   paymentStatus: {
