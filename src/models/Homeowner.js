@@ -76,6 +76,18 @@ const homeownerSchema = new mongoose.Schema(
       type: String,
       default: "",
     },
+    // Wallet
+    wallet: {
+      balance: {
+        type: Number,
+        default: 0,
+        min: 0,
+      },
+      currency: {
+        type: String,
+        default: 'INR',
+      },
+    },
     // Document verification
     documents: {
       aadhaar: {
