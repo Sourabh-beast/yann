@@ -56,37 +56,44 @@ export async function POST(request) {
       }
       await booking.save();
 
-      // 💰 WALLET REFUND: If payment was via wallet, refund to member
-      if (booking.paymentMethod === 'wallet' && booking.paymentStatus === 'completed') {
+      // 💰 ESCROW REFUND: If payment was via wallet, refund to customer
+      if (booking.paymentMethod === 'wallet' && booking.paymentStatus === 'paid') {
         const refundAmount = booking.totalPrice;
-        const homeowner = await Homeowner.findById(booking.homeowner);
+        const homeowner = await Homeowner.findById(booking.customerId);
         
         if (homeowner) {
-          // Add back to member's wallet
-          homeowner.walletBalance = (homeowner.walletBalance || 0) + refundAmount;
+          // Initialize wallet if not exists
+          if (!homeowner.wallet) {
+            homeowner.wallet = { balance: 0, currency: 'INR' };
+          }
+          
+          const customerBalanceBefore = homeowner.wallet.balance || 0;
+          
+          // Add back to customer's wallet
+          homeowner.wallet.balance = customerBalanceBefore + refundAmount;
           await homeowner.save();
           
           // Create refund transaction record
           await Transaction.create({
-            userId: booking.homeowner,
-            userType: 'homeowner',
-            type: 'refund',
+            bookingId: bookingId,
+            customerId: booking.customerId,
+            type: 'wallet_credit',
             amount: refundAmount,
-            description: `Refund for rejected booking: ${booking.serviceName}`,
-            reference: `REFUND_${bookingId}`,
+            balanceBefore: customerBalanceBefore,
+            balanceAfter: homeowner.wallet.balance,
+            description: `Refund for rejected booking #${bookingId}: ${booking.serviceName}`,
             status: 'completed',
-            metadata: {
-              bookingId: bookingId,
-              serviceName: booking.serviceName,
-              reason: 'All providers rejected'
-            }
+            paymentMethod: 'wallet',
+            currency: 'INR',
+            serviceName: booking.serviceName,
+            serviceCategory: booking.serviceCategory
           });
           
           // Update booking payment status
           booking.paymentStatus = 'refunded';
           await booking.save();
           
-          console.log(`💰 Refunded ₹${refundAmount} to member ${homeowner.name}'s wallet`);
+          console.log(`💰 ESCROW REFUNDED: Returned ₹${refundAmount} to customer ${homeowner.name}'s wallet`);
         }
       }
 

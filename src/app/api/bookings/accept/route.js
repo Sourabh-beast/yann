@@ -74,36 +74,39 @@ export async function POST(request) {
 
     await booking.save();
 
-    // 💰 WALLET TRANSFER: If payment was via wallet, transfer to provider's wallet
-    if (booking.paymentMethod === 'wallet' && booking.paymentStatus === 'completed') {
+    // 💰 ESCROW TRANSFER: If payment was via wallet, transfer to provider's wallet
+    if (booking.paymentMethod === 'wallet' && booking.paymentStatus === 'paid') {
       const transferAmount = booking.totalPrice;
       
       // Initialize provider wallet if not exists
-      if (!provider.walletBalance) {
-        provider.walletBalance = 0;
+      if (!provider.wallet) {
+        provider.wallet = { balance: 0, currency: 'INR' };
       }
       
+      const providerBalanceBefore = provider.wallet.balance || 0;
+      
       // Add to provider's wallet
-      provider.walletBalance += transferAmount;
+      provider.wallet.balance = providerBalanceBefore + transferAmount;
       await provider.save();
       
       // Create transaction record for provider
       await Transaction.create({
-        userId: providerId,
-        userType: 'provider',
+        bookingId: bookingId,
+        providerId: providerId,
+        customerId: booking.customerId,
         type: 'wallet_credit',
         amount: transferAmount,
-        description: `Earnings from booking: ${booking.serviceName}`,
-        reference: `BOOKING_${bookingId}`,
+        balanceBefore: providerBalanceBefore,
+        balanceAfter: provider.wallet.balance,
+        description: `Earnings from booking #${bookingId}: ${booking.serviceName}`,
         status: 'completed',
-        metadata: {
-          bookingId: bookingId,
-          serviceName: booking.serviceName,
-          customerName: booking.customerName
-        }
+        paymentMethod: 'wallet',
+        currency: 'INR',
+        serviceName: booking.serviceName,
+        serviceCategory: booking.serviceCategory
       });
       
-      console.log(`💰 Transferred ₹${transferAmount} to provider ${provider.name}'s wallet`);
+      console.log(`💰 ESCROW RELEASED: Transferred ₹${transferAmount} to provider ${provider.name}'s wallet`);
     }
 
     if (booking.residentRequest) {
