@@ -89,8 +89,7 @@ adminSchema.methods.isLocked = function() {
   return this.lockUntil && this.lockUntil > Date.now();
 };
 
-// Indexes
-adminSchema.index({ email: 1 });
+// Indexes (email index not needed here as field has unique: true)
 adminSchema.index({ role: 1 });
 adminSchema.index({ isActive: 1 });
 

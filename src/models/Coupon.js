@@ -111,8 +111,7 @@ couponSchema.methods.isValid = function() {
   );
 };
 
-// Indexes
-couponSchema.index({ code: 1 });
+// Indexes (code index not needed here as field has unique: true)
 couponSchema.index({ isActive: 1 });
 couponSchema.index({ startDate: 1, endDate: 1 });
 couponSchema.index({ couponType: 1 });
