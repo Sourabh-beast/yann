@@ -2,7 +2,17 @@ import mongoose from "mongoose";
 
 const otpSchema = new mongoose.Schema(
   {
-    email: { type: String, required: true, lowercase: true, trim: true },
+    // Support both email and phone - one of them is required
+    email: { type: String, lowercase: true, trim: true },
+    phone: { type: String, trim: true },
+    
+    // Type of identifier used (email or phone)
+    identifierType: {
+      type: String,
+      enum: ["email", "phone"],
+      default: "email",
+    },
+    
     audience: {
       type: String,
       enum: ["provider", "homeowner"],
@@ -18,7 +28,10 @@ const otpSchema = new mongoose.Schema(
       type: mongoose.Schema.Types.Mixed,
       default: {},
     },
-    otpHash: { type: String, required: true },
+    // For email OTP - we store hash. For phone OTP via MSG91 - not needed (MSG91 handles it)
+    otpHash: { type: String },
+    // MSG91 request ID for phone OTP
+    msg91RequestId: { type: String },
     expiresAt: { type: Date, required: true },
     attempts: { type: Number, default: 0 },
     sendCount: { type: Number, default: 1 },
@@ -30,7 +43,9 @@ const otpSchema = new mongoose.Schema(
   { timestamps: true }
 );
 
+// Indexes for both email and phone lookups
 otpSchema.index({ email: 1, audience: 1 });
+otpSchema.index({ phone: 1, audience: 1 });
 otpSchema.index({ expiresAt: 1 }, { expireAfterSeconds: 0 });
 
 export default mongoose.models.Otp || mongoose.model("Otp", otpSchema);

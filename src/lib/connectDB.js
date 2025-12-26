@@ -11,8 +11,8 @@ const connectDB = async () => {
   try {
     const conn = await mongoose.connect(process.env.MONGODB_URI, {
       dbName: "YannDB", // optional: replace with your actual DB name
-      useNewUrlParser: true,
-      useUnifiedTopology: true,
+      // Note: useNewUrlParser and useUnifiedTopology are deprecated in MongoDB Driver 4.0+
+      // These options are no longer needed and have no effect
     });
 
     isConnected = true;

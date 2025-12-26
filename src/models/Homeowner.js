@@ -29,8 +29,6 @@ const homeownerSchema = new mongoose.Schema(
     },
     email: {
       type: String,
-      required: [true, "Email is required"],
-      unique: true,
       lowercase: true,
       trim: true,
       match: [/^\w+([.-]?\w+)*@\w+([.-]?\w+)*(\.\w{2,3})+$/, "Please enter a valid email"],
@@ -131,5 +129,19 @@ const homeownerSchema = new mongoose.Schema(
   },
   { timestamps: true }
 );
+
+// Create sparse unique indexes for email and phone
+// This allows users to sign up with either email OR phone
+homeownerSchema.index({ email: 1 }, { unique: true, sparse: true });
+homeownerSchema.index({ phone: 1 }, { unique: true, sparse: true });
+
+// Ensure at least one of email or phone is present
+homeownerSchema.pre('validate', function(next) {
+  if (!this.email && !this.phone) {
+    next(new Error('Either email or phone number is required'));
+  } else {
+    next();
+  }
+});
 
 export default mongoose.models.Homeowner || mongoose.model("Homeowner", homeownerSchema);
