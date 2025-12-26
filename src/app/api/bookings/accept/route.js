@@ -89,11 +89,12 @@ export async function POST(request) {
       provider.wallet.balance = providerBalanceBefore + transferAmount;
       await provider.save();
       
-      // Create transaction record for provider
+      // Create transaction record for provider ONLY (no customerId)
+      // This ensures it only appears in provider's wallet, not member's wallet
       await Transaction.create({
         bookingId: bookingId,
         providerId: providerId,
-        customerId: booking.customerId,
+        // customerId is intentionally NOT included - this is provider's earning
         type: 'wallet_credit',
         amount: transferAmount,
         balanceBefore: providerBalanceBefore,
