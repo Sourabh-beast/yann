@@ -1,12 +1,14 @@
 import { NextResponse } from 'next/server';
 import connectDB from '@/lib/connectDB';
 import Homeowner from '@/models/Homeowner';
+import ServiceProvider from '@/models/ServiceProvider';
 import Transaction from '@/models/Transaction';
 
 export async function GET(req) {
   try {
     // Extract user ID from request headers (sent by mobile app)
     const userId = req.headers.get('x-user-id');
+    const userType = req.headers.get('x-user-type'); // 'homeowner' or 'provider'
     
     if (!userId) {
       return NextResponse.json({ success: false, message: 'Unauthorized' }, { status: 401 });
@@ -14,16 +16,26 @@ export async function GET(req) {
 
     await connectDB();
 
-    // Get user wallet balance
-    const user = await Homeowner.findById(userId).select('wallet');
+    let user;
+    let transactionQuery;
+
+    // Determine user type and fetch accordingly
+    if (userType === 'provider') {
+      user = await ServiceProvider.findById(userId).select('wallet');
+      transactionQuery = { providerId: userId };
+    } else {
+      user = await Homeowner.findById(userId).select('wallet');
+      transactionQuery = { customerId: userId };
+    }
+
     if (!user) {
       return NextResponse.json({ success: false, message: 'User not found' }, { status: 404 });
     }
 
     // Get recent wallet transactions (last 50)
     const transactions = await Transaction.find({
-      customerId: userId,
-      type: { $in: ['wallet_topup', 'wallet_debit', 'wallet_refund'] }
+      ...transactionQuery,
+      type: { $in: ['wallet_topup', 'wallet_debit', 'wallet_refund', 'wallet_credit'] }
     })
       .sort({ createdAt: -1 })
       .limit(50)
