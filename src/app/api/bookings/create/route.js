@@ -3,6 +3,7 @@ import connectDB from '@/lib/connectDB';
 import Booking from '@/models/Booking';
 import ServiceProvider from '@/models/ServiceProvider';
 import ResidentRequest from '@/models/ResidentRequest';
+import { sendNewBookingNotification } from '@/lib/sendPushNotification';
 
 export async function POST(request) {
   try {
@@ -168,11 +169,22 @@ export async function POST(request) {
       console.log('💡 Tip: Make sure providers register with exact service name:', serviceName);
     }
     
-    // In production, you would:
-    // - Send email notifications to all providers
-    // - Send SMS notifications
-    // - Create push notifications
-    // - Use Socket.io for real-time updates
+    
+    // Send push notification to provider
+    if (provider.pushToken && provider.pushNotificationsEnabled) {
+      try {
+        await sendNewBookingNotification(
+          provider.pushToken,
+          booking.serviceName,
+          booking.customerName,
+          booking._id.toString()
+        );
+        console.log(`📱 Push notification sent to provider: ${provider.name}`);
+      } catch (notifError) {
+        console.error('Failed to send push notification:', notifError);
+        // Don't fail the booking if notification fails
+      }
+    }
 
     return NextResponse.json({
       success: true,
