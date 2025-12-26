@@ -113,10 +113,10 @@ export async function GET(request) {
       }
     }
 
-    // Get accepted bookings by this provider
+    // Get accepted bookings by this provider (including in_progress and completed)
     const acceptedBookings = await Booking.find({
       assignedProvider: provider._id,
-      status: { $in: ['accepted', 'completed'] }
+      status: { $in: ['accepted', 'in_progress', 'completed'] }
     })
     .sort({ bookingDate: 1 });
 
