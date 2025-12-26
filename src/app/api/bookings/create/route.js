@@ -3,7 +3,7 @@ import connectDB from '@/lib/connectDB';
 import Booking from '@/models/Booking';
 import ServiceProvider from '@/models/ServiceProvider';
 import ResidentRequest from '@/models/ResidentRequest';
-import { sendNewBookingNotification } from '@/utils/sendPushNotification';
+import { sendNewBookingNotification } from '@/lib/sendPushNotification';
 
 export async function POST(request) {
   try {
