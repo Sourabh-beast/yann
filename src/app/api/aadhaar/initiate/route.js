@@ -34,7 +34,29 @@ export async function POST(request) {
       );
     }
 
+    // Log configuration for debugging
+    console.log('🔍 Aadhaar verification request:', {
+      userId: userId ? 'present' : 'missing',
+      userType,
+      aadhaarNumber: aadhaarNumber ? `${aadhaarNumber.substring(0, 4)}****${aadhaarNumber.substring(8)}` : 'missing',
+      hasSecretKey: !!SECRET_KEY,
+      hasApiUrl: !!process.env.NEXT_PUBLIC_API_URL,
+      callbackUrl: `${process.env.NEXT_PUBLIC_API_URL}/api/aadhaar/webhook`,
+    });
+
     // Call Meon API to initiate verification
+    const meonPayload = {
+      aadhaar_number: aadhaarNumber,
+      consent: true,
+      callback_url: `${process.env.NEXT_PUBLIC_API_URL}/api/aadhaar/webhook`,
+      client_ref_id: `${userType}_${userId}_${Date.now()}`,
+    };
+
+    console.log('📤 Calling Meon API with payload:', {
+      ...meonPayload,
+      aadhaar_number: `${aadhaarNumber.substring(0, 4)}****${aadhaarNumber.substring(8)}`,
+    });
+
     const meonResponse = await fetch(`${MEON_API_BASE}/v1/digilocker/initiate`, {
       method: 'POST',
       headers: {
@@ -42,26 +64,34 @@ export async function POST(request) {
         'x-api-key': SECRET_KEY,
         'x-company-id': COMPANY_ID,
       },
-      body: JSON.stringify({
-        aadhaar_number: aadhaarNumber,
-        consent: true,
-        callback_url: `${process.env.NEXT_PUBLIC_API_URL}/api/aadhaar/webhook`,
-        client_ref_id: `${userType}_${userId}_${Date.now()}`,
-      }),
+      body: JSON.stringify(meonPayload),
     });
 
     const meonData = await meonResponse.json();
 
+    console.log('📥 Meon API response:', {
+      status: meonResponse.status,
+      ok: meonResponse.ok,
+      data: meonData,
+    });
+
     if (!meonResponse.ok) {
-      console.error('❌ Meon API error:', meonData);
+      console.error('❌ Meon API error:', {
+        status: meonResponse.status,
+        statusText: meonResponse.statusText,
+        data: meonData,
+      });
       return NextResponse.json(
         { 
           success: false, 
-          message: meonData.message || 'Failed to initiate verification' 
+          message: meonData.message || meonData.error || 'Failed to initiate verification',
+          details: meonData,
         },
         { status: meonResponse.status }
       );
     }
+
+    console.log('✅ Verification initiated successfully');
 
     // Return verification URL to mobile app
     return NextResponse.json({
@@ -74,9 +104,17 @@ export async function POST(request) {
     });
 
   } catch (error) {
-    console.error('❌ Error initiating Aadhaar verification:', error);
+    console.error('❌ Error initiating Aadhaar verification:', {
+      message: error.message,
+      stack: error.stack,
+      name: error.name,
+    });
     return NextResponse.json(
-      { success: false, message: 'Internal server error' },
+      { 
+        success: false, 
+        message: 'Internal server error',
+        error: error.message,
+      },
       { status: 500 }
     );
   }
