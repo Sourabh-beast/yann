@@ -119,6 +119,15 @@ const homeownerSchema = new mongoose.Schema(
       type: Boolean,
       default: false,
     },
+    // Push Notifications
+    pushToken: {
+      type: String,
+      default: null,
+    },
+    pushNotificationsEnabled: {
+      type: Boolean,
+      default: true,
+    },
   },
   { timestamps: true }
 );

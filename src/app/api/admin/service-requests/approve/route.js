@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import connectDB from '@/lib/connectDB';
 import ServiceProvider from '@/models/ServiceProvider';
+import { sendServiceApprovalNotification } from '@/lib/sendPushNotification';
 
 /**
  * POST /api/admin/service-requests/approve
@@ -61,6 +62,17 @@ export async function POST(request) {
     );
 
     console.log('✅ Service request approved for provider:', provider.name);
+
+    // Send push notification to provider
+    if (updatedProvider.pushToken && updatedProvider.pushNotificationsEnabled) {
+      try {
+        await sendServiceApprovalNotification(updatedProvider.pushToken, updatedProvider.name);
+        console.log('📬 Approval notification sent to provider');
+      } catch (error) {
+        console.error('❌ Failed to send notification:', error);
+        // Don't fail the request if notification fails
+      }
+    }
 
     return NextResponse.json({
       success: true,

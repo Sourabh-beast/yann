@@ -206,6 +206,15 @@ const serviceProviderSchema = new mongoose.Schema({
   isVerified: {
     type: Boolean,
     default: false
+  },
+  // Push Notifications
+  pushToken: {
+    type: String,
+    default: null
+  },
+  pushNotificationsEnabled: {
+    type: Boolean,
+    default: true
   }
 }, {
   timestamps: true // Adds createdAt and updatedAt fields
