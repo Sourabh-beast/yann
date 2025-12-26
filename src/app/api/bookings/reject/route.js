@@ -73,10 +73,12 @@ export async function POST(request) {
           homeowner.wallet.balance = customerBalanceBefore + refundAmount;
           await homeowner.save();
           
-          // Create refund transaction record
+          // Create refund transaction record for member ONLY (no providerId)
+          // This ensures it only appears in member's wallet, not provider's wallet
           await Transaction.create({
             bookingId: bookingId,
             customerId: booking.customerId,
+            // providerId is intentionally NOT included - this is member's refund
             type: 'wallet_credit',
             amount: refundAmount,
             balanceBefore: customerBalanceBefore,

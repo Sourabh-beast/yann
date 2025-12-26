@@ -23,10 +23,11 @@ export async function GET(req) {
     user = await Homeowner.findById(userId).select('wallet');
     if (user) {
       userType = 'homeowner';
-      // Members see all their transactions (topup, debit, refund)
+      // Members see only THEIR transactions (topup, debit, refund)
+      // wallet_credit is for providers only (earnings from bookings)
       transactionQuery = { 
         customerId: userId,
-        type: { $in: ['wallet_topup', 'wallet_debit', 'wallet_refund', 'wallet_credit'] }
+        type: { $in: ['wallet_topup', 'wallet_debit', 'wallet_refund'] }
       };
     } else {
       // If not found, try ServiceProvider
