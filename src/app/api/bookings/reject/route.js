@@ -112,7 +112,23 @@ export async function POST(request) {
         await ResidentRequest.findByIdAndUpdate(booking.residentRequest, { $set: requestUpdate });
       }
       
-      // In production: Notify customer that booking couldn't be fulfilled
+      // Send push notification to member when all providers reject
+      const homeowner = await Homeowner.findById(booking.customerId);
+      if (homeowner?.pushToken && homeowner?.pushNotificationsEnabled) {
+        try {
+          const { sendBookingRejectedNotification } = await import('@/utils/sendPushNotification');
+          await sendBookingRejectedNotification(
+            homeowner.pushToken,
+            booking.serviceName,
+            booking._id.toString()
+          );
+          console.log(`📱 Push notification sent to member: ${homeowner.name}`);
+        } catch (notifError) {
+          console.error('Failed to send push notification:', notifError);
+          // Don't fail the rejection if notification fails
+        }
+      }
+      
       console.log(`❌ All providers rejected booking ${bookingId}`);
     }
 

@@ -131,7 +131,23 @@ export async function POST(request) {
       await ResidentRequest.findByIdAndUpdate(booking.residentRequest, { $set: requestUpdate });
     }
 
-    // In production: Send confirmation email/SMS to customer
+    // Send push notification to member
+    const homeowner = await Homeowner.findById(booking.customerId);
+    if (homeowner?.pushToken && homeowner?.pushNotificationsEnabled) {
+      try {
+        await sendBookingAcceptedNotification(
+          homeowner.pushToken,
+          booking.serviceName,
+          providerName,
+          booking._id.toString()
+        );
+        console.log(`📱 Push notification sent to member: ${homeowner.name}`);
+      } catch (notifError) {
+        console.error('Failed to send push notification:', notifError);
+        // Don't fail the acceptance if notification fails
+      }
+    }
+    
     console.log(`✅ Booking ${bookingId} accepted by ${providerName}`);
 
     return NextResponse.json({
