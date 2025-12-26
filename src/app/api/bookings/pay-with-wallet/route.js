@@ -17,9 +17,10 @@ export async function POST(req) {
     }
 
     const bookingData = await req.json();
-    const { totalPrice } = bookingData;
+    const { totalPrice, bookingDate } = bookingData;
 
     console.log('💰 Booking amount:', totalPrice);
+    console.log('📅 Booking date:', bookingDate);
 
     await connectDB();
 
@@ -54,36 +55,41 @@ export async function POST(req) {
       }, { status: 400 });
     }
 
-    // Deduct from wallet
+    // Deduct from wallet (ESCROW: money held by platform until provider accepts/rejects)
     const balanceBefore = currentBalance;
     const balanceAfter = currentBalance - totalPrice;
 
     user.wallet.balance = balanceAfter;
     await user.save();
 
-    console.log('✅ Wallet debited:', { before: balanceBefore, after: balanceAfter, amount: totalPrice });
+    console.log('✅ Wallet debited (held in escrow):', { before: balanceBefore, after: balanceAfter, amount: totalPrice });
 
     let booking;
     try {
-      // Create booking
+      // Convert bookingDate string to Date object if needed
+      const parsedBookingDate = typeof bookingDate === 'string' ? new Date(bookingDate) : bookingDate;
+
+      // Create booking with escrow payment status
       booking = await Booking.create({
         ...bookingData,
+        bookingDate: parsedBookingDate,
         paymentMethod: 'wallet',
-        paymentStatus: 'paid'
+        paymentStatus: 'paid', // Money is paid and held in escrow
+        customerId: userId
       });
 
       console.log('✅ Booking created:', booking._id);
 
-      // Log transaction
+      // Log transaction (money held in escrow)
       await Transaction.create({
         bookingId: booking._id,
         customerId: userId,
-        providerId: bookingData.providerId,
+        providerId: bookingData.providerId || null,
         type: 'wallet_debit',
         amount: totalPrice,
         balanceBefore,
         balanceAfter,
-        description: `Payment for booking #${booking._id}`,
+        description: `Payment for booking #${booking._id} (held in escrow)`,
         status: 'completed',
         paymentMethod: 'wallet',
         currency: 'INR',
@@ -91,10 +97,13 @@ export async function POST(req) {
         serviceCategory: bookingData.serviceCategory
       });
 
-      console.log('✅ Transaction logged');
+      console.log('✅ Transaction logged (escrow)');
+      console.log('💡 Money will be transferred to provider when booking is accepted');
+      console.log('💡 Money will be refunded to customer if booking is rejected');
     } catch (bookingError) {
       // CRITICAL: Rollback wallet deduction if booking creation fails
       console.error('❌ Booking creation failed, rolling back wallet deduction:', bookingError.message);
+      console.error('Error details:', bookingError);
       
       user.wallet.balance = balanceBefore;
       await user.save();
@@ -107,7 +116,8 @@ export async function POST(req) {
     return NextResponse.json({
       success: true,
       booking,
-      newBalance: balanceAfter
+      newBalance: balanceAfter,
+      message: 'Payment successful. Money held in escrow until provider accepts.'
     });
   } catch (error) {
     console.error('❌ Wallet booking error:', {
