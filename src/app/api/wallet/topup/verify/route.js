@@ -5,10 +5,16 @@ import Transaction from '@/models/Transaction';
 import crypto from 'crypto';
 import Razorpay from 'razorpay';
 
-const razorpay = new Razorpay({
-  key_id: process.env.RAZORPAY_KEY_ID,
-  key_secret: process.env.RAZORPAY_KEY_SECRET,
-});
+// Lazy initialization function for Razorpay
+function getRazorpayInstance() {
+  if (!process.env.RAZORPAY_KEY_ID || !process.env.RAZORPAY_KEY_SECRET) {
+    return null;
+  }
+  return new Razorpay({
+    key_id: process.env.RAZORPAY_KEY_ID,
+    key_secret: process.env.RAZORPAY_KEY_SECRET,
+  });
+}
 
 export async function POST(req) {
   try {
@@ -33,6 +39,15 @@ export async function POST(req) {
     }
 
     await connectDB();
+
+    // Get Razorpay instance
+    const razorpay = getRazorpayInstance();
+    if (!razorpay) {
+      return NextResponse.json(
+        { success: false, message: 'Payment gateway not configured' },
+        { status: 500 }
+      );
+    }
 
     // Fetch order details from Razorpay to get amount
     const order = await razorpay.orders.fetch(razorpay_order_id);

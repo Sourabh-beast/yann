@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import Homeowner from '@/models/Homeowner';
 import ServiceProvider from '@/models/ServiceProvider';
-import { connectDB } from '@/lib/mongodb';
+import connectDB from '@/lib/connectDB';
 
 /**
  * POST /api/aadhaar/webhook

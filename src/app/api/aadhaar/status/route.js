@@ -3,7 +3,7 @@ import { headers, cookies } from 'next/headers';
 import jwt from 'jsonwebtoken';
 import Homeowner from '@/models/Homeowner';
 import ServiceProvider from '@/models/ServiceProvider';
-import { connectDB } from '@/lib/mongodb';
+import connectDB from '@/lib/connectDB';
 
 const HOMEOWNER_COOKIE = 'homeowner_token';
 const PROVIDER_COOKIE = 'provider_token';
