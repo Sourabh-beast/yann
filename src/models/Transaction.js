@@ -10,7 +10,7 @@ const transactionSchema = new mongoose.Schema({
   // Transaction Type
   type: {
     type: String,
-    enum: ['payment', 'refund', 'commission', 'payout', 'wallet_topup', 'wallet_debit', 'wallet_refund'],
+    enum: ['payment', 'refund', 'commission', 'payout', 'wallet_topup', 'wallet_debit', 'wallet_refund', 'wallet_credit'],
     required: true
   },
 
@@ -41,7 +41,7 @@ const transactionSchema = new mongoose.Schema({
   // Payment Gateway Details
   paymentMethod: {
     type: String,
-    enum: ['razorpay', 'cash', 'upi', 'card', 'bank_transfer'],
+    enum: ['razorpay', 'cash', 'upi', 'card', 'bank_transfer', 'wallet'],
     default: 'razorpay'
   },
   razorpayOrderId: String,
