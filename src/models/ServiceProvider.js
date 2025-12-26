@@ -207,6 +207,18 @@ const serviceProviderSchema = new mongoose.Schema({
     type: Boolean,
     default: false
   },
+  // Wallet for earnings
+  wallet: {
+    balance: {
+      type: Number,
+      default: 0,
+      min: 0
+    },
+    currency: {
+      type: String,
+      default: 'INR'
+    }
+  },
   // Push Notifications
   pushToken: {
     type: String,
