@@ -133,8 +133,7 @@ ticketSchema.pre('save', async function(next) {
   next();
 });
 
-// Indexes
-ticketSchema.index({ ticketId: 1 });
+// Indexes (ticketId index not needed here as field has unique: true)
 ticketSchema.index({ status: 1 });
 ticketSchema.index({ priority: 1 });
 ticketSchema.index({ category: 1 });
