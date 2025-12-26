@@ -23,13 +23,21 @@ export async function GET(req) {
     user = await Homeowner.findById(userId).select('wallet');
     if (user) {
       userType = 'homeowner';
-      transactionQuery = { customerId: userId };
+      // Members see all their transactions (topup, debit, refund)
+      transactionQuery = { 
+        customerId: userId,
+        type: { $in: ['wallet_topup', 'wallet_debit', 'wallet_refund', 'wallet_credit'] }
+      };
     } else {
       // If not found, try ServiceProvider
       user = await ServiceProvider.findById(userId).select('wallet');
       if (user) {
         userType = 'provider';
-        transactionQuery = { providerId: userId };
+        // Providers ONLY see earnings (wallet_credit from accepted bookings)
+        transactionQuery = { 
+          providerId: userId,
+          type: 'wallet_credit' // Only show earnings, not expenses
+        };
       }
     }
 
@@ -38,10 +46,7 @@ export async function GET(req) {
     }
 
     // Get recent wallet transactions (last 50)
-    const transactions = await Transaction.find({
-      ...transactionQuery,
-      type: { $in: ['wallet_topup', 'wallet_debit', 'wallet_refund', 'wallet_credit'] }
-    })
+    const transactions = await Transaction.find(transactionQuery)
       .sort({ createdAt: -1 })
       .limit(50)
       .lean();
