@@ -157,6 +157,30 @@ const serviceProviderSchema = new mongoose.Schema({
     default: ''
   },
 
+  // Aadhaar Verification (Meon DigiLocker)
+  aadhaarVerified: {
+    type: Boolean,
+    default: false
+  },
+  aadhaarPhone: {
+    type: String,
+    trim: true
+  },
+  aadhaarVerifiedAt: {
+    type: Date
+  },
+  // Admin approval (required after Aadhaar verification)
+  adminApproved: {
+    type: Boolean,
+    default: false
+  },
+  adminApprovedAt: {
+    type: Date
+  },
+  adminApprovedBy: {
+    type: String
+  },
+
   // Document verification
   documents: {
     aadhaar: {

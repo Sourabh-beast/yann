@@ -88,6 +88,18 @@ const homeownerSchema = new mongoose.Schema(
         default: 'INR',
       },
     },
+    // Aadhaar Verification (Meon DigiLocker)
+    aadhaarVerified: {
+      type: Boolean,
+      default: false,
+    },
+    aadhaarPhone: {
+      type: String,
+      trim: true,
+    },
+    aadhaarVerifiedAt: {
+      type: Date,
+    },
     // Document verification
     documents: {
       aadhaar: {
