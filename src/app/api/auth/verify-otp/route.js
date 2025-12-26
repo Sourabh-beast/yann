@@ -5,11 +5,21 @@ import connectDB from "@/lib/connectDB";
 import Otp from "@/models/Otp";
 import ServiceProvider from "@/models/ServiceProvider";
 import Homeowner from "@/models/Homeowner";
+import { verifyOTPViaMSG91, detectInputType, formatPhoneNumber } from "@/lib/msg91";
 
 const MAX_ATTEMPTS = 5;
 const BLOCK_DURATION_MS = 15 * 60 * 1000;
 const TOKEN_COOKIE_NAME = "yann_session";
 const TOKEN_MAX_AGE = 60 * 60; // seconds
+
+/**
+ * Normalize phone number to 10 digits for storage
+ */
+function normalizePhone(phone) {
+  if (!phone) return '';
+  const cleaned = phone.toString().replace(/\D/g, '');
+  return cleaned.slice(-10);
+}
 
 const sanitizeProvider = (provider) => ({
   id: provider._id.toString(),
@@ -49,12 +59,27 @@ export async function POST(req) {
       return NextResponse.json({ success: false, message: "Invalid request body" }, { status: 400 });
     }
 
-    const email = payload?.email?.trim().toLowerCase();
+    // Support both 'identifier' (new) and 'email' (legacy) field names
+    const rawIdentifier = (payload?.identifier || payload?.email || '').trim();
     const otp = payload?.otp?.toString().trim();
 
-    if (!email || !otp) {
-      return NextResponse.json({ success: false, message: "Email and OTP are required" }, { status: 400 });
+    if (!rawIdentifier || !otp) {
+      return NextResponse.json({ success: false, message: "Email/Phone and OTP are required" }, { status: 400 });
     }
+
+    // Detect if input is email or phone
+    const inputType = detectInputType(rawIdentifier);
+    
+    if (!inputType) {
+      return NextResponse.json({ 
+        success: false, 
+        message: "Please enter a valid email address or phone number" 
+      }, { status: 400 });
+    }
+
+    const isPhoneLogin = inputType === 'phone';
+    const email = isPhoneLogin ? null : rawIdentifier.toLowerCase();
+    const phone = isPhoneLogin ? normalizePhone(rawIdentifier) : null;
 
     const requestedAudience = payload?.audience === "homeowner" ? "homeowner" : "provider";
     const rawIntent = payload?.intent === "signup" ? "signup" : "login";
@@ -105,10 +130,15 @@ export async function POST(req) {
       return response;
     }
 
-    const otpDoc = await Otp.findOne({ email, audience: requestedAudience });
+    // Build query based on identifier type
+    const otpQuery = isPhoneLogin 
+      ? { phone: phone, audience: requestedAudience }
+      : { email: email, audience: requestedAudience };
+
+    const otpDoc = await Otp.findOne(otpQuery);
 
     if (!otpDoc) {
-      return NextResponse.json({ success: false, message: "OTP not found" }, { status: 400 });
+      return NextResponse.json({ success: false, message: "OTP not found or expired" }, { status: 400 });
     }
 
     const now = new Date();
@@ -120,29 +150,59 @@ export async function POST(req) {
     }
 
     if (!otpDoc.expiresAt || otpDoc.expiresAt <= now) {
-      await Otp.deleteMany({ email, audience: requestedAudience });
+      await Otp.deleteMany(otpQuery);
       return NextResponse.json({ success: false, message: "OTP expired" }, { status: 400 });
     }
 
-    const hashedOtp = crypto.createHash("sha256").update(otp).digest("hex");
+    // Verify OTP based on identifier type
+    let isOtpValid = false;
 
-    if (hashedOtp !== otpDoc.otpHash) {
-      const attempts = (otpDoc.attempts || 0) + 1;
-      const update = {
-        attempts,
-        lastRequestIp: requesterIp,
-      };
+    if (isPhoneLogin) {
+      // Verify via MSG91 for phone OTP
+      const msg91Result = await verifyOTPViaMSG91(phone, otp);
+      isOtpValid = msg91Result.success;
+      
+      if (!isOtpValid) {
+        const attempts = (otpDoc.attempts || 0) + 1;
+        const update = {
+          attempts,
+          lastRequestIp: requesterIp,
+        };
 
-      if (attempts >= MAX_ATTEMPTS) {
-        update.blockedUntil = new Date(now.getTime() + BLOCK_DURATION_MS);
+        if (attempts >= MAX_ATTEMPTS) {
+          update.blockedUntil = new Date(now.getTime() + BLOCK_DURATION_MS);
+        }
+
+        await Otp.updateOne({ _id: otpDoc._id }, { $set: update });
+
+        const status = attempts >= MAX_ATTEMPTS ? 429 : 400;
+        const message = attempts >= MAX_ATTEMPTS ? "Too many invalid attempts. Try again later." : msg91Result.message || "Invalid OTP";
+
+        return NextResponse.json({ success: false, message }, { status });
       }
+    } else {
+      // Verify via hash for email OTP
+      const hashedOtp = crypto.createHash("sha256").update(otp).digest("hex");
+      isOtpValid = hashedOtp === otpDoc.otpHash;
 
-  await Otp.updateOne({ _id: otpDoc._id }, { $set: update });
+      if (!isOtpValid) {
+        const attempts = (otpDoc.attempts || 0) + 1;
+        const update = {
+          attempts,
+          lastRequestIp: requesterIp,
+        };
 
-      const status = attempts >= MAX_ATTEMPTS ? 429 : 400;
-      const message = attempts >= MAX_ATTEMPTS ? "Too many invalid attempts. Try again later." : "Invalid OTP";
+        if (attempts >= MAX_ATTEMPTS) {
+          update.blockedUntil = new Date(now.getTime() + BLOCK_DURATION_MS);
+        }
 
-      return NextResponse.json({ success: false, message }, { status });
+        await Otp.updateOne({ _id: otpDoc._id }, { $set: update });
+
+        const status = attempts >= MAX_ATTEMPTS ? 429 : 400;
+        const message = attempts >= MAX_ATTEMPTS ? "Too many invalid attempts. Try again later." : "Invalid OTP";
+
+        return NextResponse.json({ success: false, message }, { status });
+      }
     }
 
     if (!process.env.JWT_SECRET) {
@@ -151,13 +211,24 @@ export async function POST(req) {
     }
 
     if (requestedAudience === "provider") {
-      const provider = await ServiceProvider.findOne({ email });
+      // Find provider by email or phone
+      let provider;
+      if (isPhoneLogin) {
+        provider = await ServiceProvider.findOne({ phone: phone });
+      } else {
+        provider = await ServiceProvider.findOne({ email: email });
+      }
+      
       if (!provider) {
-        await Otp.deleteMany({ email, audience: requestedAudience });
+        await Otp.deleteMany(otpQuery);
         return NextResponse.json({ success: false, message: "User not found" }, { status: 404 });
       }
 
-      const token = jwt.sign({ email, id: provider._id.toString(), audience: "provider" }, process.env.JWT_SECRET, {
+      const tokenPayload = isPhoneLogin 
+        ? { phone: provider.phone, id: provider._id.toString(), audience: "provider" }
+        : { email: provider.email, id: provider._id.toString(), audience: "provider" };
+
+      const token = jwt.sign(tokenPayload, process.env.JWT_SECRET, {
         expiresIn: `${TOKEN_MAX_AGE}s`,
       });
 
@@ -181,16 +252,22 @@ export async function POST(req) {
         path: "/",
       });
 
-      await Otp.deleteMany({ email, audience: requestedAudience });
+      await Otp.deleteMany(otpQuery);
 
       return response;
     }
 
-    let homeowner = await Homeowner.findOne({ email });
+    // Homeowner login/signup
+    let homeowner;
+    if (isPhoneLogin) {
+      homeowner = await Homeowner.findOne({ phone: phone });
+    } else {
+      homeowner = await Homeowner.findOne({ email: email });
+    }
 
     if (!homeowner) {
       if (intent !== "signup") {
-        await Otp.deleteMany({ email, audience: requestedAudience });
+        await Otp.deleteMany(otpQuery);
         return NextResponse.json({ success: false, message: "Resident account not found" }, { status: 404 });
       }
 
@@ -199,18 +276,42 @@ export async function POST(req) {
         return NextResponse.json({ success: false, message: "Unable to create resident account" }, { status: 400 });
       }
 
-      homeowner = await Homeowner.create({
+      // Create new homeowner with phone or email based on login type
+      const homeownerData = {
         name: nameFromMetadata.trim(),
-        email,
-        phone: otpDoc.metadata?.phone ? otpDoc.metadata.phone.toString().trim() : undefined,
         preferences: Array.isArray(otpDoc.metadata?.preferences) ? otpDoc.metadata.preferences : [],
-      });
+      };
+
+      if (isPhoneLogin) {
+        homeownerData.phone = phone;
+        // If email is provided in metadata, use it
+        if (otpDoc.metadata?.email) {
+          homeownerData.email = otpDoc.metadata.email.toLowerCase().trim();
+        }
+      } else {
+        homeownerData.email = email;
+        // If phone is provided in metadata, use it
+        if (otpDoc.metadata?.phone) {
+          homeownerData.phone = normalizePhone(otpDoc.metadata.phone);
+        }
+      }
+
+      homeowner = await Homeowner.create(homeownerData);
     }
 
     homeowner.lastLoginAt = new Date();
     await homeowner.save();
 
-    const token = jwt.sign({ email, id: homeowner._id.toString(), audience: "homeowner" }, process.env.JWT_SECRET, {
+    const tokenPayload = {
+      id: homeowner._id.toString(),
+      audience: "homeowner",
+    };
+    
+    // Include both email and phone in token if available
+    if (homeowner.email) tokenPayload.email = homeowner.email;
+    if (homeowner.phone) tokenPayload.phone = homeowner.phone;
+
+    const token = jwt.sign(tokenPayload, process.env.JWT_SECRET, {
       expiresIn: `${TOKEN_MAX_AGE}s`,
     });
 
@@ -234,7 +335,7 @@ export async function POST(req) {
       path: "/",
     });
 
-    await Otp.deleteMany({ email, audience: requestedAudience });
+    await Otp.deleteMany(otpQuery);
 
     return response;
   } catch (err) {
@@ -242,3 +343,4 @@ export async function POST(req) {
     return NextResponse.json({ success: false, message: "Internal server error" }, { status: 500 });
   }
 }
+

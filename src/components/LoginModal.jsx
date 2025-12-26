@@ -4,9 +4,38 @@ import { useRouter } from "next/navigation";
 
 const RESEND_INTERVAL = 60;
 
+// Helper function to detect input type
+const detectInputType = (input) => {
+  if (!input) return null;
+  const trimmed = input.trim();
+  
+  // Check for email
+  const emailRegex = /^[\w-.]+@([\w-]+\.)+[\w-]{2,}$/;
+  if (emailRegex.test(trimmed.toLowerCase())) {
+    return 'email';
+  }
+  
+  // Check for phone (10 digits starting with 6-9 for Indian numbers)
+  const cleaned = trimmed.replace(/\D/g, '');
+  const phoneRegex = /^(91)?[6-9]\d{9}$/;
+  if (phoneRegex.test(cleaned)) {
+    return 'phone';
+  }
+  
+  return null;
+};
+
+// Helper to normalize phone number
+const normalizePhone = (phone) => {
+  if (!phone) return '';
+  const cleaned = phone.toString().replace(/\D/g, '');
+  return cleaned.slice(-10);
+};
+
 const partnerInitialState = () => ({
-  step: "email",
-  email: "",
+  step: "identifier", // Changed from "email"
+  identifier: "", // Email or Phone
+  identifierType: null, // 'email' or 'phone'
   otp: "",
   sending: false,
   verifying: false,
@@ -14,11 +43,13 @@ const partnerInitialState = () => ({
 });
 
 const residentInitialState = () => ({
-  step: "email",
+  step: "identifier", // Changed from "email"
   mode: "login",
   name: "",
-  email: "",
-  phone: "",
+  identifier: "", // Email or Phone
+  identifierType: null, // 'email' or 'phone'
+  phone: "", // Additional phone for signup when using email
+  email: "", // Additional email for signup when using phone
   otp: "",
   sending: false,
   verifying: false,
@@ -83,11 +114,37 @@ export default function LoginModal({ isOpen, onClose, onLoginSuccess, defaultPan
     onClose?.();
   }, [onClose]);
 
+  // Handle identifier input change and auto-detect type
+  const handlePartnerIdentifierChange = useCallback((value) => {
+    const type = detectInputType(value);
+    setPartnerForm((prev) => ({ 
+      ...prev, 
+      identifier: value,
+      identifierType: type
+    }));
+  }, []);
+
+  const handleResidentIdentifierChange = useCallback((value) => {
+    const type = detectInputType(value);
+    setResidentForm((prev) => ({ 
+      ...prev, 
+      identifier: value,
+      identifierType: type
+    }));
+  }, []);
+
   const requestPartnerOtp = useCallback(async () => {
-    if (!partnerForm.email) {
-      alert("Please enter your email");
+    if (!partnerForm.identifier) {
+      alert("Please enter your email or phone number");
       return;
     }
+    
+    const inputType = detectInputType(partnerForm.identifier);
+    if (!inputType) {
+      alert("Please enter a valid email or 10-digit phone number");
+      return;
+    }
+    
     setPartnerForm((prev) => ({ ...prev, sending: true }));
     try {
       const res = await fetch("/api/auth/send-otp", {
@@ -95,7 +152,7 @@ export default function LoginModal({ isOpen, onClose, onLoginSuccess, defaultPan
         headers: { "Content-Type": "application/json" },
         credentials: "include",
         body: JSON.stringify({
-          email: partnerForm.email,
+          identifier: partnerForm.identifier,
           audience: "provider",
           intent: "login",
         }),
@@ -109,6 +166,7 @@ export default function LoginModal({ isOpen, onClose, onLoginSuccess, defaultPan
       setPartnerForm((prev) => ({
         ...prev,
         step: "otp",
+        identifierType: data.identifierType || inputType,
         otp: "",
         timer: RESEND_INTERVAL,
       }));
@@ -118,7 +176,7 @@ export default function LoginModal({ isOpen, onClose, onLoginSuccess, defaultPan
     } finally {
       setPartnerForm((prev) => ({ ...prev, sending: false }));
     }
-  }, [partnerForm.email]);
+  }, [partnerForm.identifier]);
 
   const verifyPartnerOtp = useCallback(async () => {
     if (!partnerForm.otp) {
@@ -132,7 +190,7 @@ export default function LoginModal({ isOpen, onClose, onLoginSuccess, defaultPan
         headers: { "Content-Type": "application/json" },
         credentials: "include",
         body: JSON.stringify({
-          email: partnerForm.email,
+          identifier: partnerForm.identifier,
           otp: partnerForm.otp,
           audience: "provider",
         }),
@@ -163,8 +221,14 @@ export default function LoginModal({ isOpen, onClose, onLoginSuccess, defaultPan
   }, [partnerForm.email, partnerForm.otp, closeModal, onLoginSuccess, router]);
 
   const requestResidentOtp = useCallback(async () => {
-    if (!residentForm.email) {
-      alert("Please enter your email");
+    if (!residentForm.identifier) {
+      alert("Please enter your email or phone number");
+      return;
+    }
+
+    const inputType = detectInputType(residentForm.identifier);
+    if (!inputType) {
+      alert("Please enter a valid email or 10-digit phone number");
       return;
     }
 
@@ -173,15 +237,18 @@ export default function LoginModal({ isOpen, onClose, onLoginSuccess, defaultPan
       return;
     }
 
-    if (intent === "signup" && residentForm.phone.trim() && !/^[0-9]{10}$/.test(residentForm.phone.trim())) {
-      alert("Phone number should be 10 digits");
-      return;
+    // For signup, validate additional phone if provided and using email
+    if (intent === "signup" && inputType === 'email' && residentForm.phone.trim()) {
+      if (!/^[6-9]\d{9}$/.test(residentForm.phone.trim())) {
+        alert("Phone number should be 10 digits starting with 6-9");
+        return;
+      }
     }
 
     setResidentForm((prev) => ({ ...prev, sending: true }));
     try {
       const payload = {
-        email: residentForm.email,
+        identifier: residentForm.identifier,
         audience: "homeowner",
         intent: intent,
       };
@@ -189,8 +256,16 @@ export default function LoginModal({ isOpen, onClose, onLoginSuccess, defaultPan
       if (intent === "signup") {
         payload.metadata = {
           name: residentForm.name.trim(),
-          phone: residentForm.phone.trim(),
         };
+        
+        // If signing up with email, include phone in metadata
+        if (inputType === 'email' && residentForm.phone.trim()) {
+          payload.metadata.phone = normalizePhone(residentForm.phone.trim());
+        }
+        // If signing up with phone, include email in metadata if provided
+        if (inputType === 'phone' && residentForm.email.trim()) {
+          payload.metadata.email = residentForm.email.trim().toLowerCase();
+        }
       }
 
       const res = await fetch("/api/auth/send-otp", {
@@ -208,6 +283,7 @@ export default function LoginModal({ isOpen, onClose, onLoginSuccess, defaultPan
       setResidentForm((prev) => ({
         ...prev,
         step: "otp",
+        identifierType: data.identifierType || inputType,
         otp: "",
         timer: RESEND_INTERVAL,
       }));
@@ -217,7 +293,7 @@ export default function LoginModal({ isOpen, onClose, onLoginSuccess, defaultPan
     } finally {
       setResidentForm((prev) => ({ ...prev, sending: false }));
     }
-  }, [residentForm.email, intent, residentForm.name, residentForm.phone]);
+  }, [residentForm.identifier, intent, residentForm.name, residentForm.phone, residentForm.email]);
 
   const verifyResidentOtp = useCallback(async () => {
     if (!residentForm.otp) {
@@ -231,7 +307,7 @@ export default function LoginModal({ isOpen, onClose, onLoginSuccess, defaultPan
         headers: { "Content-Type": "application/json" },
         credentials: "include",
         body: JSON.stringify({
-          email: residentForm.email,
+          identifier: residentForm.identifier,
           otp: residentForm.otp,
           audience: "homeowner",
           intent: intent,
@@ -266,10 +342,63 @@ export default function LoginModal({ isOpen, onClose, onLoginSuccess, defaultPan
     setResidentForm((prev) => ({
       ...residentInitialState(),
       mode,
-      email: mode === "login" ? prev.email : "",
+      identifier: mode === "login" ? prev.identifier : "",
       name: mode === "signup" ? prev.name : "",
     }));
   }, []);
+
+  // Voice OTP handlers
+  const [requestingVoiceOTP, setRequestingVoiceOTP] = useState(false);
+
+  const requestPartnerVoiceOTP = useCallback(async () => {
+    if (partnerForm.identifierType !== 'phone') {
+      alert("Voice OTP is only available for phone numbers");
+      return;
+    }
+    setRequestingVoiceOTP(true);
+    try {
+      const res = await fetch("/api/auth/voice-otp", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ phone: partnerForm.identifier }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        alert(data.message || "Failed to request voice call");
+        return;
+      }
+      alert(data.message || "You will receive a call shortly with your OTP");
+    } catch (error) {
+      alert("Network error. Please try again");
+    } finally {
+      setRequestingVoiceOTP(false);
+    }
+  }, [partnerForm.identifier, partnerForm.identifierType]);
+
+  const requestResidentVoiceOTP = useCallback(async () => {
+    if (residentForm.identifierType !== 'phone') {
+      alert("Voice OTP is only available for phone numbers");
+      return;
+    }
+    setRequestingVoiceOTP(true);
+    try {
+      const res = await fetch("/api/auth/voice-otp", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ phone: residentForm.identifier }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        alert(data.message || "Failed to request voice call");
+        return;
+      }
+      alert(data.message || "You will receive a call shortly with your OTP");
+    } catch (error) {
+      alert("Network error. Please try again");
+    } finally {
+      setRequestingVoiceOTP(false);
+    }
+  }, [residentForm.identifier, residentForm.identifierType]);
 
   if (!isOpen) return null;
 
@@ -307,29 +436,44 @@ export default function LoginModal({ isOpen, onClose, onLoginSuccess, defaultPan
             </header>
 
             <div className="rounded-2xl bg-white/6 p-6 shadow-inner shadow-slate-800/40">
-              {partnerForm.step === "email" ? (
+              {partnerForm.step === "identifier" ? (
                 <div className="space-y-5">
                   <div>
-                    <label className="mb-2 block text-xs font-semibold uppercase tracking-widest text-indigo-200">Registered Work Email</label>
+                    <label className="mb-2 block text-xs font-semibold uppercase tracking-widest text-indigo-200">
+                      Email or Phone Number
+                    </label>
                     <div className="relative">
                       <span className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3">
-                        <svg className="h-4 w-4 text-indigo-200" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
-                          <path strokeLinecap="round" strokeLinejoin="round" d="M3 8l9 6 9-6M5 19h14a2 2 0 002-2V7a2 2 0 00-1-1.732l-8-4.618a2 2 0 00-2 0l-8 4.618A2 2 0 004 7v10a2 2 0 002 2z" />
-                        </svg>
+                        {partnerForm.identifierType === 'phone' ? (
+                          <svg className="h-4 w-4 text-indigo-200" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" />
+                          </svg>
+                        ) : (
+                          <svg className="h-4 w-4 text-indigo-200" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M3 8l9 6 9-6M5 19h14a2 2 0 002-2V7a2 2 0 00-1-1.732l-8-4.618a2 2 0 00-2 0l-8 4.618A2 2 0 004 7v10a2 2 0 002 2z" />
+                          </svg>
+                        )}
                       </span>
                       <input
-                        type="email"
-                        value={partnerForm.email}
-                        onChange={(event) => setPartnerForm((prev) => ({ ...prev, email: event.target.value }))}
-                        placeholder="partner@yourbrand.com"
+                        type="text"
+                        value={partnerForm.identifier}
+                        onChange={(event) => handlePartnerIdentifierChange(event.target.value)}
+                        placeholder="partner@email.com or 9876543210"
                         className="w-full rounded-xl border border-white/20 bg-white/5 py-3 pl-10 pr-4 text-sm text-white outline-none transition focus:border-indigo-300 focus:bg-white/10 placeholder:text-indigo-200/60"
                       />
                     </div>
+                    {partnerForm.identifier && (
+                      <p className="mt-2 text-xs text-indigo-300">
+                        {partnerForm.identifierType === 'email' ? '📧 Email detected' : 
+                         partnerForm.identifierType === 'phone' ? '📱 Phone number detected' : 
+                         '⚠️ Enter valid email or 10-digit phone'}
+                      </p>
+                    )}
                   </div>
                   <button
                     type="button"
                     onClick={requestPartnerOtp}
-                    disabled={partnerForm.sending || !partnerForm.email}
+                    disabled={partnerForm.sending || !partnerForm.identifier || !partnerForm.identifierType}
                     className="flex w-full items-center justify-center rounded-xl bg-gradient-to-r from-indigo-500 to-purple-500 py-3 text-sm font-semibold text-white shadow-lg shadow-indigo-900/40 transition hover:shadow-xl disabled:cursor-not-allowed disabled:opacity-50"
                   >
                     {partnerForm.sending ? "Sending OTP..." : "Send secure OTP"}
@@ -360,7 +504,7 @@ export default function LoginModal({ isOpen, onClose, onLoginSuccess, defaultPan
                       onClick={() => setPartnerForm(partnerInitialState())}
                       className="font-semibold uppercase tracking-widest hover:text-indigo-100"
                     >
-                      Change email
+                      Change {partnerForm.identifierType === 'phone' ? 'phone' : 'email'}
                     </button>
                     <button
                       type="button"
@@ -371,6 +515,20 @@ export default function LoginModal({ isOpen, onClose, onLoginSuccess, defaultPan
                       {partnerForm.timer > 0 ? `Resend in ${formatTimer(partnerForm.timer)}` : "Resend OTP"}
                     </button>
                   </div>
+                  {/* Voice OTP Button - Only for phone numbers */}
+                  {partnerForm.identifierType === 'phone' && (
+                    <button
+                      type="button"
+                      onClick={requestPartnerVoiceOTP}
+                      disabled={requestingVoiceOTP}
+                      className="flex w-full items-center justify-center gap-2 rounded-xl border border-white/20 bg-white/5 py-2.5 text-xs font-semibold text-indigo-200 transition hover:bg-white/10 disabled:cursor-not-allowed disabled:opacity-50"
+                    >
+                      <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" />
+                      </svg>
+                      {requestingVoiceOTP ? "Requesting call..." : "Request a Call Instead"}
+                    </button>
+                  )}
                   <button
                     type="button"
                     onClick={verifyPartnerOtp}
@@ -412,7 +570,7 @@ export default function LoginModal({ isOpen, onClose, onLoginSuccess, defaultPan
 
             <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
 
-              {residentForm.step === "email" ? (
+              {residentForm.step === "identifier" ? (
                 <div className="space-y-5">
                   {intent === "signup" && (
                     <div>
@@ -427,27 +585,66 @@ export default function LoginModal({ isOpen, onClose, onLoginSuccess, defaultPan
                     </div>
                   )}
                   <div>
-                    <label className="mb-2 block text-xs font-semibold uppercase tracking-widest text-slate-500">Email address</label>
-                    <input
-                      type="email"
-                      value={residentForm.email}
-                      onChange={(event) => setResidentForm((prev) => ({ ...prev, email: event.target.value }))}
-                      placeholder="you@home.com"
-                      className="w-full rounded-xl border border-slate-200 bg-slate-50 py-3 px-4 text-sm text-slate-900 outline-none transition focus:border-indigo-400 focus:bg-white"
-                    />
+                    <label className="mb-2 block text-xs font-semibold uppercase tracking-widest text-slate-500">
+                      Email or Phone Number
+                    </label>
+                    <div className="relative">
+                      <span className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3">
+                        {residentForm.identifierType === 'phone' ? (
+                          <svg className="h-4 w-4 text-slate-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" />
+                          </svg>
+                        ) : (
+                          <svg className="h-4 w-4 text-slate-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M3 8l9 6 9-6M5 19h14a2 2 0 002-2V7a2 2 0 00-1-1.732l-8-4.618a2 2 0 00-2 0l-8 4.618A2 2 0 004 7v10a2 2 0 002 2z" />
+                          </svg>
+                        )}
+                      </span>
+                      <input
+                        type="text"
+                        value={residentForm.identifier}
+                        onChange={(event) => handleResidentIdentifierChange(event.target.value)}
+                        placeholder="you@email.com or 9876543210"
+                        className="w-full rounded-xl border border-slate-200 bg-slate-50 py-3 pl-10 pr-4 text-sm text-slate-900 outline-none transition focus:border-indigo-400 focus:bg-white"
+                      />
+                    </div>
+                    {residentForm.identifier && (
+                      <p className="mt-2 text-xs text-slate-500">
+                        {residentForm.identifierType === 'email' ? '📧 Email detected - OTP will be sent to your email' : 
+                         residentForm.identifierType === 'phone' ? '📱 Phone detected - OTP will be sent via SMS' : 
+                         '⚠️ Enter valid email or 10-digit phone number'}
+                      </p>
+                    )}
                   </div>
-                  {intent === "signup" && (
+                  {/* Show additional phone field when signing up with email */}
+                  {intent === "signup" && residentForm.identifierType === 'email' && (
                     <div>
                       <label className="mb-2 flex items-center justify-between text-xs font-semibold uppercase tracking-widest text-slate-500">
-                        <span>Phone (optional)</span>
-                        <span className="text-[10px] font-semibold text-indigo-500">Helps experts reach you faster</span>
+                        <span>Phone Number</span>
+                        <span className="text-[10px] font-semibold text-indigo-500">Required for service bookings</span>
                       </label>
                       <input
                         type="tel"
                         value={residentForm.phone}
                         maxLength={10}
-                        onChange={(event) => setResidentForm((prev) => ({ ...prev, phone: event.target.value }))}
-                        placeholder="10-digit number"
+                        onChange={(event) => setResidentForm((prev) => ({ ...prev, phone: event.target.value.replace(/\D/g, '') }))}
+                        placeholder="10-digit phone number"
+                        className="w-full rounded-xl border border-slate-200 bg-slate-50 py-3 px-4 text-sm text-slate-900 outline-none transition focus:border-indigo-400 focus:bg-white"
+                      />
+                    </div>
+                  )}
+                  {/* Show additional email field when signing up with phone */}
+                  {intent === "signup" && residentForm.identifierType === 'phone' && (
+                    <div>
+                      <label className="mb-2 flex items-center justify-between text-xs font-semibold uppercase tracking-widest text-slate-500">
+                        <span>Email (optional)</span>
+                        <span className="text-[10px] font-semibold text-indigo-500">For booking confirmations</span>
+                      </label>
+                      <input
+                        type="email"
+                        value={residentForm.email}
+                        onChange={(event) => setResidentForm((prev) => ({ ...prev, email: event.target.value }))}
+                        placeholder="you@email.com"
                         className="w-full rounded-xl border border-slate-200 bg-slate-50 py-3 px-4 text-sm text-slate-900 outline-none transition focus:border-indigo-400 focus:bg-white"
                       />
                     </div>
@@ -455,18 +652,20 @@ export default function LoginModal({ isOpen, onClose, onLoginSuccess, defaultPan
                   <button
                     type="button"
                     onClick={requestResidentOtp}
-                    disabled={residentForm.sending || !residentForm.email || (intent === "signup" && !residentForm.name)}
+                    disabled={residentForm.sending || !residentForm.identifier || !residentForm.identifierType || (intent === "signup" && !residentForm.name) || (intent === "signup" && residentForm.identifierType === 'email' && !residentForm.phone)}
                     className="flex w-full items-center justify-center rounded-xl bg-gradient-to-r from-indigo-500 to-purple-500 py-3 text-sm font-semibold text-white shadow-lg shadow-indigo-200 transition hover:shadow-xl disabled:cursor-not-allowed disabled:opacity-50"
                   >
                     {intent === "signup"
                       ? residentForm.sending ? "Sharing OTP..." : "Create account with OTP"
-                      : residentForm.sending ? "Sending OTP..." : "Send login OTP"}
+                      : residentForm.sending ? "Sending OTP..." : `Send OTP ${residentForm.identifierType === 'phone' ? 'via SMS' : 'to email'}`}
                   </button>
                 </div>
               ) : (
                 <div className="space-y-5">
                   <div>
-                    <label className="mb-2 block text-xs font-semibold uppercase tracking-widest text-slate-500">Enter one-time code</label>
+                    <label className="mb-2 block text-xs font-semibold uppercase tracking-widest text-slate-500">
+                      Enter one-time code {residentForm.identifierType === 'phone' ? '(sent via SMS)' : '(sent to email)'}
+                    </label>
                     <input
                       value={residentForm.otp}
                       onChange={(event) => setResidentForm((prev) => ({ ...prev, otp: event.target.value }))}
@@ -481,7 +680,7 @@ export default function LoginModal({ isOpen, onClose, onLoginSuccess, defaultPan
                       onClick={() => setResidentForm((prev) => ({ ...residentInitialState(), mode: prev.mode }))}
                       className="font-semibold uppercase tracking-widest hover:text-slate-700"
                     >
-                      Change email
+                      Change {residentForm.identifierType === 'phone' ? 'phone' : 'email'}
                     </button>
                     <button
                       type="button"
@@ -492,6 +691,20 @@ export default function LoginModal({ isOpen, onClose, onLoginSuccess, defaultPan
                       {residentForm.timer > 0 ? `Resend in ${formatTimer(residentForm.timer)}` : "Resend OTP"}
                     </button>
                   </div>
+                  {/* Voice OTP Button - Only for phone numbers */}
+                  {residentForm.identifierType === 'phone' && (
+                    <button
+                      type="button"
+                      onClick={requestResidentVoiceOTP}
+                      disabled={requestingVoiceOTP}
+                      className="flex w-full items-center justify-center gap-2 rounded-xl border border-slate-200 bg-slate-50 py-2.5 text-xs font-semibold text-slate-600 transition hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-50"
+                    >
+                      <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" />
+                      </svg>
+                      {requestingVoiceOTP ? "Requesting call..." : "📞 Request a Call Instead"}
+                    </button>
+                  )}
                   <button
                     type="button"
                     onClick={verifyResidentOtp}

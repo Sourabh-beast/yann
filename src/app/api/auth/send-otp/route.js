@@ -5,6 +5,13 @@ import connectDB from "@/lib/connectDB";
 import ServiceProvider from "@/models/ServiceProvider";
 import Homeowner from "@/models/Homeowner";
 import Otp from "@/models/Otp";
+import { 
+  sendOTPViaMSG91, 
+  formatPhoneNumber, 
+  isPhoneNumber, 
+  isEmail, 
+  detectInputType 
+} from "@/lib/msg91";
 
 const OTP_EXPIRY_MS = 10 * 60 * 1000;
 const MIN_RESEND_INTERVAL_MS = 60 * 1000;
@@ -18,6 +25,15 @@ const COMPANY_NAME = "YANN Home Services";
 const COMPANY_SUPPORT_EMAIL = process.env.SUPPORT_EMAIL || "support@yannservices.com";
 const COMPANY_WEBSITE = process.env.NEXT_PUBLIC_APP_URL || "https://yann-care.vercel.app";
 const COMPANY_ADDRESS = process.env.COMPANY_ADDRESS || "YANN Services, Gurugram, India";
+
+/**
+ * Normalize phone number to 10 digits for storage
+ */
+function normalizePhone(phone) {
+  if (!phone) return '';
+  const cleaned = phone.toString().replace(/\D/g, '');
+  return cleaned.slice(-10);
+}
 
 const buildOtpEmail = (otpCode, recipientName = "", { audience = "provider", intent = "login" } = {}) => {
   const safeName = recipientName ? recipientName.trim() : "";
@@ -143,21 +159,37 @@ export async function POST(req) {
       return NextResponse.json({ success: false, message: "Invalid request body" }, { status: 400 });
     }
 
-    const email = payload?.email?.trim().toLowerCase();
+    // Support both 'identifier' (new) and 'email' (legacy) field names
+    const rawIdentifier = (payload?.identifier || payload?.email || '').trim();
     const requestedAudience = payload?.audience === "homeowner" ? "homeowner" : "provider";
     const rawIntent = payload?.intent === "signup" ? "signup" : "login";
     const intent = requestedAudience === "provider" ? "login" : rawIntent;
     const metadata = payload?.metadata && typeof payload.metadata === "object" ? payload.metadata : {};
 
-    if (!email || !emailRegex.test(email)) {
-      return NextResponse.json({ success: false, message: "Valid email is required" }, { status: 400 });
+    if (!rawIdentifier) {
+      return NextResponse.json({ success: false, message: "Email or phone number is required" }, { status: 400 });
     }
 
-    // Google Play review bypass - skip email sending
+    // Detect if input is email or phone
+    const inputType = detectInputType(rawIdentifier);
+    
+    if (!inputType) {
+      return NextResponse.json({ 
+        success: false, 
+        message: "Please enter a valid email address or 10-digit phone number" 
+      }, { status: 400 });
+    }
+
+    const isPhoneLogin = inputType === 'phone';
+    const email = isPhoneLogin ? null : rawIdentifier.toLowerCase();
+    const phone = isPhoneLogin ? normalizePhone(rawIdentifier) : null;
+
+    // Google Play review bypass - skip for phone login
     if (email === 'review@yannhome.app') {
       return NextResponse.json({ 
         success: true, 
-        message: 'OTP sent successfully for your resident account' 
+        message: 'OTP sent successfully for your resident account',
+        identifierType: 'email'
       });
     }
 
@@ -165,29 +197,80 @@ export async function POST(req) {
     let recipientName = "";
 
     if (requestedAudience === "provider") {
-      const user = await ServiceProvider.findOne({ email });
-      if (!user) {
-        return NextResponse.json({ success: false, message: "Email not registered as a partner" }, { status: 404 });
+      // For providers, check by email or phone
+      let user;
+      if (isPhoneLogin) {
+        user = await ServiceProvider.findOne({ phone: phone });
+        if (!user) {
+          return NextResponse.json({ success: false, message: "Phone number not registered as a partner" }, { status: 404 });
+        }
+      } else {
+        user = await ServiceProvider.findOne({ email });
+        if (!user) {
+          return NextResponse.json({ success: false, message: "Email not registered as a partner" }, { status: 404 });
+        }
       }
       audienceName = "provider";
       recipientName = user?.name || "";
     } else {
-      const homeowner = await Homeowner.findOne({ email });
+      // For homeowners
       audienceName = "homeowner";
-
-      if (intent === "login") {
-        if (!homeowner) {
-          return NextResponse.json({ success: false, message: "We could not find a resident account with this email" }, { status: 404 });
+      
+      if (isPhoneLogin) {
+        // Phone-based login/signup
+        const homeowner = await Homeowner.findOne({ phone: phone });
+        
+        if (intent === "login") {
+          if (!homeowner) {
+            return NextResponse.json({ 
+              success: false, 
+              message: "We could not find a resident account with this phone number" 
+            }, { status: 404 });
+          }
+          recipientName = homeowner?.name || "";
+        } else {
+          // Signup with phone
+          if (homeowner) {
+            return NextResponse.json({ 
+              success: false, 
+              message: "An account already exists with this phone number. Try logging in." 
+            }, { status: 409 });
+          }
+          if (!metadata?.name || typeof metadata.name !== "string") {
+            return NextResponse.json({ 
+              success: false, 
+              message: "Please share your name to create the account" 
+            }, { status: 400 });
+          }
+          recipientName = metadata.name;
         }
-        recipientName = homeowner?.name || "";
       } else {
-        if (homeowner) {
-          return NextResponse.json({ success: false, message: "An account already exists with this email. Try logging in." }, { status: 409 });
+        // Email-based login/signup (existing flow)
+        const homeowner = await Homeowner.findOne({ email });
+        
+        if (intent === "login") {
+          if (!homeowner) {
+            return NextResponse.json({ 
+              success: false, 
+              message: "We could not find a resident account with this email" 
+            }, { status: 404 });
+          }
+          recipientName = homeowner?.name || "";
+        } else {
+          if (homeowner) {
+            return NextResponse.json({ 
+              success: false, 
+              message: "An account already exists with this email. Try logging in." 
+            }, { status: 409 });
+          }
+          if (!metadata?.name || typeof metadata.name !== "string") {
+            return NextResponse.json({ 
+              success: false, 
+              message: "Please share your name to create the account" 
+            }, { status: 400 });
+          }
+          recipientName = metadata.name;
         }
-        if (!metadata?.name || typeof metadata.name !== "string") {
-          return NextResponse.json({ success: false, message: "Please share your name to create the account" }, { status: 400 });
-        }
-        recipientName = metadata.name;
       }
     }
 
@@ -195,7 +278,12 @@ export async function POST(req) {
     const requesterIp = ipHeader.split(",")[0].trim();
     const now = new Date();
 
-    const existingOtp = await Otp.findOne({ email, audience: audienceName });
+    // Build query based on identifier type
+    const otpQuery = isPhoneLogin 
+      ? { phone: phone, audience: audienceName }
+      : { email: email, audience: audienceName };
+
+    const existingOtp = await Otp.findOne(otpQuery);
 
     if (existingOtp?.blockedUntil && existingOtp.blockedUntil > now) {
       return NextResponse.json({ success: false, message: "Too many attempts. Try again later." }, { status: 429 });
@@ -215,58 +303,112 @@ export async function POST(req) {
 
     if (sendCount >= MAX_SEND_PER_WINDOW) {
       const blockedUntil = new Date(now.getTime() + BLOCK_DURATION_MS);
-      existingOtp.blockedUntil = blockedUntil;
-      existingOtp.sendCount = sendCount;
-      existingOtp.lastRequestIp = requesterIp;
-      existingOtp.windowStartedAt = windowStartedAt;
-      existingOtp.lastSentAt = existingOtp.lastSentAt || now;
-      await existingOtp.save();
-
+      if (existingOtp) {
+        existingOtp.blockedUntil = blockedUntil;
+        existingOtp.sendCount = sendCount;
+        existingOtp.lastRequestIp = requesterIp;
+        existingOtp.windowStartedAt = windowStartedAt;
+        existingOtp.lastSentAt = existingOtp.lastSentAt || now;
+        await existingOtp.save();
+      }
       return NextResponse.json({ success: false, message: "Too many OTP requests. Try again later." }, { status: 429 });
     }
 
-    const otpCode = crypto.randomInt(100000, 1000000).toString();
-    const otpHash = crypto.createHash("sha256").update(otpCode).digest("hex");
     const expiresAt = new Date(now.getTime() + OTP_EXPIRY_MS);
 
-    await Otp.findOneAndUpdate(
-      { email, audience: audienceName },
-      {
-        $set: {
-          email,
-          audience: audienceName,
-          intent,
-          metadata,
-          otpHash,
-          expiresAt,
-          attempts: 0,
-          sendCount: sendCount + 1,
-          windowStartedAt,
-          lastSentAt: now,
-          lastRequestIp: requesterIp,
+    if (isPhoneLogin) {
+      // Send OTP via MSG91
+      const msg91Result = await sendOTPViaMSG91(phone);
+      
+      if (!msg91Result.success) {
+        return NextResponse.json({ 
+          success: false, 
+          message: msg91Result.message || "Failed to send OTP" 
+        }, { status: 500 });
+      }
+
+      // Store OTP record for phone (MSG91 handles OTP generation and verification)
+      await Otp.findOneAndUpdate(
+        { phone: phone, audience: audienceName },
+        {
+          $set: {
+            phone: phone,
+            email: null,
+            identifierType: 'phone',
+            audience: audienceName,
+            intent,
+            metadata,
+            otpHash: null, // MSG91 handles OTP
+            msg91RequestId: msg91Result.requestId,
+            expiresAt,
+            attempts: 0,
+            sendCount: sendCount + 1,
+            windowStartedAt,
+            lastSentAt: now,
+            lastRequestIp: requesterIp,
+          },
+          $unset: { blockedUntil: "" },
         },
-        $unset: { blockedUntil: "" },
-      },
-      { upsert: true, new: true, setDefaultsOnInsert: true }
-    );
+        { upsert: true, new: true, setDefaultsOnInsert: true }
+      );
 
-    const transporter = createTransporter();
-    const { text, html, subject } = buildOtpEmail(otpCode, recipientName, {
-      audience: audienceName,
-      intent,
-    });
+      const humanAudience = audienceName === "homeowner" ? "resident" : "partner";
+      return NextResponse.json({ 
+        success: true, 
+        message: `OTP sent to your phone number`,
+        identifierType: 'phone'
+      });
+    } else {
+      // Send OTP via Email (existing flow)
+      const otpCode = crypto.randomInt(100000, 1000000).toString();
+      const otpHash = crypto.createHash("sha256").update(otpCode).digest("hex");
 
-    await transporter.sendMail({
-      from: `${COMPANY_NAME} <${process.env.EMAIL_USER}>`,
-      to: email,
-      subject,
-      text,
-      html,
-      replyTo: COMPANY_SUPPORT_EMAIL,
-    });
+      await Otp.findOneAndUpdate(
+        { email: email, audience: audienceName },
+        {
+          $set: {
+            email,
+            phone: null,
+            identifierType: 'email',
+            audience: audienceName,
+            intent,
+            metadata,
+            otpHash,
+            msg91RequestId: null,
+            expiresAt,
+            attempts: 0,
+            sendCount: sendCount + 1,
+            windowStartedAt,
+            lastSentAt: now,
+            lastRequestIp: requesterIp,
+          },
+          $unset: { blockedUntil: "" },
+        },
+        { upsert: true, new: true, setDefaultsOnInsert: true }
+      );
 
-    const humanAudience = audienceName === "homeowner" ? "resident" : "partner";
-    return NextResponse.json({ success: true, message: `OTP sent successfully for your ${humanAudience} account` });
+      const transporter = createTransporter();
+      const { text, html, subject } = buildOtpEmail(otpCode, recipientName, {
+        audience: audienceName,
+        intent,
+      });
+
+      await transporter.sendMail({
+        from: `${COMPANY_NAME} <${process.env.EMAIL_USER}>`,
+        to: email,
+        subject,
+        text,
+        html,
+        replyTo: COMPANY_SUPPORT_EMAIL,
+      });
+
+      const humanAudience = audienceName === "homeowner" ? "resident" : "partner";
+      return NextResponse.json({ 
+        success: true, 
+        message: `OTP sent successfully for your ${humanAudience} account`,
+        identifierType: 'email'
+      });
+    }
   } catch (error) {
     console.error("Send OTP Error:", error);
     return NextResponse.json({ success: false, message: "Unable to send OTP" }, { status: 500 });
