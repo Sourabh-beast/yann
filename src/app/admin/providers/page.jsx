@@ -201,6 +201,7 @@ export default function ProvidersPage() {
     { label: 'Analytics', href: '/admin/analytics', icon: BarChart3 },
     { label: 'Services', href: '/admin/services', icon: Package },
     { label: 'Service Providers', href: '/admin/providers', icon: Briefcase },
+    { label: 'Service Requests', href: '/admin/service-requests', icon: AlertCircle },
     { label: 'Homeowners', href: '/admin/homeowners', icon: Users },
     { label: 'Bookings', href: '/admin/requests', icon: ClipboardList },
     { label: 'Reviews', href: '/admin/reviews', icon: Star },
