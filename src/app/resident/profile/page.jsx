@@ -71,6 +71,8 @@ export default function ResidentProfilePage() {
           preferences: form.preferences,
           address: {
             label: form.addressLabel,
+            name: form.name,
+            phone: form.phone,
             street: form.street,
             city: form.city,
             state: form.state,
