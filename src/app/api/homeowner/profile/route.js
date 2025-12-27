@@ -87,11 +87,24 @@ export async function PATCH(req) {
     const source = payload.address;
     const address = {
       label: (source.label || "Home").toString().trim().slice(0, 40),
+      name: (source.name || homeowner.name || "").toString().trim().slice(0, 60),
+      phone: (source.phone || homeowner.phone || "").toString().trim().slice(0, 15),
+      apartment: (source.apartment || "").toString().trim().slice(0, 40),
+      building: (source.building || "").toString().trim().slice(0, 60),
       street: (source.street || "").toString().trim().slice(0, 120),
       city: (source.city || "").toString().trim().slice(0, 60),
       state: (source.state || "").toString().trim().slice(0, 60),
       postalCode: (source.postalCode || "").toString().trim().slice(0, 12),
     };
+    
+    // Validate required fields for address
+    if (!address.name || !address.phone || !address.street) {
+      return NextResponse.json({ 
+        success: false, 
+        message: "Address requires name, phone and street" 
+      }, { status: 400 });
+    }
+    
     update.addressBook = [address];
   }
 
