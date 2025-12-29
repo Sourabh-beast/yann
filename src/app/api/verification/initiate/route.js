@@ -27,7 +27,10 @@ export async function POST(req) {
          // Some APIs return token directly, others return { status: 'success', token: ... }
          // We'll debug this if it fails, but assuming standard field 'token' or similar
          console.error("Token Gen Failed:", tokenResponse.data);
-         return NextResponse.json({ success: false, message: 'Failed to generate token' }, { status: 500 });
+         return NextResponse.json({ 
+             success: false, 
+             message: `Failed to generate token: ${JSON.stringify(tokenResponse.data)}` 
+         }, { status: 500 });
     }
 
     const clientToken = tokenResponse.data.token || tokenResponse.data.access_token; // Adjust based on actual response
