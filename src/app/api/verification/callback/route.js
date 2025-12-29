@@ -1,8 +1,6 @@
-import { NextResponse } from 'next/server';
-import axios from 'axios';
 import Homeowner from '@/models/Homeowner';
 import ServiceProvider from '@/models/ServiceProvider';
-import connectDB from '@/lib/db';
+import connectDB from '@/lib/connectDB';
 
 const MEON_BASE_URL = 'https://digilocker.meon.co.in';
 
