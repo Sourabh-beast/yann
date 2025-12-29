@@ -38,7 +38,7 @@ export async function POST(req) {
     
     // Construct a unique redirect URL or state
     // Meon API takes "redirect_url". 
-    const callbackUrl = `https://yann-mobile.vercel.app/api/verification/callback?userId=${userId}&userType=${userType}`; 
+    const callbackUrl = `https://yann-care.vercel.app/api/verification/callback?userId=${userId}&userType=${userType}`; 
     // replacing with actual domain if known, or localhost for dev. 
     // The user didn't specify the deployed backend URL, but existing api.ts points to API_BASE_URL.
     // I will use a placeholder or try to find it.
