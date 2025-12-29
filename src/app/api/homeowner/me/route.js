@@ -31,6 +31,9 @@ const sanitizeHomeowner = (homeowner) => ({
   preferences: homeowner.preferences || [],
   savedProviders: homeowner.savedProviders || [],
   addressBook: homeowner.addressBook || [],
+  isVerified: homeowner.isVerified || false,
+  aadhaarVerified: homeowner.aadhaarVerified || false,
+  aadhaarVerifiedAt: homeowner.aadhaarVerifiedAt || null,
 });
 
 export async function GET() {
