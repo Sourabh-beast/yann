@@ -23,9 +23,8 @@ export async function POST(req) {
     });
 
     // Check if token generated successfully
-    if (!tokenResponse.data || (tokenResponse.data.status && tokenResponse.data.status !== 'success' && !tokenResponse.data.token)) {
-         // Some APIs return token directly, others return { status: 'success', token: ... }
-         // We'll debug this if it fails, but assuming standard field 'token' or similar
+    // Meon API returns: { "client_token": "...", "state": "...", "status": true }
+    if (!tokenResponse.data || (tokenResponse.data.status !== true && tokenResponse.data.status !== 'success')) {
          console.error("Token Gen Failed:", tokenResponse.data);
          return NextResponse.json({ 
              success: false, 
@@ -33,7 +32,7 @@ export async function POST(req) {
          }, { status: 500 });
     }
 
-    const clientToken = tokenResponse.data.token || tokenResponse.data.access_token; // Adjust based on actual response
+    const clientToken = tokenResponse.data.client_token || tokenResponse.data.token;
 
     // 2. Generate DigiLocker Link
     // We need a redirect URL that comes back to the APP or a web page that redirects to the app.
