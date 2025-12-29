@@ -116,7 +116,7 @@ export async function POST(request) {
       const homeowner = await Homeowner.findById(booking.customerId);
       if (homeowner?.pushToken && homeowner?.pushNotificationsEnabled) {
         try {
-          const { sendBookingRejectedNotification } = await import('@/utils/sendPushNotification');
+          const { sendBookingRejectedNotification } = await import('@/lib/sendPushNotification');
           await sendBookingRejectedNotification(
             homeowner.pushToken,
             booking.serviceName,
