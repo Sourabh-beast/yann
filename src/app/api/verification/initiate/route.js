@@ -1,3 +1,5 @@
+import { NextResponse } from 'next/server';
+import axios from 'axios';
 import Homeowner from '@/models/Homeowner';
 import ServiceProvider from '@/models/ServiceProvider'; // If needed
 import connectDB from '@/lib/connectDB'; // Assuming there's a db connection helper
