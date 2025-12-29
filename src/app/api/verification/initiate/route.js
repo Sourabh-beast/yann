@@ -33,6 +33,7 @@ export async function POST(req) {
     }
 
     const clientToken = tokenResponse.data.client_token || tokenResponse.data.token;
+    const state = tokenResponse.data.state;
 
     // 2. Generate DigiLocker Link
     // We need a redirect URL that comes back to the APP or a web page that redirects to the app.
@@ -42,7 +43,7 @@ export async function POST(req) {
     
     // Construct a unique redirect URL or state
     // Meon API takes "redirect_url". 
-    const callbackUrl = `https://yann-care.vercel.app/api/verification/callback?userId=${userId}&userType=${userType}&clientToken=${clientToken}`; 
+    const callbackUrl = `https://yann-care.vercel.app/api/verification/callback?userId=${userId}&userType=${userType}&clientToken=${clientToken}&state=${state}`; 
     // replacing with actual domain if known, or localhost for dev. 
     // The user didn't specify the deployed backend URL, but existing api.ts points to API_BASE_URL.
     // I will use a placeholder or try to find it.
