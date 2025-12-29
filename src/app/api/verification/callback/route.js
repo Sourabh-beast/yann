@@ -15,43 +15,53 @@ export async function GET(req) {
   try {
     await connectDB();
     const { searchParams } = new URL(req.url);
-    const state = searchParams.get('state') || searchParams.get('requestId'); // Unsure of parameter name, usually state or id
-    const userId = searchParams.get('userId');
-    const userType = searchParams.get('userType');
     
-    // We also need the client_token. 
-    // If we didn't save it, we can't call step 3 unless it's passed back or we generated it deterministically?
-    // Or maybe we sent it in the redirect_url query params?
-    // Let's assume we passed it in the redirect_url for statelessness, although security-wise not perfect, it's a token.
+    // Log all received parameters for debugging
+    console.log('Callback received URL:', req.url);
+    console.log('All params:', Object.fromEntries(searchParams.entries()));
+    
+    const state = searchParams.get('state') || searchParams.get('requestId');
+    const userId = searchParams.get('userId');
+    const userType = searchParams.get('userType') || 'homeowner';
     const clientToken = searchParams.get('clientToken'); 
 
+    console.log('Parsed params:', { state, userId, userType, clientToken: clientToken ? 'present' : 'missing' });
+
     if (!state || !userId || !clientToken) {
-        return NextResponse.json({ success: false, message: 'Missing callback parameters' }, { status: 400 });
+        console.error('Missing params:', { state: !!state, userId: !!userId, clientToken: !!clientToken });
+        return NextResponse.json({ 
+            success: false, 
+            message: `Missing callback parameters: state=${!!state}, userId=${!!userId}, clientToken=${!!clientToken}` 
+        }, { status: 400 });
     }
 
-    // 3. Retrieve Data
+    // 3. Retrieve Data from Meon
+    console.log('Calling Meon API to retrieve data...');
     const dataResponse = await axios.post(`${MEON_BASE_URL}/v2/send_entire_data`, {
         client_token: clientToken,
         state: state
     }, {
-        headers: { 'Content-Type': 'application/json' }
+        headers: { 'Content-Type': 'application/json' },
+        timeout: 30000 // 30 second timeout
     });
 
     const verificationData = dataResponse.data;
+    console.log('Meon data response:', JSON.stringify(verificationData));
     
     // Check if Aadhaar is present and valid
-    // Structure of verificationData depends on Meon response. 
-    // Assuming it contains a list of documents or status.
-    
+    // Handle both boolean `status: true` and string `status: 'success'`
     let isSuccess = false;
-    let aadhaarData = null;
     
-    // LOGIC TO PARSE verificationData (Simulated/Generic)
-    if (verificationData && (verificationData.status === 'success' || verificationData.documents)) {
+    if (verificationData && (
+        verificationData.status === true || 
+        verificationData.status === 'success' || 
+        verificationData.documents ||
+        verificationData.aadhaar
+    )) {
         isSuccess = true;
-        // Find aadhaar document details
-        // aadhaarData = ...
     }
+
+    console.log('Verification success:', isSuccess);
 
     if (isSuccess) {
         // Update User
@@ -60,14 +70,36 @@ export async function GET(req) {
             isVerified: true,
             aadhaarVerified: true,
             aadhaarVerifiedAt: new Date(),
-            // Store other details if available
-            // 'documents.aadhaar.verified': true
         });
+        console.log('User updated successfully');
 
-        // Redirect to app with success
-        return NextResponse.redirect('yann-mobile://verification-success');
+        // Redirect to app with success - use a web page that shows success
+        // Since deep links may not work in browser context, show a success page
+        return new NextResponse(`
+            <html>
+                <head><title>Verification Successful</title></head>
+                <body style="font-family: sans-serif; display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0; background: #10B981;">
+                    <div style="text-align: center; color: white;">
+                        <h1>✅ Verification Successful!</h1>
+                        <p>Your Aadhaar has been verified. You can close this window and return to the app.</p>
+                        <a href="yann://verification-success" style="color: white;">Open App</a>
+                    </div>
+                </body>
+            </html>
+        `, { headers: { 'Content-Type': 'text/html' } });
     } else {
-        return NextResponse.redirect('yann-mobile://verification-failed');
+        return new NextResponse(`
+            <html>
+                <head><title>Verification Failed</title></head>
+                <body style="font-family: sans-serif; display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0; background: #EF4444;">
+                    <div style="text-align: center; color: white;">
+                        <h1>❌ Verification Failed</h1>
+                        <p>Could not verify your Aadhaar. Please try again.</p>
+                        <a href="yann://verification-failed" style="color: white;">Open App</a>
+                    </div>
+                </body>
+            </html>
+        `, { headers: { 'Content-Type': 'text/html' } });
     }
 
   } catch (error) {
