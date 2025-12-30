@@ -12,6 +12,7 @@ import {
   isEmail, 
   detectInputType 
 } from "@/lib/msg91";
+import { isTestUser, getTestOTP, isTestMode } from "@/config/testUsers";
 
 const OTP_EXPIRY_MS = 10 * 60 * 1000;
 const MIN_RESEND_INTERVAL_MS = 60 * 1000;
@@ -321,7 +322,48 @@ export async function POST(req) {
     const expiresAt = new Date(now.getTime() + OTP_EXPIRY_MS);
 
     if (isPhoneLogin) {
-      // Send OTP via MSG91
+      // Check if this is a test user
+      const testOTP = isTestMode() ? getTestOTP(rawIdentifier) : null;
+      
+      if (testOTP) {
+        // Test user - skip MSG91 and use predefined OTP
+        console.log(`🧪 Test mode: Using predefined OTP for ${phone}`);
+        
+        const otpHash = crypto.createHash("sha256").update(testOTP).digest("hex");
+        
+        await Otp.findOneAndUpdate(
+          { phone: phone, audience: audienceName },
+          {
+            $set: {
+              phone: phone,
+              email: null,
+              identifierType: 'phone',
+              audience: audienceName,
+              intent,
+              metadata,
+              otpHash,
+              msg91RequestId: 'TEST_MODE',
+              expiresAt,
+              attempts: 0,
+              sendCount: sendCount + 1,
+              windowStartedAt,
+              lastSentAt: now,
+              lastRequestIp: requesterIp,
+            },
+            $unset: { blockedUntil: "" },
+          },
+          { upsert: true, new: true, setDefaultsOnInsert: true }
+        );
+
+        return NextResponse.json({ 
+          success: true, 
+          message: `OTP sent to your phone number (Test Mode)`,
+          identifierType: 'phone',
+          testMode: true
+        });
+      }
+      
+      // Send OTP via MSG91 for real users
       const msg91Result = await sendOTPViaMSG91(phone);
       
       if (!msg91Result.success) {

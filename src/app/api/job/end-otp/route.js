@@ -2,6 +2,8 @@ import { NextResponse } from 'next/server';
 import dbConnect from '@/lib/mongodb';
 import JobSession from '@/models/JobSession';
 import Booking from '@/models/Booking';
+import Homeowner from '@/models/Homeowner';
+import { sendJobEndOTPNotification } from '@/lib/sendPushNotification';
 
 /**
  * POST /api/job/end-otp
@@ -66,6 +68,25 @@ export async function POST(request) {
     jobSession.status = 'pending_end';
 
     await jobSession.save();
+
+    // Send push notification to member with end OTP
+    const booking = await Booking.findById(jobSession.booking);
+    const homeowner = await Homeowner.findById(jobSession.customer);
+    if (homeowner?.pushToken && homeowner?.pushNotificationsEnabled) {
+      try {
+        await sendJobEndOTPNotification(
+          homeowner.pushToken,
+          booking.serviceName,
+          booking.providerName || 'Provider',
+          otp,
+          booking._id.toString()
+        );
+        console.log(`📱 End OTP notification sent to member: ${homeowner.name}`);
+      } catch (notifError) {
+        console.error('Failed to send OTP notification:', notifError);
+        // Don't fail the OTP generation if notification fails
+      }
+    }
 
     return NextResponse.json({
       success: true,
