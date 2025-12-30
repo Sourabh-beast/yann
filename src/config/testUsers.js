@@ -66,23 +66,44 @@ export const TEST_USERS = {
 };
 
 /**
+ * Normalize phone number to last 10 digits for comparison
+ */
+function normalizeIdentifier(id) {
+  if (!id) return '';
+  const str = id.toString();
+  // If it looks like a phone number (mostly digits), normalize it
+  if (/^[\d+\-\s]+$/.test(str) && str.replace(/\D/g, '').length >= 10) {
+    return str.replace(/\D/g, '').slice(-10);
+  }
+  return str.toLowerCase().trim();
+}
+
+/**
  * Check if a phone number or email belongs to a test user
  */
 export function isTestUser(identifier) {
+  const normalizedInput = normalizeIdentifier(identifier);
   const allTestUsers = [...TEST_USERS.members, ...TEST_USERS.providers];
-  return allTestUsers.some(
-    user => user.phone === identifier || user.email === identifier
-  );
+  
+  return allTestUsers.some(user => {
+    const normPhone = normalizeIdentifier(user.phone);
+    const normEmail = normalizeIdentifier(user.email);
+    return normPhone === normalizedInput || normEmail === normalizedInput;
+  });
 }
 
 /**
  * Get test user by phone or email
  */
 export function getTestUser(identifier) {
+  const normalizedInput = normalizeIdentifier(identifier);
   const allTestUsers = [...TEST_USERS.members, ...TEST_USERS.providers];
-  return allTestUsers.find(
-    user => user.phone === identifier || user.email === identifier
-  );
+  
+  return allTestUsers.find(user => {
+    const normPhone = normalizeIdentifier(user.phone);
+    const normEmail = normalizeIdentifier(user.email);
+    return normPhone === normalizedInput || normEmail === normalizedInput;
+  });
 }
 
 /**
