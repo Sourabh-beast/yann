@@ -1,9 +1,10 @@
 import { NextResponse } from 'next/server';
-import dbConnect from '@/lib/mongodb';
+import connectDB from '@/lib/connectDB';
 import JobSession from '@/models/JobSession';
 import Booking from '@/models/Booking';
 import ServiceProvider from '@/models/ServiceProvider';
 import Homeowner from '@/models/Homeowner';
+import { sendJobStartOTPNotification } from '@/lib/sendPushNotification';
 
 /**
  * POST /api/job/start-otp
@@ -11,7 +12,7 @@ import Homeowner from '@/models/Homeowner';
  */
 export async function POST(request) {
   try {
-    await dbConnect();
+    await connectDB();
 
     const { bookingId, providerId } = await request.json();
 
@@ -95,6 +96,24 @@ export async function POST(request) {
     // Update booking with job session reference
     booking.jobSession = jobSession._id;
     await booking.save();
+
+    // Send push notification to member with OTP
+    const homeowner = await Homeowner.findById(booking.customerId);
+    if (homeowner?.pushToken && homeowner?.pushNotificationsEnabled) {
+      try {
+        await sendJobStartOTPNotification(
+          homeowner.pushToken,
+          booking.serviceName,
+          booking.providerName || 'Provider',
+          otp,
+          booking._id.toString()
+        );
+        console.log(`📱 Start OTP notification sent to member: ${homeowner.name}`);
+      } catch (notifError) {
+        console.error('Failed to send OTP notification:', notifError);
+        // Don't fail the OTP generation if notification fails
+      }
+    }
 
     return NextResponse.json({
       success: true,

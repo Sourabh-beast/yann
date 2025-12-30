@@ -6,6 +6,7 @@ import Otp from "@/models/Otp";
 import ServiceProvider from "@/models/ServiceProvider";
 import Homeowner from "@/models/Homeowner";
 import { verifyOTPViaMSG91, detectInputType, formatPhoneNumber } from "@/lib/msg91";
+import { isTestUser, getTestOTP, isTestMode } from "@/config/testUsers";
 
 const MAX_ATTEMPTS = 5;
 const BLOCK_DURATION_MS = 15 * 60 * 1000;
@@ -162,9 +163,19 @@ export async function POST(req) {
     let isOtpValid = false;
 
     if (isPhoneLogin) {
-      // Verify via MSG91 for phone OTP
-      const msg91Result = await verifyOTPViaMSG91(phone, otp);
-      isOtpValid = msg91Result.success;
+      // Check if this is a test user
+      const isTest = isTestMode() && isTestUser(rawIdentifier);
+      
+      if (isTest && otpDoc.msg91RequestId === 'TEST_MODE') {
+        // Test user - verify using hash instead of MSG91
+        console.log(`🧪 Test mode: Verifying OTP via hash for ${phone}`);
+        const hashedOtp = crypto.createHash("sha256").update(otp).digest("hex");
+        isOtpValid = hashedOtp === otpDoc.otpHash;
+      } else {
+        // Real user - verify via MSG91
+        const msg91Result = await verifyOTPViaMSG91(phone, otp);
+        isOtpValid = msg91Result.success;
+      }
       
       if (!isOtpValid) {
         const attempts = (otpDoc.attempts || 0) + 1;

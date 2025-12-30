@@ -134,3 +134,53 @@ export async function sendBookingRejectedNotification(pushToken, providerName, s
     { type: 'booking_rejected' }
   );
 }
+/**
+ * Helper function to send booking accepted notification with OTP to homeowner
+ */
+export async function sendBookingAcceptedWithOTPNotification(pushToken, serviceType, providerName, otp, bookingId) {
+  return await sendPushNotification(
+    pushToken,
+    '✅ Booking Accepted!',
+    `${providerName} has accepted your ${serviceType} booking. Your OTP to start the job is: ${otp}`,
+    { 
+      type: 'booking_accepted',
+      otp: otp,
+      bookingId: bookingId,
+      otpType: 'start'
+    }
+  );
+}
+
+/**
+ * Helper function to send job start OTP notification to homeowner
+ */
+export async function sendJobStartOTPNotification(pushToken, serviceType, providerName, otp, bookingId) {
+  return await sendPushNotification(
+    pushToken,
+    '🔐 Job Starting Soon',
+    `${providerName} is ready to start your ${serviceType} service. Your OTP is: ${otp}`,
+    { 
+      type: 'job_start_otp',
+      otp: otp,
+      bookingId: bookingId,
+      otpType: 'start'
+    }
+  );
+}
+
+/**
+ * Helper function to send job end OTP notification to homeowner
+ */
+export async function sendJobEndOTPNotification(pushToken, serviceType, providerName, otp, bookingId) {
+  return await sendPushNotification(
+    pushToken,
+    '🏁 Job Completion Verification',
+    `${providerName} is completing your ${serviceType} service. Your verification OTP is: ${otp}`,
+    { 
+      type: 'job_end_otp',
+      otp: otp,
+      bookingId: bookingId,
+      otpType: 'end'
+    }
+  );
+}

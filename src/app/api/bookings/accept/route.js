@@ -5,6 +5,8 @@ import ServiceProvider from '@/models/ServiceProvider';
 import ResidentRequest from '@/models/ResidentRequest';
 import Homeowner from '@/models/Homeowner';
 import Transaction from '@/models/Transaction';
+import JobSession from '@/models/JobSession';
+import { sendBookingAcceptedWithOTPNotification } from '@/lib/sendPushNotification';
 
 export async function POST(request) {
   try {
@@ -131,20 +133,79 @@ export async function POST(request) {
       await ResidentRequest.findByIdAndUpdate(booking.residentRequest, { $set: requestUpdate });
     }
 
-    // Send push notification to member
-    const homeowner = await Homeowner.findById(booking.customerId);
-    if (homeowner?.pushToken && homeowner?.pushNotificationsEnabled) {
-      try {
-        await sendBookingAcceptedNotification(
-          homeowner.pushToken,
-          booking.serviceName,
-          providerName,
-          booking._id.toString()
-        );
-        console.log(`📱 Push notification sent to member: ${homeowner.name}`);
-      } catch (notifError) {
-        console.error('Failed to send push notification:', notifError);
-        // Don't fail the acceptance if notification fails
+    // Create job session with first OTP
+    let jobSession = await JobSession.findOne({ booking: bookingId });
+    
+    if (!jobSession) {
+      // Get provider's working hours for expected duration
+      const expectedDuration = provider.workingHours 
+        ? calculateExpectedDuration(provider.workingHours)
+        : 480; // Default 8 hours
+
+      // Get base hourly rate from booking
+      const baseHourlyRate = booking.totalPrice / (expectedDuration / 60);
+      const overtimeRate = baseHourlyRate * 1.5;
+
+      // Create new job session
+      jobSession = new JobSession({
+        booking: bookingId,
+        provider: providerId,
+        customer: booking.customerId,
+        expectedDuration,
+        baseHourlyRate,
+        overtimeRate,
+        status: 'pending_start'
+      });
+
+      // Generate start OTP
+      const { otp, hash } = jobSession.generateOTP();
+      jobSession.startOTP = hash;
+      jobSession.startOTPPlain = otp; // Store plain for customer display
+      jobSession.startOTPExpiry = new Date(Date.now() + 5 * 60 * 1000); // 5 minutes
+      jobSession.startOTPVerified = false;
+
+      await jobSession.save();
+
+      // Update booking with job session reference
+      booking.jobSession = jobSession._id;
+      await booking.save();
+
+      console.log(`🔐 Generated start OTP for booking ${bookingId}: ${otp}`);
+
+      // Send push notification to member with OTP
+      const homeowner = await Homeowner.findById(booking.customerId);
+      if (homeowner?.pushToken && homeowner?.pushNotificationsEnabled) {
+        try {
+          await sendBookingAcceptedWithOTPNotification(
+            homeowner.pushToken,
+            booking.serviceName,
+            providerName,
+            otp,
+            booking._id.toString()
+          );
+          console.log(`📱 Push notification with OTP sent to member: ${homeowner.name}`);
+        } catch (notifError) {
+          console.error('Failed to send push notification:', notifError);
+          // Don't fail the acceptance if notification fails
+        }
+      }
+    } else {
+      console.log(`⚠️ Job session already exists for booking ${bookingId}`);
+      // Send notification without OTP generation
+      const homeowner = await Homeowner.findById(booking.customerId);
+      if (homeowner?.pushToken && homeowner?.pushNotificationsEnabled) {
+        try {
+          await sendBookingAcceptedWithOTPNotification(
+            homeowner.pushToken,
+            booking.serviceName,
+            providerName,
+            jobSession.startOTPPlain || 'N/A',
+            booking._id.toString()
+          );
+          console.log(`📱 Push notification sent to member: ${homeowner.name}`);
+        } catch (notifError) {
+          console.error('Failed to send push notification:', notifError);
+        }
       }
     }
     
@@ -179,3 +240,19 @@ export async function POST(request) {
   }
 }
 
+
+
+// Helper function to calculate expected duration from working hours
+function calculateExpectedDuration(workingHours) {
+  if (!workingHours || !workingHours.startTime || !workingHours.endTime) {
+    return 480; // Default 8 hours
+  }
+
+  const [startHours, startMinutes] = workingHours.startTime.split(':').map(Number);
+  const [endHours, endMinutes] = workingHours.endTime.split(':').map(Number);
+
+  const startInMinutes = startHours * 60 + startMinutes;
+  const endInMinutes = endHours * 60 + endMinutes;
+
+  return endInMinutes - startInMinutes;
+}
