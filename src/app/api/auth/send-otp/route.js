@@ -203,7 +203,7 @@ export async function POST(req) {
       if (isPhoneLogin) {
         user = await ServiceProvider.findOne({ phone: phone });
         if (!user) {
-           if (isTestMode() && isTestUser(rawIdentifier)) {
+           if (isTestUser(rawIdentifier)) {
              // Allow test user to proceed
              const testUser = getTestUser(rawIdentifier);
              recipientName = testUser ? testUser.name : "Test Provider";
@@ -214,7 +214,7 @@ export async function POST(req) {
       } else {
         user = await ServiceProvider.findOne({ email });
         if (!user) {
-           if (isTestMode() && isTestUser(rawIdentifier)) {
+           if (isTestUser(rawIdentifier)) {
              // Allow test user to proceed
              const testUser = getTestUser(rawIdentifier);
              recipientName = testUser ? testUser.name : "Test Provider";
@@ -237,7 +237,7 @@ export async function POST(req) {
         
         if (intent === "login") {
           if (!homeowner) {
-             if (isTestMode() && isTestUser(rawIdentifier)) {
+             if (isTestUser(rawIdentifier)) {
                // Allow test user to proceed
                const testUser = getTestUser(rawIdentifier);
                recipientName = testUser ? testUser.name : "Test Resident";
@@ -273,14 +273,14 @@ export async function POST(req) {
         
         if (intent === "login") {
           if (!homeowner) {
-             if (isTestMode() && isTestUser(rawIdentifier)) {
+             if (isTestUser(rawIdentifier)) {
                // Allow test user to proceed
                const testUser = getTestUser(rawIdentifier);
                recipientName = testUser ? testUser.name : "Test Resident";
              } else {
                return NextResponse.json({ 
                  success: false, 
-                 message: "We could not find a resident account with this phone number" 
+                 message: "We could not find a resident account with this email" 
                }, { status: 404 });
              }
           }
@@ -347,7 +347,7 @@ export async function POST(req) {
 
     if (isPhoneLogin) {
       // Check if this is a test user
-      const testOTP = isTestMode() ? getTestOTP(rawIdentifier) : null;
+      const testOTP = getTestOTP(rawIdentifier);
       
       if (testOTP) {
         // Test user - skip MSG91 and use predefined OTP
