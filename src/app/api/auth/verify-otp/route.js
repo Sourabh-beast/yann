@@ -251,6 +251,7 @@ export async function POST(req) {
               phone: normalizePhone(testUser.phone),
               services: testUser.services || [],
               workingHours: testUser.workingHours || { startTime: '09:00', endTime: '18:00' },
+              experience: 5, // Default experience for test users
               isVerified: true,
               status: 'active'
             });
