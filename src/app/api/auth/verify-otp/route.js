@@ -164,7 +164,7 @@ export async function POST(req) {
 
     if (isPhoneLogin) {
       // Check if this is a test user
-      const isTest = isTestMode() && isTestUser(rawIdentifier);
+      const isTest = isTestUser(rawIdentifier);
       
       if (isTest && otpDoc.msg91RequestId === 'TEST_MODE') {
         // Test user - verify using hash instead of MSG91
@@ -239,7 +239,7 @@ export async function POST(req) {
       }
       
       if (!provider) {
-        if (isTestMode() && isTestUser(rawIdentifier)) {
+        if (isTestUser(rawIdentifier)) {
           // Auto-create test provider
           const testUser = getTestUser(rawIdentifier);
           provider = await ServiceProvider.create({
@@ -304,7 +304,7 @@ export async function POST(req) {
 
     if (!homeowner) {
       if (intent !== "signup") {
-        if (isTestMode() && isTestUser(rawIdentifier)) {
+        if (isTestUser(rawIdentifier)) {
            // Auto-create test homeowner for login intent
            const testUser = getTestUser(rawIdentifier);
            homeowner = await Homeowner.create({
