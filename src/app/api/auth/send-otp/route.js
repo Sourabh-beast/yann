@@ -217,8 +217,10 @@ export async function POST(req) {
       audienceName = "homeowner";
       
       if (isPhoneLogin) {
-        // Phone-based login/signup
-        const homeowner = await Homeowner.findOne({ phone: phone });
+        // Phone-based login/signup - search by phone OR email for flexibility
+        const homeowner = await Homeowner.findOne({
+          $or: [{ phone: phone }, { email: phone }]
+        });
         
         if (intent === "login") {
           if (!homeowner) {
@@ -245,8 +247,10 @@ export async function POST(req) {
           recipientName = metadata.name;
         }
       } else {
-        // Email-based login/signup (existing flow)
-        const homeowner = await Homeowner.findOne({ email });
+        // Email-based login/signup - search by email OR phone for flexibility
+        const homeowner = await Homeowner.findOne({
+          $or: [{ email: email }, { phone: email }]
+        });
         
         if (intent === "login") {
           if (!homeowner) {
