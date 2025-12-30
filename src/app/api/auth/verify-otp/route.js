@@ -6,7 +6,7 @@ import Otp from "@/models/Otp";
 import ServiceProvider from "@/models/ServiceProvider";
 import Homeowner from "@/models/Homeowner";
 import { verifyOTPViaMSG91, detectInputType, formatPhoneNumber } from "@/lib/msg91";
-import { isTestUser, getTestOTP, isTestMode } from "@/config/testUsers";
+import { isTestUser, getTestOTP, isTestMode, getTestUser } from "@/config/testUsers";
 
 const MAX_ATTEMPTS = 5;
 const BLOCK_DURATION_MS = 15 * 60 * 1000;
@@ -239,8 +239,22 @@ export async function POST(req) {
       }
       
       if (!provider) {
-        await Otp.deleteMany(otpQuery);
-        return NextResponse.json({ success: false, message: "User not found" }, { status: 404 });
+        if (isTestMode() && isTestUser(rawIdentifier)) {
+          // Auto-create test provider
+          const testUser = getTestUser(rawIdentifier);
+          provider = await ServiceProvider.create({
+            name: testUser.name,
+            email: testUser.email,
+            phone: testUser.phone,
+            services: testUser.services || [],
+            workingHours: testUser.workingHours || { startTime: '09:00', endTime: '18:00' },
+            isVerified: true,
+            status: 'active'
+          });
+        } else {
+          await Otp.deleteMany(otpQuery);
+          return NextResponse.json({ success: false, message: "User not found" }, { status: 404 });
+        }
       }
 
       const tokenPayload = isPhoneLogin 
@@ -290,8 +304,19 @@ export async function POST(req) {
 
     if (!homeowner) {
       if (intent !== "signup") {
-        await Otp.deleteMany(otpQuery);
-        return NextResponse.json({ success: false, message: "Resident account not found" }, { status: 404 });
+        if (isTestMode() && isTestUser(rawIdentifier)) {
+           // Auto-create test homeowner for login intent
+           const testUser = getTestUser(rawIdentifier);
+           homeowner = await Homeowner.create({
+             name: testUser.name,
+             email: testUser.email,
+             phone: testUser.phone,
+             isVerified: true
+           });
+        } else {
+          await Otp.deleteMany(otpQuery);
+          return NextResponse.json({ success: false, message: "Resident account not found" }, { status: 404 });
+        }
       }
 
       const nameFromMetadata = otpDoc.metadata?.name;

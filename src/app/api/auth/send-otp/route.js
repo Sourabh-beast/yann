@@ -12,7 +12,7 @@ import {
   isEmail, 
   detectInputType 
 } from "@/lib/msg91";
-import { isTestUser, getTestOTP, isTestMode } from "@/config/testUsers";
+import { isTestUser, getTestOTP, isTestMode, getTestUser } from "@/config/testUsers";
 
 const OTP_EXPIRY_MS = 10 * 60 * 1000;
 const MIN_RESEND_INTERVAL_MS = 60 * 1000;
@@ -203,16 +203,28 @@ export async function POST(req) {
       if (isPhoneLogin) {
         user = await ServiceProvider.findOne({ phone: phone });
         if (!user) {
-          return NextResponse.json({ success: false, message: "Phone number not registered as a partner" }, { status: 404 });
+           if (isTestMode() && isTestUser(rawIdentifier)) {
+             // Allow test user to proceed
+             const testUser = getTestUser(rawIdentifier);
+             recipientName = testUser ? testUser.name : "Test Provider";
+           } else {
+              return NextResponse.json({ success: false, message: "Phone number not registered as a partner" }, { status: 404 });
+           }
         }
       } else {
         user = await ServiceProvider.findOne({ email });
         if (!user) {
-          return NextResponse.json({ success: false, message: "Email not registered as a partner" }, { status: 404 });
+           if (isTestMode() && isTestUser(rawIdentifier)) {
+             // Allow test user to proceed
+             const testUser = getTestUser(rawIdentifier);
+             recipientName = testUser ? testUser.name : "Test Provider";
+           } else {
+             return NextResponse.json({ success: false, message: "Email not registered as a partner" }, { status: 404 });
+           }
         }
       }
       audienceName = "provider";
-      recipientName = user?.name || "";
+      recipientName = user?.name || recipientName || "";
     } else {
       // For homeowners
       audienceName = "homeowner";
@@ -225,12 +237,18 @@ export async function POST(req) {
         
         if (intent === "login") {
           if (!homeowner) {
-            return NextResponse.json({ 
-              success: false, 
-              message: "We could not find a resident account with this phone number" 
-            }, { status: 404 });
+             if (isTestMode() && isTestUser(rawIdentifier)) {
+               // Allow test user to proceed
+               const testUser = getTestUser(rawIdentifier);
+               recipientName = testUser ? testUser.name : "Test Resident";
+             } else {
+               return NextResponse.json({ 
+                 success: false, 
+                 message: "We could not find a resident account with this phone number" 
+               }, { status: 404 });
+             }
           }
-          recipientName = homeowner?.name || "";
+          recipientName = homeowner?.name || recipientName || "";
         } else {
           // Signup with phone
           if (homeowner) {
@@ -255,12 +273,18 @@ export async function POST(req) {
         
         if (intent === "login") {
           if (!homeowner) {
-            return NextResponse.json({ 
-              success: false, 
-              message: "We could not find a resident account with this email" 
-            }, { status: 404 });
+             if (isTestMode() && isTestUser(rawIdentifier)) {
+               // Allow test user to proceed
+               const testUser = getTestUser(rawIdentifier);
+               recipientName = testUser ? testUser.name : "Test Resident";
+             } else {
+               return NextResponse.json({ 
+                 success: false, 
+                 message: "We could not find a resident account with this phone number" 
+               }, { status: 404 });
+             }
           }
-          recipientName = homeowner?.name || "";
+          recipientName = homeowner?.name || recipientName || "";
         } else {
           if (homeowner) {
             return NextResponse.json({ 
