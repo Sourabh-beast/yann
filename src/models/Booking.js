@@ -159,6 +159,13 @@ const bookingSchema = new mongoose.Schema({
     default: 'pending'
   },
 
+  // Job Session (for tracking job start/end with OTP)
+  jobSession: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'JobSession',
+    default: null
+  },
+
   negotiation: {
     isActive: {
       type: Boolean,
