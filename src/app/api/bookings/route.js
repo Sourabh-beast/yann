@@ -4,6 +4,7 @@ import jwt from 'jsonwebtoken';
 import connectDB from '@/lib/connectDB';
 import Booking from '@/models/Booking';
 import Homeowner from '@/models/Homeowner';
+import JobSession from '@/models/JobSession';
 
 const HOME_COOKIE = 'yann_home_session';
 
@@ -72,7 +73,8 @@ export async function GET(request) {
     // Get bookings for this homeowner (using customerId, not customerEmail)
     const bookings = await Booking.find({ customerId: homeowner._id })
       .sort({ createdAt: -1 })
-      .populate('assignedProvider', 'name email phone rating profileImage');
+      .populate('assignedProvider', 'name email phone rating profileImage')
+      .populate('jobSession');
 
     const mappedBookings = bookings.map((booking) => ({
       id: booking._id.toString(),
@@ -97,6 +99,12 @@ export async function GET(request) {
         phone: booking.assignedProvider.phone,
         rating: booking.assignedProvider.rating,
         profileImage: booking.assignedProvider.profileImage,
+      } : null,
+      jobSession: booking.jobSession ? {
+        id: booking.jobSession._id,
+        status: booking.jobSession.status,
+        startOTP: booking.jobSession.startOTPPlain,
+        endOTP: booking.jobSession.endOTPPlain,
       } : null,
       negotiation: booking.negotiation || null,
       driverDetails: booking.driverDetails || null,
