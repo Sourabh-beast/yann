@@ -333,13 +333,16 @@ export async function POST(req) {
         }
       }
 
-      const nameFromMetadata = otpDoc.metadata?.name;
-      if (!nameFromMetadata || typeof nameFromMetadata !== "string") {
-        return NextResponse.json({ success: false, message: "Unable to create resident account" }, { status: 400 });
-      }
-
-      // Create new homeowner with phone or email based on login type
-      const homeownerData = {
+      
+      // If homeowner is still not found (e.g. signup intent, or not a test user), proceed with creation
+      if (!homeowner) {
+        const nameFromMetadata = otpDoc.metadata?.name;
+        if (!nameFromMetadata || typeof nameFromMetadata !== "string") {
+          return NextResponse.json({ success: false, message: "Unable to create resident account" }, { status: 400 });
+        }
+  
+        // Create new homeowner with phone or email based on login type
+        const homeownerData = {
         name: nameFromMetadata.trim(),
         preferences: Array.isArray(otpDoc.metadata?.preferences) ? otpDoc.metadata.preferences : [],
       };
@@ -358,7 +361,8 @@ export async function POST(req) {
         }
       }
 
-      homeowner = await Homeowner.create(homeownerData);
+        homeowner = await Homeowner.create(homeownerData);
+      } // End of second !homeowner check
     }
 
     homeowner.lastLoginAt = new Date();
