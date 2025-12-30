@@ -68,7 +68,7 @@ export const TEST_USERS = {
 /**
  * Check if a phone number or email belongs to a test user
  */
-export function isTestUser(identifier: string): boolean {
+export function isTestUser(identifier) {
   const allTestUsers = [...TEST_USERS.members, ...TEST_USERS.providers];
   return allTestUsers.some(
     user => user.phone === identifier || user.email === identifier
@@ -78,7 +78,7 @@ export function isTestUser(identifier: string): boolean {
 /**
  * Get test user by phone or email
  */
-export function getTestUser(identifier: string) {
+export function getTestUser(identifier) {
   const allTestUsers = [...TEST_USERS.members, ...TEST_USERS.providers];
   return allTestUsers.find(
     user => user.phone === identifier || user.email === identifier
@@ -88,7 +88,7 @@ export function getTestUser(identifier: string) {
 /**
  * Get the predefined OTP for a test user
  */
-export function getTestOTP(identifier: string): string | null {
+export function getTestOTP(identifier) {
   const user = getTestUser(identifier);
   return user ? user.otp : null;
 }
@@ -96,7 +96,7 @@ export function getTestOTP(identifier: string): string | null {
 /**
  * Check if we're in test mode (development environment)
  */
-export function isTestMode(): boolean {
+export function isTestMode() {
   return process.env.NODE_ENV === 'development' || 
          process.env.ENABLE_TEST_USERS === 'true';
 }

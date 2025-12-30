@@ -240,8 +240,8 @@ export async function POST(request) {
   }
 }
 
- 
- 
+
+
 // Helper function to calculate expected duration from working hours
 function calculateExpectedDuration(workingHours) {
   if (!workingHours || !workingHours.startTime || !workingHours.endTime) {

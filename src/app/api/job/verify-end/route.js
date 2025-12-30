@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import dbConnect from '@/lib/mongodb';
+import connectDB from '@/lib/connectDB';
 import JobSession from '@/models/JobSession';
 import Booking from '@/models/Booking';
 import Homeowner from '@/models/Homeowner';
@@ -12,7 +12,7 @@ import Transaction from '@/models/Transaction';
  */
 export async function POST(request) {
   try {
-    await dbConnect();
+    await connectDB();
 
     const { jobSessionId, otp, providerId } = await request.json();
 
