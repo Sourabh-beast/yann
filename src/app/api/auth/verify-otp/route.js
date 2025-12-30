@@ -241,16 +241,23 @@ export async function POST(req) {
       if (!provider) {
         if (isTestUser(rawIdentifier)) {
           // Auto-create test provider
-          const testUser = getTestUser(rawIdentifier);
-          provider = await ServiceProvider.create({
-            name: testUser.name,
-            email: testUser.email,
-            phone: testUser.phone,
-            services: testUser.services || [],
-            workingHours: testUser.workingHours || { startTime: '09:00', endTime: '18:00' },
-            isVerified: true,
-            status: 'active'
-          });
+          try {
+            const testUser = getTestUser(rawIdentifier);
+            if (!testUser) throw new Error("Test user not found in config");
+            
+            provider = await ServiceProvider.create({
+              name: testUser.name,
+              email: testUser.email,
+              phone: normalizePhone(testUser.phone),
+              services: testUser.services || [],
+              workingHours: testUser.workingHours || { startTime: '09:00', endTime: '18:00' },
+              isVerified: true,
+              status: 'active'
+            });
+          } catch (createError) {
+            console.error("Test provider creation failed:", createError);
+             return NextResponse.json({ success: false, message: "Failed to create test provider: " + createError.message }, { status: 500 });
+          }
         } else {
           await Otp.deleteMany(otpQuery);
           return NextResponse.json({ success: false, message: "User not found" }, { status: 404 });
@@ -306,13 +313,20 @@ export async function POST(req) {
       if (intent !== "signup") {
         if (isTestUser(rawIdentifier)) {
            // Auto-create test homeowner for login intent
-           const testUser = getTestUser(rawIdentifier);
-           homeowner = await Homeowner.create({
-             name: testUser.name,
-             email: testUser.email,
-             phone: testUser.phone,
-             isVerified: true
-           });
+           try {
+             const testUser = getTestUser(rawIdentifier);
+             if (!testUser) throw new Error("Test user not found in config");
+             
+             homeowner = await Homeowner.create({
+               name: testUser.name,
+               email: testUser.email,
+               phone: normalizePhone(testUser.phone),
+               isVerified: true
+             });
+           } catch (createError) {
+             console.error("Test homeowner creation failed:", createError);
+             return NextResponse.json({ success: false, message: "Failed to create test resident: " + createError.message }, { status: 500 });
+           }
         } else {
           await Otp.deleteMany(otpQuery);
           return NextResponse.json({ success: false, message: "Resident account not found" }, { status: 404 });
