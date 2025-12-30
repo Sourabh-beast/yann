@@ -34,6 +34,8 @@ const sanitizeProvider = (provider) => ({
   phone: provider.phone,
   workingHours: provider.workingHours || null,
   profileImage: provider.profileImage || "",
+  isVerified: provider.isVerified || false,
+  aadhaarVerified: provider.aadhaarVerified || false,
 });
 
 const sanitizeHomeowner = (homeowner) => ({
@@ -46,6 +48,8 @@ const sanitizeHomeowner = (homeowner) => ({
   preferences: homeowner.preferences || [],
   savedProviders: homeowner.savedProviders || [],
   addressBook: homeowner.addressBook || [],
+  isVerified: homeowner.isVerified || false,
+  aadhaarVerified: homeowner.aadhaarVerified || false,
 });
 
 export async function POST(req) {
@@ -211,12 +215,16 @@ export async function POST(req) {
     }
 
     if (requestedAudience === "provider") {
-      // Find provider by email or phone
+      // Find provider by email or phone - search both for flexibility
       let provider;
       if (isPhoneLogin) {
-        provider = await ServiceProvider.findOne({ phone: phone });
+        provider = await ServiceProvider.findOne({
+          $or: [{ phone: phone }, { email: phone }]
+        });
       } else {
-        provider = await ServiceProvider.findOne({ email: email });
+        provider = await ServiceProvider.findOne({
+          $or: [{ email: email }, { phone: email }]
+        });
       }
       
       if (!provider) {
@@ -257,12 +265,16 @@ export async function POST(req) {
       return response;
     }
 
-    // Homeowner login/signup
+    // Homeowner login/signup - search by both email and phone for flexibility
     let homeowner;
     if (isPhoneLogin) {
-      homeowner = await Homeowner.findOne({ phone: phone });
+      homeowner = await Homeowner.findOne({
+        $or: [{ phone: phone }, { email: phone }]
+      });
     } else {
-      homeowner = await Homeowner.findOne({ email: email });
+      homeowner = await Homeowner.findOne({
+        $or: [{ email: email }, { phone: email }]
+      });
     }
 
     if (!homeowner) {
