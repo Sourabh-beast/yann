@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import connectDB from '@/lib/connectDB';
 import Booking from '@/models/Booking';
 import ServiceProvider from '@/models/ServiceProvider';
+import JobSession from '@/models/JobSession';
 
 const serializeNegotiation = (negotiation) => {
   if (!negotiation) return null;
@@ -118,7 +119,8 @@ export async function GET(request) {
       assignedProvider: provider._id,
       status: { $in: ['accepted', 'in_progress', 'completed'] }
     })
-    .sort({ bookingDate: 1 });
+    .sort({ bookingDate: 1 })
+    .populate('jobSession');
 
     // Calculate earnings
     const completedBookings = await Booking.find({
@@ -184,7 +186,19 @@ export async function GET(request) {
         totalPrice: booking.totalPrice,
         status: booking.status,
         driverDetails: booking.driverDetails || null,
-        negotiation: serializeNegotiation(booking.negotiation)
+        negotiation: serializeNegotiation(booking.negotiation),
+        jobSession: booking.jobSession ? {
+          _id: booking.jobSession._id,
+          startTime: booking.jobSession.startTime,
+          expectedDuration: booking.jobSession.expectedDuration,
+          status: booking.jobSession.status,
+          duration: booking.jobSession.duration,
+          overtimeDuration: booking.jobSession.overtimeDuration,
+          baseHourlyRate: booking.jobSession.baseHourlyRate,
+          overtimeRate: booking.jobSession.overtimeRate,
+          overtimeCharge: booking.jobSession.overtimeCharge,
+          totalCharge: booking.jobSession.totalCharge,
+        } : null
       }))
     }, { status: 200 });
 

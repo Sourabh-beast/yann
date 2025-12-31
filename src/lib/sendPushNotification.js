@@ -3,6 +3,8 @@ import { Expo } from 'expo-server-sdk';
 // Create a new Expo SDK client
 const expo = new Expo();
 
+// ... (imports)
+
 /**
  * Send a push notification to a single device
  * @param pushToken - Expo push token
@@ -24,7 +26,7 @@ export async function sendPushNotification(pushToken, title, body, data = {}) {
     sound: 'default',
     title,
     body,
-    data,
+    data, // data now ideally includes recipientId if passed from helper
     priority: 'high',
   };
 
@@ -102,24 +104,24 @@ export async function sendServiceRejectionNotification(pushToken, providerName, 
 /**
  * Helper function to send new booking notification to provider
  */
-export async function sendNewBookingNotification(pushToken, serviceType, homeownerName) {
+export async function sendNewBookingNotification(pushToken, serviceType, homeownerName, recipientId) {
   return await sendPushNotification(
     pushToken,
     '🔔 New Booking Request!',
     `${homeownerName} has requested ${serviceType}. Tap to view details.`,
-    { type: 'new_booking' }
+    { type: 'new_booking', recipientId }
   );
 }
 
 /**
  * Helper function to send booking accepted notification to homeowner
  */
-export async function sendBookingAcceptedNotification(pushToken, providerName, serviceType) {
+export async function sendBookingAcceptedNotification(pushToken, providerName, serviceType, recipientId) {
   return await sendPushNotification(
     pushToken,
     '✅ Booking Accepted!',
     `${providerName} has accepted your ${serviceType} booking. They will contact you soon.`,
-    { type: 'booking_accepted' }
+    { type: 'booking_accepted', recipientId }
   );
 }
 
@@ -154,7 +156,7 @@ export async function sendBookingAcceptedWithOTPNotification(pushToken, serviceT
 /**
  * Helper function to send job start OTP notification to homeowner
  */
-export async function sendJobStartOTPNotification(pushToken, serviceType, providerName, otp, bookingId) {
+export async function sendJobStartOTPNotification(pushToken, serviceType, providerName, otp, bookingId, recipientId) {
   return await sendPushNotification(
     pushToken,
     '🔐 Job Starting Soon',
@@ -163,7 +165,8 @@ export async function sendJobStartOTPNotification(pushToken, serviceType, provid
       type: 'job_start_otp',
       otp: otp,
       bookingId: bookingId,
-      otpType: 'start'
+      otpType: 'start',
+      recipientId
     }
   );
 }

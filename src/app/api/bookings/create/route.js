@@ -177,7 +177,7 @@ export async function POST(request) {
           provider.pushToken,
           booking.serviceName,
           booking.customerName,
-          booking._id.toString()
+          provider._id.toString() // Pass recipientId (Provider ID)
         );
         console.log(`📱 Push notification sent to provider: ${provider.name}`);
       } catch (notifError) {

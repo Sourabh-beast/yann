@@ -106,7 +106,8 @@ export async function POST(request) {
           booking.serviceName,
           booking.providerName || 'Provider',
           otp,
-          booking._id.toString()
+          booking._id.toString(),
+          booking.customerId.toString() // Pass recipientId
         );
         console.log(`📱 Start OTP notification sent to member: ${homeowner.name}`);
       } catch (notifError) {
