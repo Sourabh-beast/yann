@@ -28,15 +28,21 @@ export async function GET(request) {
 
     // Find notifications where user is in recipients list
     // OR targetAudience is 'all' (if you implement broadcast later)
+    // Find notifications where user is in recipients list
+    // OR targetAudience is 'all' (if you implement broadcast later)
     const query = {
         'recipients.userId': targetUserId,
         status: 'sent' // Only show sent notifs
     };
 
+    console.log(`🔎 Notification Query:`, JSON.stringify(query));
+
     const notifications = await Notification.find(query)
       .sort({ createdAt: -1 })
       .skip(skip)
       .limit(limit);
+    
+    console.log(`✅ Found ${notifications.length} notifications`);
 
     const total = await Notification.countDocuments(query);
 
