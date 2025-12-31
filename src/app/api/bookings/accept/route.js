@@ -139,7 +139,8 @@ export async function POST(request) {
         await sendBookingAcceptedNotification(
           homeowner.pushToken,
           providerName,
-          booking.serviceName
+          booking.serviceName,
+          booking.customerId.toString() // Pass recipientId
         );
         console.log(`📱 Push notification sent to member: ${homeowner.name}`);
       } catch (notifError) {
