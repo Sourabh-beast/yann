@@ -5,7 +5,7 @@ import ServiceProvider from '@/models/ServiceProvider';
 import ResidentRequest from '@/models/ResidentRequest';
 import Homeowner from '@/models/Homeowner';
 import Transaction from '@/models/Transaction';
-import { sendBookingAcceptedNotification } from '@/lib/sendPushNotification';
+import { createAndSendNotification } from '@/lib/notificationHelper';
 
 export async function POST(request) {
   try {
@@ -132,21 +132,22 @@ export async function POST(request) {
       await ResidentRequest.findByIdAndUpdate(booking.residentRequest, { $set: requestUpdate });
     }
 
-    // Send push notification to member (WITHOUT OTP)
+    // Send persistent notification to member
     const homeowner = await Homeowner.findById(booking.customerId);
-    if (homeowner?.pushToken && homeowner?.pushNotificationsEnabled) {
-      try {
-        await sendBookingAcceptedNotification(
-          homeowner.pushToken,
-          providerName,
-          booking.serviceName,
-          booking.customerId.toString() // Pass recipientId
-        );
-        console.log(`📱 Push notification sent to member: ${homeowner.name}`);
-      } catch (notifError) {
-        console.error('Failed to send push notification:', notifError);
-        // Don't fail the acceptance if notification fails
-      }
+    if (homeowner) {
+      await createAndSendNotification({
+        title: '✅ Booking Accepted!',
+        message: `${providerName} has accepted your ${booking.serviceName} booking. They will contact you soon.`,
+        recipientId: booking.customerId.toString(),
+        recipientType: 'homeowner',
+        pushToken: homeowner.pushToken,
+        type: 'booking_accepted',
+        data: {
+          type: 'booking_accepted',
+          bookingId: booking._id.toString()
+        },
+        bookingId: booking._id.toString()
+      });
     }
     
     console.log(`✅ Booking ${bookingId} accepted by ${providerName}`);

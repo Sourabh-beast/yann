@@ -100,6 +100,7 @@ const notificationSchema = new mongoose.Schema({
 });
 
 // Indexes
+notificationSchema.index({ 'recipients.userId': 1 }); // Optimize user lookups
 notificationSchema.index({ type: 1, status: 1 });
 notificationSchema.index({ targetAudience: 1 });
 notificationSchema.index({ createdAt: -1 });

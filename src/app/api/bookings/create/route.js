@@ -3,7 +3,7 @@ import connectDB from '@/lib/connectDB';
 import Booking from '@/models/Booking';
 import ServiceProvider from '@/models/ServiceProvider';
 import ResidentRequest from '@/models/ResidentRequest';
-import { sendNewBookingNotification } from '@/lib/sendPushNotification';
+import { createAndSendNotification } from '@/lib/notificationHelper';
 
 export async function POST(request) {
   try {
@@ -170,20 +170,21 @@ export async function POST(request) {
     }
     
     
-    // Send push notification to provider
-    if (provider.pushToken && provider.pushNotificationsEnabled) {
-      try {
-        await sendNewBookingNotification(
-          provider.pushToken,
-          booking.serviceName,
-          booking.customerName,
-          provider._id.toString() // Pass recipientId (Provider ID)
-        );
-        console.log(`📱 Push notification sent to provider: ${provider.name}`);
-      } catch (notifError) {
-        console.error('Failed to send push notification:', notifError);
-        // Don't fail the booking if notification fails
-      }
+    // Send persistent notification to provider
+    if (provider) {
+      await createAndSendNotification({
+        title: '🔔 New Booking Request!',
+        message: `${booking.customerName} has requested ${booking.serviceName}. Tap to view details.`,
+        recipientId: provider._id.toString(),
+        recipientType: 'provider',
+        pushToken: provider.pushToken,
+        type: 'new_booking',
+        data: {
+          type: 'new_booking',
+          bookingId: booking._id.toString()
+        },
+        bookingId: booking._id.toString()
+      });
     }
 
     return NextResponse.json({

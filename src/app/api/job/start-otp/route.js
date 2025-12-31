@@ -4,7 +4,7 @@ import JobSession from '@/models/JobSession';
 import Booking from '@/models/Booking';
 import ServiceProvider from '@/models/ServiceProvider';
 import Homeowner from '@/models/Homeowner';
-import { sendJobStartOTPNotification } from '@/lib/sendPushNotification';
+import { createAndSendNotification } from '@/lib/notificationHelper';
 
 /**
  * POST /api/job/start-otp
@@ -97,23 +97,24 @@ export async function POST(request) {
     booking.jobSession = jobSession._id;
     await booking.save();
 
-    // Send push notification to member with OTP
+    // Send persistent notification to member with OTP
     const homeowner = await Homeowner.findById(booking.customerId);
-    if (homeowner?.pushToken && homeowner?.pushNotificationsEnabled) {
-      try {
-        await sendJobStartOTPNotification(
-          homeowner.pushToken,
-          booking.serviceName,
-          booking.providerName || 'Provider',
-          otp,
-          booking._id.toString(),
-          booking.customerId.toString() // Pass recipientId
-        );
-        console.log(`📱 Start OTP notification sent to member: ${homeowner.name}`);
-      } catch (notifError) {
-        console.error('Failed to send OTP notification:', notifError);
-        // Don't fail the OTP generation if notification fails
-      }
+    if (homeowner) {
+      await createAndSendNotification({
+        title: '🔐 Job Starting Soon',
+        message: `${booking.providerName || 'Provider'} is ready to start your ${booking.serviceName} service. Your OTP is: ${otp}`,
+        recipientId: booking.customerId.toString(),
+        recipientType: 'homeowner',
+        pushToken: homeowner.pushToken,
+        type: 'otp_start',
+        data: {
+          type: 'job_start_otp',
+          otp: otp,
+          bookingId: booking._id.toString(),
+          otpType: 'start'
+        },
+        bookingId: booking._id.toString()
+      });
     }
 
     return NextResponse.json({
