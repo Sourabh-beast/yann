@@ -3,6 +3,7 @@ import connectDB from '@/lib/connectDB';
 import Booking from '@/models/Booking';
 import ServiceProvider from '@/models/ServiceProvider';
 import JobSession from '@/models/JobSession';
+import Homeowner from '@/models/Homeowner';
 
 const serializeNegotiation = (negotiation) => {
   if (!negotiation) return null;
