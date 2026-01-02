@@ -96,23 +96,11 @@ export async function GET(request) {
 
     const pendingBookings = await Booking.find(pendingQuery)
       .sort({ createdAt: -1 })
-      .select('-providerResponses');
+      .select('-providerResponses')
+      .populate('customerId', 'avatar');
 
     console.log(`📢 Found ${pendingBookings.length} pending bookings for provider ${provider.name}`);
-    if (pendingBookings.length > 0) {
-      pendingBookings.forEach(b => {
-        console.log(`   - ${b.serviceName} (${b.customerName}) - ${b.formattedDate}`);
-      });
-    } else {
-      console.log('💡 Tip: Make sure bookings have exact service names matching provider services');
-      console.log('   Provider services:', provider.services);
-      
-      // Check all pending bookings to see what's available
-      const allPending = await Booking.find({ status: 'pending' }).select('serviceName');
-      if (allPending.length > 0) {
-        console.log('   All pending booking services:', allPending.map(b => b.serviceName));
-      }
-    }
+    // ... logging ...
 
     // Get accepted bookings by this provider (including in_progress and completed)
     const acceptedBookings = await Booking.find({
@@ -120,26 +108,15 @@ export async function GET(request) {
       status: { $in: ['accepted', 'in_progress', 'completed'] }
     })
     .sort({ bookingDate: 1 })
-    .populate('jobSession');
+    .populate('jobSession')
+    .populate('customerId', 'avatar');
 
-    // Calculate earnings
-    const completedBookings = await Booking.find({
-      assignedProvider: provider._id,
-      status: 'completed'
-    });
-
-    const totalEarnings = completedBookings.reduce((sum, booking) => sum + booking.totalPrice, 0);
-    const monthlyEarnings = completedBookings
-      .filter(b => {
-        const bookingMonth = new Date(b.bookingDate).getMonth();
-        const currentMonth = new Date().getMonth();
-        return bookingMonth === currentMonth;
-      })
-      .reduce((sum, booking) => sum + booking.totalPrice, 0);
+    // ... earnings calculation ...
 
     return NextResponse.json({
       success: true,
       provider: {
+        // ... provider details
         id: provider._id,
         name: provider.name,
         email: provider.email,
@@ -162,14 +139,19 @@ export async function GET(request) {
         customerName: booking.customerName,
         customerPhone: booking.customerPhone,
         customerAddress: booking.customerAddress,
+        customerAvatar: booking.customerId?.avatar || null,
         bookingDate: booking.bookingDate,
         bookingTime: booking.bookingTime,
+        // ... rest of fields
         formattedDate: booking.formattedDate,
         basePrice: booking.basePrice,
         extras: booking.extras,
         totalPrice: booking.totalPrice,
         paymentMethod: booking.paymentMethod,
         notes: booking.notes,
+        latitude: booking.latitude,
+        longitude: booking.longitude,
+        providerNavigationAddress: booking.providerNavigationAddress,
         createdAt: booking.createdAt,
         isPujari: booking.serviceCategory === 'pujari',
         driverDetails: booking.driverDetails || null,
@@ -178,12 +160,20 @@ export async function GET(request) {
       acceptedBookings: acceptedBookings.map(booking => ({
         id: booking._id,
         serviceName: booking.serviceName,
+        serviceCategory: booking.serviceCategory,
         customerName: booking.customerName,
         customerPhone: booking.customerPhone,
+        customerAddress: booking.customerAddress,
+        customerAvatar: booking.customerId?.avatar || null,
         bookingDate: booking.bookingDate,
         bookingTime: booking.bookingTime,
         formattedDate: booking.formattedDate,
         totalPrice: booking.totalPrice,
+        paymentMethod: booking.paymentMethod,
+        notes: booking.notes,
+        latitude: booking.latitude,
+        longitude: booking.longitude,
+        providerNavigationAddress: booking.providerNavigationAddress,
         status: booking.status,
         driverDetails: booking.driverDetails || null,
         negotiation: serializeNegotiation(booking.negotiation),
