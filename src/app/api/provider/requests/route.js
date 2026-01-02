@@ -194,12 +194,14 @@ export async function GET(request) {
     }, { status: 200 });
 
   } catch (error) {
-    console.error('Provider requests fetch error:', error);
+    console.error('❌ Provider requests fetch error:', error);
+    console.error('Stack:', error.stack); 
     return NextResponse.json(
       { 
         success: false, 
         message: 'Failed to fetch requests',
-        error: error.message 
+        error: error.message,
+        stack: error.stack 
       },
       { status: 500 }
     );
