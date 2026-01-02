@@ -2,6 +2,8 @@ import { NextResponse } from 'next/server';
 import connectDB from '@/lib/connectDB';
 import JobSession from '@/models/JobSession';
 import Booking from '@/models/Booking';
+import Homeowner from '@/models/Homeowner';
+import { createAndSendNotification } from '@/lib/notificationHelper';
 
 /**
  * POST /api/job/verify-start
@@ -76,6 +78,21 @@ export async function POST(request) {
     booking.status = 'in_progress';
     booking.startedAt = jobSession.startTime;
     await booking.save();
+
+    // Notify customer that job has started
+    const homeowner = await Homeowner.findById(jobSession.customer);
+    if (homeowner) {
+        await createAndSendNotification({
+            title: '▶️ Job Started',
+            message: `The job ${booking.serviceName} has started.`,
+            recipientId: jobSession.customer.toString(),
+            recipientType: 'homeowner',
+            pushToken: homeowner.pushToken,
+            type: 'job_started',
+            data: { bookingId: booking._id.toString() },
+            bookingId: booking._id.toString()
+        });
+    }
 
     return NextResponse.json({
       success: true,

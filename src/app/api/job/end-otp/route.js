@@ -3,7 +3,7 @@ import connectDB from '@/lib/connectDB';
 import JobSession from '@/models/JobSession';
 import Booking from '@/models/Booking';
 import Homeowner from '@/models/Homeowner';
-import { sendJobEndOTPNotification } from '@/lib/sendPushNotification';
+import { createAndSendNotification } from '@/lib/notificationHelper';
 
 /**
  * POST /api/job/end-otp
@@ -69,23 +69,26 @@ export async function POST(request) {
 
     await jobSession.save();
 
-    // Send push notification to member with end OTP
+    // Send persistent notification to member with end OTP
     const booking = await Booking.findById(jobSession.booking);
     const homeowner = await Homeowner.findById(jobSession.customer);
-    if (homeowner?.pushToken && homeowner?.pushNotificationsEnabled) {
-      try {
-        await sendJobEndOTPNotification(
-          homeowner.pushToken,
-          booking.serviceName,
-          booking.providerName || 'Provider',
-          otp,
-          booking._id.toString()
-        );
-        console.log(`📱 End OTP notification sent to member: ${homeowner.name}`);
-      } catch (notifError) {
-        console.error('Failed to send OTP notification:', notifError);
-        // Don't fail the OTP generation if notification fails
-      }
+    
+    if (homeowner) {
+        await createAndSendNotification({
+            title: '🔐 Job Completion OTP',
+            message: `${booking.providerName || 'Provider'} has finished the job. Share OTP to complete: ${otp}`,
+            recipientId: jobSession.customer.toString(),
+            recipientType: 'homeowner',
+            pushToken: homeowner.pushToken,
+            type: 'otp_end',
+            data: {
+                type: 'job_end_otp',
+                otp: otp,
+                bookingId: booking._id.toString(),
+                otpType: 'end'
+            },
+            bookingId: booking._id.toString()
+        });
     }
 
     return NextResponse.json({
