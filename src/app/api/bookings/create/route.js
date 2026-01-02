@@ -126,7 +126,12 @@ export async function POST(request) {
       status: 'pending',
       driverDetails,
       assignedProvider: provider._id,
-      providerName: provider.name
+      driverDetails,
+      assignedProvider: provider._id,
+      providerName: provider.name,
+      latitude: bookingData.latitude || null,
+      longitude: bookingData.longitude || null,
+      providerNavigationAddress: bookingData.providerNavigationAddress || null
     });
 
     let residentRequest = null;
