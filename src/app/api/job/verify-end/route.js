@@ -5,6 +5,7 @@ import Booking from '@/models/Booking';
 import Homeowner from '@/models/Homeowner';
 import ServiceProvider from '@/models/ServiceProvider';
 import Transaction from '@/models/Transaction';
+import { createAndSendNotification } from '@/lib/notificationHelper';
 
 /**
  * POST /api/job/verify-end
@@ -96,6 +97,21 @@ export async function POST(request) {
     }
 
     await booking.save();
+
+    // Notify customer that job is completed
+    const homeowner = await Homeowner.findById(jobSession.customer);
+    if (homeowner) {
+        await createAndSendNotification({
+            title: '✅ Job Completed',
+            message: `The job ${booking.serviceName} is completed. Total: ₹${jobSession.totalCharge}`,
+            recipientId: jobSession.customer.toString(),
+            recipientType: 'homeowner',
+            pushToken: homeowner.pushToken,
+            type: 'job_completed',
+            data: { bookingId: booking._id.toString() },
+            bookingId: booking._id.toString()
+        });
+    }
 
     // Process overtime payment if applicable
     if (overtimeData.overtimeCharge > 0) {
