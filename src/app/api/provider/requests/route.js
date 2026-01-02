@@ -112,12 +112,29 @@ export async function GET(request) {
     .populate('jobSession')
     .populate('customerId', 'avatar');
 
-    // ... earnings calculation ...
+    // Calculate earnings safely
+    let completedBookings = [];
+    try {
+        completedBookings = await Booking.find({
+          assignedProvider: provider._id,
+          status: 'completed'
+        });
+    } catch (err) {
+        console.error('Error fetching completed bookings for stats:', err);
+    }
+
+    const totalEarnings = completedBookings.reduce((sum, booking) => sum + (booking.totalPrice || 0), 0);
+    const monthlyEarnings = completedBookings
+      .filter(b => {
+        const bookingMonth = new Date(b.bookingDate).getMonth();
+        const currentMonth = new Date().getMonth();
+        return bookingMonth === currentMonth;
+      })
+      .reduce((sum, booking) => sum + (booking.totalPrice || 0), 0);
 
     return NextResponse.json({
       success: true,
       provider: {
-        // ... provider details
         id: provider._id,
         name: provider.name,
         email: provider.email,
