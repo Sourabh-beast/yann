@@ -71,6 +71,7 @@ export async function GET() {
         status: provider.status,
         rating: provider.rating || 0,
         totalReviews: provider.totalReviews || 0,
+        bio: provider.bio || '',
         createdAt: provider.createdAt,
         updatedAt: provider.updatedAt
       }
@@ -146,15 +147,19 @@ async function handleProfileUpdate(request) {
     }
 
     const body = await request.json();
+    console.log('📥 Received profile update request:', body);
+
     const allowedUpdates = ['name', 'phone', 'profileImage', 'experience', 'workingHours', 'bio', 'serviceRates'];
-    
+
     for (const field of allowedUpdates) {
       if (body[field] !== undefined) {
+        console.log(`  ✏️ Updating ${field}:`, body[field]);
         provider[field] = body[field];
       }
     }
 
     await provider.save();
+    console.log('💾 Provider saved successfully. Bio:', provider.bio);
 
     return NextResponse.json({
       success: true,
@@ -181,3 +186,5 @@ async function handleProfileUpdate(request) {
     );
   }
 }
+
+
