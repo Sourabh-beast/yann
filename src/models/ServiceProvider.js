@@ -58,6 +58,14 @@ const serviceProviderSchema = new mongoose.Schema({
     max: [50, 'Experience cannot exceed 50 years']
   },
 
+  // Bio / About
+  bio: {
+    type: String,
+    trim: true,
+    maxlength: [300, 'Bio cannot exceed 300 characters'],
+    default: ''
+  },
+
   // Services
   services: {
     type: [String],
@@ -244,7 +252,7 @@ serviceProviderSchema.index({ email: 1 }, { unique: true, sparse: true });
 serviceProviderSchema.index({ phone: 1 }, { unique: true, sparse: true });
 
 // Ensure at least one of email or phone is present
-serviceProviderSchema.pre('validate', function(next) {
+serviceProviderSchema.pre('validate', function (next) {
   if (!this.email && !this.phone) {
     next(new Error('Either email or phone number is required'));
   } else {
