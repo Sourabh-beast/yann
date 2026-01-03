@@ -28,7 +28,7 @@ const bookingSchema = new mongoose.Schema({
       'general'
     ]
   },
-  
+
   // Customer Details
   customerId: {
     type: mongoose.Schema.Types.ObjectId,
@@ -222,7 +222,7 @@ const bookingSchema = new mongoose.Schema({
       }
     ]
   },
-  
+
   // Provider Responses (for tracking which providers saw/rejected)
   providerResponses: [{
     providerId: {
@@ -252,6 +252,12 @@ const bookingSchema = new mongoose.Schema({
   cancelledAt: {
     type: Date,
     default: null
+  },
+
+  // Rating Status
+  hasBeenRated: {
+    type: Boolean,
+    default: false
   }
 }, {
   timestamps: true // createdAt, updatedAt
@@ -264,7 +270,7 @@ bookingSchema.index({ serviceCategory: 1, status: 1 });
 bookingSchema.index({ bookingDate: 1 });
 
 // Virtual for formatted booking date
-bookingSchema.virtual('formattedDate').get(function() {
+bookingSchema.virtual('formattedDate').get(function () {
   return this.bookingDate.toLocaleDateString('en-IN', {
     weekday: 'short',
     year: 'numeric',
@@ -274,12 +280,12 @@ bookingSchema.virtual('formattedDate').get(function() {
 });
 
 // Method to check if booking is for pujari service
-bookingSchema.methods.isPujariService = function() {
+bookingSchema.methods.isPujariService = function () {
   return this.serviceCategory === 'pujari';
 };
 
 // Method to calculate total with extras
-bookingSchema.methods.calculateTotal = function() {
+bookingSchema.methods.calculateTotal = function () {
   const extrasTotal = this.extras && this.extras.length > 0
     ? this.extras.reduce((sum, extra) => sum + extra.price, 0)
     : 0;
