@@ -20,7 +20,7 @@ export async function GET(request, { params }) {
     }
 
     const provider = await ServiceProvider.findById(id)
-      .select('name email phone experience rating totalReviews serviceRates workingHours profileImage services status');
+      .select('name email phone experience rating totalReviews serviceRates workingHours profileImage services status bio');
 
     if (!provider) {
       return NextResponse.json(
@@ -44,6 +44,7 @@ export async function GET(request, { params }) {
         workingHours: provider.workingHours || null,
         profileImage: provider.profileImage || '',
         status: provider.status,
+        bio: provider.bio || '',
       },
     });
   } catch (error) {
