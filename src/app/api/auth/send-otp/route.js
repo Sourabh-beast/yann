@@ -140,8 +140,11 @@ const createTransporter = () => {
   const pass = process.env.EMAIL_PASS;
 
   if (!user || !pass) {
-    throw new Error("Email credentials are not configured");
+    console.error("❌ Email credentials not configured. EMAIL_USER or EMAIL_PASS missing.");
+    throw new Error("Email service is not configured. Please contact support.");
   }
+
+  console.log(`✅ Email transporter configured with user: ${user}`);
 
   return nodemailer.createTransport({
     service: "gmail",
@@ -429,7 +432,7 @@ export async function POST(req) {
         identifierType: 'phone'
       });
     } else {
-      // Send OTP via Email (existing flow)
+      // Send OTP via Email
       const otpCode = crypto.randomInt(100000, 1000000).toString();
       const otpHash = crypto.createHash("sha256").update(otpCode).digest("hex");
 
@@ -457,25 +460,42 @@ export async function POST(req) {
         { upsert: true, new: true, setDefaultsOnInsert: true }
       );
 
-      const transporter = createTransporter();
-      const { text, html, subject } = buildOtpEmail(otpCode, recipientName, {
-        audience: audienceName,
-        intent,
-      });
+      // Send email with OTP
+      try {
+        const transporter = createTransporter();
+        const { text, html, subject } = buildOtpEmail(otpCode, recipientName, {
+          audience: audienceName,
+          intent,
+        });
 
-      await transporter.sendMail({
-        from: `${COMPANY_NAME} <${process.env.EMAIL_USER}>`,
-        to: email,
-        subject,
-        text,
-        html,
-        replyTo: COMPANY_SUPPORT_EMAIL,
-      });
+        console.log(`📧 Sending OTP email to: ${email} for ${audienceName} ${intent}`);
+        
+        await transporter.sendMail({
+          from: `${COMPANY_NAME} <${process.env.EMAIL_USER}>`,
+          to: email,
+          subject,
+          text,
+          html,
+          replyTo: COMPANY_SUPPORT_EMAIL,
+        });
+
+        console.log(`✅ OTP email sent successfully to: ${email}`);
+      } catch (emailError) {
+        console.error("❌ Email sending failed:", emailError);
+        // Delete the OTP record since email failed
+        await Otp.deleteOne({ email: email, audience: audienceName });
+        
+        return NextResponse.json({ 
+          success: false, 
+          message: "Failed to send OTP email. Please check your email address or try again later.",
+          error: process.env.NODE_ENV === 'development' ? emailError.message : undefined
+        }, { status: 500 });
+      }
 
       const humanAudience = audienceName === "homeowner" ? "resident" : "partner";
       return NextResponse.json({ 
         success: true, 
-        message: `OTP sent successfully for your ${humanAudience} account`,
+        message: `OTP sent successfully to your email`,
         identifierType: 'email'
       });
     }

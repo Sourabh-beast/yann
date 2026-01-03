@@ -25,15 +25,19 @@ const serviceProviderSchema = new mongoose.Schema({
   },
   email: {
     type: String,
-    required: [true, 'Email is required'],
-    unique: true,
     lowercase: true,
+    trim: true,
+    sparse: true,
     match: [/^\w+([.-]?\w+)*@\w+([.-]?\w+)*(\.\w{2,3})+$/, 'Please enter a valid email']
   },
   phone: {
     type: String,
-    required: [true, 'Phone number is required'],
-    match: [/^[0-9]{10}$/, 'Please enter a valid 10-digit phone number']
+    trim: true,
+    sparse: true,
+    validate: {
+      validator: (value) => !value || /^[0-9]{10}$/.test(value),
+      message: 'Please enter a valid 10-digit phone number'
+    }
   },
 
   profileImage: {
@@ -235,6 +239,18 @@ const serviceProviderSchema = new mongoose.Schema({
 // Indexes for better query performance
 serviceProviderSchema.index({ services: 1 });
 serviceProviderSchema.index({ status: 1 });
+// Create sparse unique indexes for email and phone
+serviceProviderSchema.index({ email: 1 }, { unique: true, sparse: true });
+serviceProviderSchema.index({ phone: 1 }, { unique: true, sparse: true });
+
+// Ensure at least one of email or phone is present
+serviceProviderSchema.pre('validate', function(next) {
+  if (!this.email && !this.phone) {
+    next(new Error('Either email or phone number is required'));
+  } else {
+    next();
+  }
+});
 
 // Virtual for working hours display
 serviceProviderSchema.virtual('workingHoursDisplay').get(function () {
