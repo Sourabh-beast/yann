@@ -27,7 +27,8 @@ const sanitizeHomeowner = (homeowner) => ({
   name: homeowner.name,
   email: homeowner.email,
   phone: homeowner.phone || "",
-  avatar: homeowner.avatar || "",
+  avatar: homeowner.avatar || homeowner.profileImage || "",
+  profileImage: homeowner.profileImage || homeowner.avatar || "",
   preferences: homeowner.preferences || [],
   savedProviders: homeowner.savedProviders || [],
   addressBook: homeowner.addressBook || [],
@@ -36,12 +37,22 @@ const sanitizeHomeowner = (homeowner) => ({
   aadhaarVerifiedAt: homeowner.aadhaarVerifiedAt || null,
 });
 
-export async function GET() {
+export async function GET(request) {
   try {
     await connectDB();
 
+    // Try to get token from cookie first (for web)
     const cookieStore = await cookies();
-    const token = cookieStore.get(HOME_COOKIE)?.value;
+    let token = cookieStore.get(HOME_COOKIE)?.value;
+
+    // If no cookie, try Authorization header (for mobile)
+    if (!token) {
+      const authHeader = request.headers.get('authorization');
+      if (authHeader && authHeader.startsWith('Bearer ')) {
+        token = authHeader.substring(7);
+      }
+    }
+
     if (!token) {
       return clearHomeSession("Session not found");
     }

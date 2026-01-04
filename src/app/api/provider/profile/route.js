@@ -10,7 +10,7 @@ const PROVIDER_COOKIE = 'yann_session';
  * GET /api/provider/profile
  * Get the authenticated provider's own profile
  */
-export async function GET() {
+export async function GET(request) {
   try {
     await connectDB();
 
@@ -21,7 +21,17 @@ export async function GET() {
       );
     }
 
-    const token = cookies().get(PROVIDER_COOKIE)?.value;
+    // Try to get token from cookie first (for web)
+    let token = cookies().get(PROVIDER_COOKIE)?.value;
+
+    // If no cookie, try Authorization header (for mobile)
+    if (!token) {
+      const authHeader = request.headers.get('authorization');
+      if (authHeader && authHeader.startsWith('Bearer ')) {
+        token = authHeader.substring(7);
+      }
+    }
+
     if (!token) {
       return NextResponse.json(
         { success: false, message: 'Unauthorized - Please login' },
@@ -54,6 +64,10 @@ export async function GET() {
       );
     }
 
+    // Return both avatar and profileImage for consistency
+    const avatarUrl = provider.avatar || provider.profileImage || '';
+    const profileImageUrl = provider.profileImage || provider.avatar || '';
+
     return NextResponse.json({
       success: true,
       provider: {
@@ -62,7 +76,8 @@ export async function GET() {
         name: provider.name,
         email: provider.email,
         phone: provider.phone,
-        profileImage: provider.profileImage || '',
+        avatar: avatarUrl,
+        profileImage: profileImageUrl,
         experience: provider.experience,
         services: provider.services || [],
         serviceRates: provider.serviceRates || [],
