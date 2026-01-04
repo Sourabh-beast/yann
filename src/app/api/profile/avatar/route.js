@@ -20,7 +20,7 @@ const getAuthenticatedUser = async () => {
   // Try to get token from cookie first (for web)
   const cookieStore = await cookies();
   let token = cookieStore.get(TOKEN_COOKIE_NAME)?.value || cookieStore.get(HOMEOWNER_COOKIE_NAME)?.value;
-  
+
   // If no cookie, try Authorization header (for mobile)
   if (!token) {
     const headersList = await headers();
@@ -75,7 +75,12 @@ export async function POST(req) {
     let payload;
     try {
       payload = await req.json();
+      console.log('🚀 AVATAR DEBUG: Payload received', {
+        hasImage: !!payload?.image,
+        imageLength: payload?.image?.length
+      });
     } catch (error) {
+      console.error('🚀 AVATAR DEBUG: JSON Parse Error', error);
       return validationErrorResponse("Invalid request body");
     }
 
@@ -103,15 +108,19 @@ export async function POST(req) {
     }
 
     // Update avatar based on user type
+    console.log(`🚀 AVATAR DEBUG: Updating user ${user._id} (${userType})`);
     if (userType === 'provider') {
       user.profileImage = imageData;
       user.avatar = imageData; // Also set avatar for consistency
+      console.log('🚀 AVATAR DEBUG: Set provider profileImage/avatar');
     } else {
       user.avatar = imageData;
       user.profileImage = imageData; // Also set profileImage for consistency
+      console.log('🚀 AVATAR DEBUG: Set homeowner avatar/profileImage');
     }
-    
+
     await user.save();
+    console.log('🚀 AVATAR DEBUG: Save completed');
 
     console.log(`✅ Avatar updated for ${userType}:`, user.email);
 
@@ -126,7 +135,7 @@ export async function POST(req) {
   } catch (error) {
     console.error("Avatar upload error:", error);
     return NextResponse.json(
-      { success: false, message: "Unable to update profile picture" }, 
+      { success: false, message: "Unable to update profile picture" },
       { status: 500 }
     );
   }

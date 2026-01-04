@@ -4,6 +4,8 @@ import jwt from 'jsonwebtoken';
 import connectDB from '@/lib/connectDB';
 import ServiceProvider from '@/models/ServiceProvider';
 
+export const dynamic = 'force-dynamic';
+
 const PROVIDER_COOKIE = 'yann_session';
 
 /**
@@ -128,7 +130,17 @@ async function handleProfileUpdate(request) {
       );
     }
 
-    const token = cookies().get(PROVIDER_COOKIE)?.value;
+    // Try to get token from cookie first (for web)
+    let token = cookies().get(PROVIDER_COOKIE)?.value;
+
+    // If no cookie, try Authorization header (for mobile)
+    if (!token) {
+      const authHeader = request.headers.get('authorization');
+      if (authHeader && authHeader.startsWith('Bearer ')) {
+        token = authHeader.substring(7);
+      }
+    }
+
     if (!token) {
       return NextResponse.json(
         { success: false, message: 'Unauthorized - Please login' },
@@ -201,5 +213,3 @@ async function handleProfileUpdate(request) {
     );
   }
 }
-
-
