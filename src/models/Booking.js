@@ -119,7 +119,7 @@ const bookingSchema = new mongoose.Schema({
     default: ''
   },
 
-  // Driver specific metadata
+  // Driver specific metadata (legacy - kept for backward compatibility)
   driverDetails: {
     startTime: String,
     endTime: String,
@@ -131,6 +131,106 @@ const bookingSchema = new mongoose.Schema({
     overtimeMultiplier: Number,
     baseCost: Number,
     overtimeCost: Number
+  },
+
+  // Hourly booking details (new unified structure)
+  hourlyBookingDetails: {
+    bookedHours: {
+      type: Number,
+      min: [0, 'Booked hours cannot be negative'],
+      default: null
+    },
+    hourlyRate: {
+      type: Number,
+      min: [0, 'Hourly rate cannot be negative'],
+      default: null
+    },
+
+    // Booking time window
+    scheduledStartTime: {
+      type: Date,
+      default: null
+    },
+    expectedEndTime: {
+      type: Date,
+      default: null
+    },
+    actualStartTime: {
+      type: Date,
+      default: null
+    },
+    actualEndTime: {
+      type: Date,
+      default: null
+    },
+
+    // Shift information (if applicable)
+    partnerShiftStart: {
+      type: String,
+      default: null
+    },
+    partnerShiftEnd: {
+      type: String,
+      default: null
+    },
+
+    // Cost breakdown
+    baseCost: {
+      type: Number,
+      default: 0
+    },
+
+    // Type 1: Booking exceeded overtime
+    actualHours: {
+      type: Number,
+      default: null
+    },
+    overtimeHours: {
+      type: Number,
+      default: 0
+    },
+    overtimeRate: {
+      type: Number,
+      default: null
+    },
+    overtimeCost: {
+      type: Number,
+      default: 0
+    },
+
+    // Type 2: Shift-based premium overtime
+    shiftOvertimeHours: {
+      type: Number,
+      default: 0
+    },
+    shiftOvertimeRate: {
+      type: Number,
+      default: null
+    },
+    shiftOvertimeCost: {
+      type: Number,
+      default: 0
+    },
+
+    // Final totals
+    totalHourlyCharge: {
+      type: Number,
+      default: 0
+    },
+    overtimeType: {
+      type: String,
+      enum: ['none', 'booking_exceeded', 'shift_based', 'both'],
+      default: 'none'
+    }
+  },
+
+  // Driver-specific requirements
+  driverRequirements: {
+    carType: {
+      type: String,
+      enum: ['manual', 'automatic', null],
+      default: null
+    }
   },
 
   // Provider Assignment
@@ -284,12 +384,26 @@ bookingSchema.methods.isPujariService = function () {
   return this.serviceCategory === 'pujari';
 };
 
+// Method to check if booking uses hourly pricing
+bookingSchema.methods.isHourlyBooking = function () {
+  return this.hourlyBookingDetails && this.hourlyBookingDetails.bookedHours > 0;
+};
+
 // Method to calculate total with extras
 bookingSchema.methods.calculateTotal = function () {
   const extrasTotal = this.extras && this.extras.length > 0
     ? this.extras.reduce((sum, extra) => sum + extra.price, 0)
     : 0;
 
+  // Hourly booking calculation
+  if (this.isHourlyBooking()) {
+    const baseCost = this.hourlyBookingDetails.baseCost || 0;
+    const overtimeCost = this.hourlyBookingDetails.overtimeCost || 0;
+    const shiftOvertimeCost = this.hourlyBookingDetails.shiftOvertimeCost || 0;
+    return baseCost + overtimeCost + shiftOvertimeCost + extrasTotal;
+  }
+
+  // Legacy driver details calculation (backward compatibility)
   if (this.serviceCategory === 'driver' && this.driverDetails) {
     const baseCost = this.driverDetails.baseCost || 0;
     const overtimeCost = this.driverDetails.overtimeCost || 0;
