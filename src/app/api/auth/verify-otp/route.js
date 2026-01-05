@@ -74,11 +74,11 @@ export async function POST(req) {
 
     // Detect if input is email or phone
     const inputType = detectInputType(rawIdentifier);
-    
+
     if (!inputType) {
-      return NextResponse.json({ 
-        success: false, 
-        message: "Please enter a valid email address or phone number" 
+      return NextResponse.json({
+        success: false,
+        message: "Please enter a valid email address or phone number"
       }, { status: 400 });
     }
 
@@ -94,7 +94,7 @@ export async function POST(req) {
     if (email === 'review@yannhome.app' && otp === '123456') {
       // Find or create the review user
       let homeowner = await Homeowner.findOne({ email: 'review@yannhome.app' });
-      
+
       if (!homeowner) {
         homeowner = await Homeowner.create({
           name: 'Google Play Reviewer',
@@ -136,7 +136,7 @@ export async function POST(req) {
     }
 
     // Build query based on identifier type
-    const otpQuery = isPhoneLogin 
+    const otpQuery = isPhoneLogin
       ? { phone: phone, audience: requestedAudience }
       : { email: email, audience: requestedAudience };
 
@@ -165,7 +165,7 @@ export async function POST(req) {
     if (isPhoneLogin) {
       // Check if this is a test user
       const isTest = isTestUser(rawIdentifier);
-      
+
       if (isTest && otpDoc.msg91RequestId === 'TEST_MODE') {
         // Test user - verify using hash instead of MSG91
         console.log(`🧪 Test mode: Verifying OTP via hash for ${phone}`);
@@ -176,7 +176,7 @@ export async function POST(req) {
         const msg91Result = await verifyOTPViaMSG91(phone, otp);
         isOtpValid = msg91Result.success;
       }
-      
+
       if (!isOtpValid) {
         const attempts = (otpDoc.attempts || 0) + 1;
         const update = {
@@ -237,14 +237,14 @@ export async function POST(req) {
           $or: [{ email: email }, { phone: email }]
         });
       }
-      
+
       if (!provider) {
         if (isTestUser(rawIdentifier)) {
           // Auto-create test provider
           try {
             const testUser = getTestUser(rawIdentifier);
             if (!testUser) throw new Error("Test user not found in config");
-            
+
             provider = await ServiceProvider.create({
               name: testUser.name,
               email: testUser.email,
@@ -257,7 +257,7 @@ export async function POST(req) {
             });
           } catch (createError) {
             console.error("Test provider creation failed:", createError);
-             return NextResponse.json({ success: false, message: "Failed to create test provider: " + createError.message }, { status: 500 });
+            return NextResponse.json({ success: false, message: "Failed to create test provider: " + createError.message }, { status: 500 });
           }
         } else {
           await Otp.deleteMany(otpQuery);
@@ -265,7 +265,7 @@ export async function POST(req) {
         }
       }
 
-      const tokenPayload = isPhoneLogin 
+      const tokenPayload = isPhoneLogin
         ? { phone: provider.phone, id: provider._id.toString(), audience: "provider" }
         : { email: provider.email, id: provider._id.toString(), audience: "provider" };
 
@@ -313,54 +313,54 @@ export async function POST(req) {
     if (!homeowner) {
       if (intent !== "signup") {
         if (isTestUser(rawIdentifier)) {
-           // Auto-create test homeowner for login intent
-           try {
-             const testUser = getTestUser(rawIdentifier);
-             if (!testUser) throw new Error("Test user not found in config");
-             
-             homeowner = await Homeowner.create({
-               name: testUser.name,
-               email: testUser.email,
-               phone: normalizePhone(testUser.phone),
-               isVerified: true
-             });
-           } catch (createError) {
-             console.error("Test homeowner creation failed:", createError);
-             return NextResponse.json({ success: false, message: "Failed to create test resident: " + createError.message }, { status: 500 });
-           }
+          // Auto-create test homeowner for login intent
+          try {
+            const testUser = getTestUser(rawIdentifier);
+            if (!testUser) throw new Error("Test user not found in config");
+
+            homeowner = await Homeowner.create({
+              name: testUser.name,
+              email: testUser.email,
+              phone: normalizePhone(testUser.phone),
+              isVerified: true
+            });
+          } catch (createError) {
+            console.error("Test homeowner creation failed:", createError);
+            return NextResponse.json({ success: false, message: "Failed to create test resident: " + createError.message }, { status: 500 });
+          }
         } else {
           await Otp.deleteMany(otpQuery);
           return NextResponse.json({ success: false, message: "Resident account not found" }, { status: 404 });
         }
       }
 
-      
+
       // If homeowner is still not found (e.g. signup intent, or not a test user), proceed with creation
       if (!homeowner) {
         const nameFromMetadata = otpDoc.metadata?.name;
         if (!nameFromMetadata || typeof nameFromMetadata !== "string") {
           return NextResponse.json({ success: false, message: "Unable to create resident account" }, { status: 400 });
         }
-  
+
         // Create new homeowner with phone or email based on login type
         const homeownerData = {
-        name: nameFromMetadata.trim(),
-        preferences: Array.isArray(otpDoc.metadata?.preferences) ? otpDoc.metadata.preferences : [],
-      };
+          name: nameFromMetadata.trim(),
+          preferences: Array.isArray(otpDoc.metadata?.preferences) ? otpDoc.metadata.preferences : [],
+        };
 
-      if (isPhoneLogin) {
-        homeownerData.phone = phone;
-        // If email is provided in metadata, use it
-        if (otpDoc.metadata?.email) {
-          homeownerData.email = otpDoc.metadata.email.toLowerCase().trim();
+        if (isPhoneLogin) {
+          homeownerData.phone = phone;
+          // If email is provided in metadata, use it
+          if (otpDoc.metadata?.email) {
+            homeownerData.email = otpDoc.metadata.email.toLowerCase().trim();
+          }
+        } else {
+          homeownerData.email = email;
+          // If phone is provided in metadata, use it
+          if (otpDoc.metadata?.phone) {
+            homeownerData.phone = normalizePhone(otpDoc.metadata.phone);
+          }
         }
-      } else {
-        homeownerData.email = email;
-        // If phone is provided in metadata, use it
-        if (otpDoc.metadata?.phone) {
-          homeownerData.phone = normalizePhone(otpDoc.metadata.phone);
-        }
-      }
 
         homeowner = await Homeowner.create(homeownerData);
       } // End of second !homeowner check
@@ -373,13 +373,20 @@ export async function POST(req) {
       id: homeowner._id.toString(),
       audience: "homeowner",
     };
-    
+
     // Include both email and phone in token if available
     if (homeowner.email) tokenPayload.email = homeowner.email;
     if (homeowner.phone) tokenPayload.phone = homeowner.phone;
 
     const token = jwt.sign(tokenPayload, process.env.JWT_SECRET, {
       expiresIn: `${TOKEN_MAX_AGE}s`,
+    });
+
+    console.log('🔑 Generated homeowner token:', {
+      tokenLength: token?.length,
+      hasToken: !!token,
+      tokenPreview: token?.substring(0, 20) + '...',
+      userId: homeowner._id.toString()
     });
 
     const response = NextResponse.json({
