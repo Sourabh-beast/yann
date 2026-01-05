@@ -108,19 +108,19 @@ export async function GET(request) {
       assignedProvider: provider._id,
       status: { $in: ['accepted', 'in_progress', 'completed'] }
     })
-    .sort({ bookingDate: 1 })
-    .populate('jobSession')
-    .populate('customerId', 'avatar');
+      .sort({ bookingDate: 1 })
+      .populate('jobSession')
+      .populate('customerId', 'avatar');
 
     // Calculate earnings safely
     let completedBookings = [];
     try {
-        completedBookings = await Booking.find({
-          assignedProvider: provider._id,
-          status: 'completed'
-        });
+      completedBookings = await Booking.find({
+        assignedProvider: provider._id,
+        status: 'completed'
+      });
     } catch (err) {
-        console.error('Error fetching completed bookings for stats:', err);
+      console.error('Error fetching completed bookings for stats:', err);
     }
 
     const totalEarnings = completedBookings.reduce((sum, booking) => sum + (booking.totalPrice || 0), 0);
@@ -131,6 +131,48 @@ export async function GET(request) {
         return bookingMonth === currentMonth;
       })
       .reduce((sum, booking) => sum + (booking.totalPrice || 0), 0);
+
+    // Calculate weekly history for graphs (last 7 days)
+    const now = new Date();
+    const last7Days = [];
+    const dayLabels = [];
+
+    // Generate last 7 days
+    for (let i = 6; i >= 0; i--) {
+      const date = new Date(now);
+      date.setDate(now.getDate() - i);
+      date.setHours(0, 0, 0, 0);
+      last7Days.push(date);
+      dayLabels.push(date.toLocaleDateString('en-US', { weekday: 'short' }));
+    }
+
+    // Calculate earnings per day
+    const earningsHistory = last7Days.map(date => {
+      const nextDay = new Date(date);
+      nextDay.setDate(date.getDate() + 1);
+
+      return completedBookings
+        .filter(b => {
+          const completedDate = new Date(b.completedAt || b.bookingDate);
+          return completedDate >= date && completedDate < nextDay;
+        })
+        .reduce((sum, b) => sum + (b.totalPrice || 0), 0);
+    });
+
+    // Calculate bookings per day
+    const bookingsHistory = last7Days.map(date => {
+      const nextDay = new Date(date);
+      nextDay.setDate(date.getDate() + 1);
+
+      return completedBookings.filter(b => {
+        const completedDate = new Date(b.completedAt || b.bookingDate);
+        return completedDate >= date && completedDate < nextDay;
+      }).length;
+    });
+
+    // For ratings history, use average rating for all days
+    // (Can be enhanced later to show actual rating changes from reviews)
+    const ratingsHistory = last7Days.map(() => provider.rating || 0);
 
     return NextResponse.json({
       success: true,
@@ -148,7 +190,20 @@ export async function GET(request) {
         acceptedBookings: acceptedBookings.length,
         completedBookings: completedBookings.length,
         totalEarnings,
-        monthlyEarnings
+        monthlyEarnings,
+        // Weekly history for graphs
+        earningsHistory: {
+          labels: dayLabels,
+          data: earningsHistory
+        },
+        ratingsHistory: {
+          labels: dayLabels,
+          data: ratingsHistory
+        },
+        bookingsHistory: {
+          labels: dayLabels,
+          data: bookingsHistory
+        }
       },
       pendingRequests: pendingBookings.map(booking => ({
         id: booking._id,
@@ -212,13 +267,13 @@ export async function GET(request) {
 
   } catch (error) {
     console.error('❌ Provider requests fetch error:', error);
-    console.error('Stack:', error.stack); 
+    console.error('Stack:', error.stack);
     return NextResponse.json(
-      { 
-        success: false, 
+      {
+        success: false,
         message: 'Failed to fetch requests',
         error: error.message,
-        stack: error.stack 
+        stack: error.stack
       },
       { status: 500 }
     );
