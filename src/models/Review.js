@@ -9,7 +9,7 @@ const reviewSchema = new mongoose.Schema({
   },
   reviewerName: String,
   reviewerPhone: String,
-  
+
   // Who is being reviewed
   provider: {
     type: mongoose.Schema.Types.ObjectId,
@@ -17,20 +17,20 @@ const reviewSchema = new mongoose.Schema({
     required: true
   },
   providerName: String,
-  
+
   // Related booking
   booking: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'Booking'
   },
-  
+
   // Service details
   service: {
     type: String,
     required: true
   },
   serviceCategory: String,
-  
+
   // Review content
   rating: {
     type: Number,
@@ -41,16 +41,16 @@ const reviewSchema = new mongoose.Schema({
   title: String,
   comment: {
     type: String,
-    required: true
+    required: false // Optional - users can submit ratings without comments
   },
-  
+
   // Review status
   status: {
     type: String,
     enum: ['pending', 'approved', 'rejected', 'flagged'],
     default: 'approved'
   },
-  
+
   // Flagging/Moderation
   isFlagged: {
     type: Boolean,
@@ -59,24 +59,24 @@ const reviewSchema = new mongoose.Schema({
   flagReason: String,
   flaggedAt: Date,
   flaggedBy: String,
-  
+
   // Admin moderation
   moderatedBy: String,
   moderatedAt: Date,
   moderationNote: String,
-  
+
   // Provider response
   providerResponse: {
     comment: String,
     respondedAt: Date
   },
-  
+
   // Helpful votes
   helpfulCount: {
     type: Number,
     default: 0
   },
-  
+
   // Verification
   isVerifiedPurchase: {
     type: Boolean,

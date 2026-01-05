@@ -170,9 +170,12 @@ export async function POST(request) {
         });
 
     } catch (error) {
-        console.error('Error creating review:', error);
+        console.error('❌ Error creating review:', error);
+        console.error('Error stack:', error.stack);
+        console.error('Error message:', error.message);
+        console.error('Error name:', error.name);
         return NextResponse.json(
-            { success: false, message: 'Failed to submit review' },
+            { success: false, message: 'Failed to submit review', error: error.message },
             { status: 500 }
         );
     }
