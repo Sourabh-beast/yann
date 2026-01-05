@@ -26,7 +26,7 @@ export async function GET(request) {
 
     // Support both cookie-based (website) and token-based (mobile app) authentication
     let token = cookies().get(HOME_COOKIE)?.value;
-    
+
     // If no cookie, check Authorization header for mobile app
     if (!token) {
       const authHeader = request.headers.get('authorization');
@@ -34,9 +34,7 @@ export async function GET(request) {
         token = authHeader.substring(7);
       }
     }
-    
-// akjfhkjadjknakjxnckjlaldkj
-// kajdhflkjabdkjc akljc
+
 
     if (!token) {
       return NextResponse.json(
@@ -77,6 +75,7 @@ export async function GET(request) {
       .populate('jobSession');
 
     const mappedBookings = bookings.map((booking) => ({
+      _id: booking._id.toString(),
       id: booking._id.toString(),
       serviceId: booking.serviceId,
       serviceName: booking.serviceName,
@@ -108,8 +107,11 @@ export async function GET(request) {
       } : null,
       negotiation: booking.negotiation || null,
       driverDetails: booking.driverDetails || null,
+      hourlyBookingDetails: booking.hourlyBookingDetails || null,
+      driverRequirements: booking.driverRequirements || null,
       extras: booking.extras || [],
       notes: booking.notes || '',
+      hasBeenRated: booking.hasBeenRated || false,
       createdAt: booking.createdAt,
       updatedAt: booking.updatedAt,
     }));
