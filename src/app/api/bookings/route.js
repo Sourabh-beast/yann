@@ -62,6 +62,8 @@ export async function GET(request) {
       );
     }
 
+    console.log('✅ Token verified, fetching homeowner:', decoded.id);
+
     const homeowner = await Homeowner.findById(decoded.id);
     if (!homeowner) {
       return NextResponse.json(
@@ -126,9 +128,11 @@ export async function GET(request) {
       },
     });
   } catch (error) {
-    console.error('Error fetching bookings:', error);
+    console.error('❌ Error fetching bookings:', error);
+    console.error('Error stack:', error.stack);
+    console.error('Error message:', error.message);
     return NextResponse.json(
-      { success: false, message: 'Failed to fetch bookings', data: [] },
+      { success: false, message: 'Failed to fetch bookings', data: [], error: error.message },
       { status: 500 }
     );
   }
