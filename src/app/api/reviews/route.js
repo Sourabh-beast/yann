@@ -52,7 +52,9 @@ export async function POST(request) {
             );
         }
 
-        if (decoded?.audience !== 'homeowner') {
+        // Only reject if audience is explicitly set to something other than homeowner
+        // Allow tokens without audience field (mobile app tokens)
+        if (decoded?.audience && decoded.audience !== 'homeowner') {
             return NextResponse.json(
                 { success: false, message: 'Unauthorized - Homeowner access only' },
                 { status: 403 }
