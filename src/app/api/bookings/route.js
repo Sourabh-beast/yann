@@ -53,7 +53,9 @@ export async function GET(request) {
       );
     }
 
-    if (decoded?.audience !== 'homeowner') {
+    // Only reject if audience is explicitly set to something other than homeowner
+    // Allow tokens without audience field (older tokens) or with homeowner audience
+    if (decoded?.audience && decoded.audience !== 'homeowner') {
       return NextResponse.json(
         { success: false, message: 'Unauthorized', data: [] },
         { status: 401 }
