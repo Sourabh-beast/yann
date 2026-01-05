@@ -88,6 +88,17 @@ const serviceProviderSchema = new mongoose.Schema({
         type: Number,
         required: true,
         min: [0, 'Price cannot be negative']
+      },
+      // Hourly billing support
+      hourlyRate: {
+        type: Number,
+        min: [0, 'Hourly rate cannot be negative'],
+        default: null
+      },
+      billingType: {
+        type: String,
+        enum: ['fixed', 'hourly', 'both'],
+        default: 'fixed'
       }
     }],
     default: [],
@@ -111,6 +122,37 @@ const serviceProviderSchema = new mongoose.Schema({
   workingHours: {
     type: workingHoursSchema,
     required: false
+  },
+
+  // Working Shifts (for shift-based overtime)
+  workingShifts: {
+    enabled: {
+      type: Boolean,
+      default: false
+    },
+    startTime: {
+      type: String,
+      match: [/^([01]?[0-9]|2[0-3]):[0-5][0-9]$/, 'Please enter valid time format (HH:MM)'],
+      default: null
+    },
+    endTime: {
+      type: String,
+      match: [/^([01]?[0-9]|2[0-3]):[0-5][0-9]$/, 'Please enter valid time format (HH:MM)'],
+      default: null
+    },
+    timezone: {
+      type: String,
+      default: 'Asia/Kolkata'
+    }
+  },
+
+  // Driver-specific profile
+  driverProfile: {
+    carTypeSupported: {
+      type: String,
+      enum: ['manual', 'automatic', 'both', null],
+      default: null
+    }
   },
 
   // Status
@@ -285,6 +327,59 @@ serviceProviderSchema.methods.getPriceForService = function (serviceName) {
   const normalized = serviceName.trim().toLowerCase();
   const entry = this.serviceRates.find(rate => rate.serviceName?.trim().toLowerCase() === normalized);
   return entry ? entry.price : null;
+};
+
+// Method to get hourly rate for a service
+serviceProviderSchema.methods.getHourlyRateForService = function (serviceName) {
+  if (!serviceName || !Array.isArray(this.serviceRates)) return null;
+  const normalized = serviceName.trim().toLowerCase();
+  const entry = this.serviceRates.find(rate => rate.serviceName?.trim().toLowerCase() === normalized);
+  return entry ? entry.hourlyRate : null;
+};
+
+// Method to check if booking is within shift
+serviceProviderSchema.methods.isBookingWithinShift = function (startTime, endTime) {
+  if (!this.workingShifts || !this.workingShifts.enabled) {
+    return { withinShift: true, overtimeMinutes: 0 };
+  }
+
+  const parseTimeToMinutes = (timeStr) => {
+    const [hours, minutes] = timeStr.split(':').map(Number);
+    return hours * 60 + minutes;
+  };
+
+  const shiftEndMinutes = parseTimeToMinutes(this.workingShifts.endTime);
+  const bookingEndMinutes = parseTimeToMinutes(endTime);
+
+  if (bookingEndMinutes > shiftEndMinutes) {
+    return {
+      withinShift: false,
+      overtimeMinutes: bookingEndMinutes - shiftEndMinutes
+    };
+  }
+
+  return { withinShift: true, overtimeMinutes: 0 };
+};
+
+// Method to calculate shift overtime minutes
+serviceProviderSchema.methods.calculateShiftOvertime = function (actualEndTime) {
+  if (!this.workingShifts || !this.workingShifts.enabled || !this.workingShifts.endTime) {
+    return 0;
+  }
+
+  const parseTimeToMinutes = (timeStr) => {
+    const [hours, minutes] = timeStr.split(':').map(Number);
+    return hours * 60 + minutes;
+  };
+
+  // Extract time from Date object
+  const endDate = new Date(actualEndTime);
+  const endTimeStr = `${String(endDate.getHours()).padStart(2, '0')}:${String(endDate.getMinutes()).padStart(2, '0')}`;
+
+  const shiftEndMinutes = parseTimeToMinutes(this.workingShifts.endTime);
+  const actualEndMinutes = parseTimeToMinutes(endTimeStr);
+
+  return Math.max(0, actualEndMinutes - shiftEndMinutes);
 };
 
 export default mongoose.models.ServiceProvider || mongoose.model('ServiceProvider', serviceProviderSchema);

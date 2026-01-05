@@ -6,6 +6,7 @@ import Homeowner from '@/models/Homeowner';
 import ServiceProvider from '@/models/ServiceProvider';
 import Transaction from '@/models/Transaction';
 import { createAndSendNotification } from '@/lib/notificationHelper';
+import { calculateCombinedOvertime } from '@/utils/overtimeCalculator';
 
 /**
  * POST /api/job/verify-end
@@ -91,33 +92,91 @@ export async function POST(request) {
     booking.status = 'completed';
     booking.completedAt = jobSession.endTime;
 
-    // If there's overtime, update total price
-    if (overtimeData.overtimeCharge > 0) {
+    // NEW: Calculate overtime for hourly bookings
+    if (booking.hourlyBookingDetails && booking.hourlyBookingDetails.bookedHours) {
+      const hourlyDetails = booking.hourlyBookingDetails;
+      hourlyDetails.actualEndTime = jobSession.endTime;
+
+      // Calculate actual hours worked
+      const actualMs = jobSession.endTime - jobSession.startTime;
+      const actualHours = Number((actualMs / (1000 * 60 * 60)).toFixed(2));
+      hourlyDetails.actualHours = actualHours;
+
+      // Use combined overtime calculator
+      const overtimeResult = calculateCombinedOvertime({
+        bookedMinutes: hourlyDetails.bookedHours * 60,
+        actualStartTime: jobSession.startTime,
+        actualEndTime: jobSession.endTime,
+        shiftEndTime: hourlyDetails.partnerShiftEnd,
+        hourlyRate: hourlyDetails.hourlyRate
+      });
+
+      // Update hourly booking details with overtime
+      hourlyDetails.overtimeHours = Number((overtimeResult.bookingOvertimeMinutes / 60).toFixed(2));
+      hourlyDetails.overtimeCost = overtimeResult.bookingOvertimeCost;
+      hourlyDetails.shiftOvertimeHours = Number((overtimeResult.shiftOvertimeMinutes / 60).toFixed(2));
+      hourlyDetails.shiftOvertimeCost = overtimeResult.shiftOvertimeCost;
+      hourlyDetails.totalHourlyCharge = overtimeResult.totalCost;
+      hourlyDetails.overtimeType = overtimeResult.overtimeType;
+
+      // Update booking total price
+      const extrasTotal = booking.extras?.reduce((sum, extra) => sum + (extra?.price || 0), 0) || 0;
+      booking.totalPrice = overtimeResult.totalCost + extrasTotal;
+
+      booking.markModified('hourlyBookingDetails');
+
+      // Process overtime payment if applicable
+      const totalOvertimeCost = overtimeResult.bookingOvertimeCost + overtimeResult.shiftOvertimeCost;
+
+      if (totalOvertimeCost > 0) {
+        // Charge customer
+        const customer = await Homeowner.findById(jobSession.customer);
+
+        // Deduct from wallet if payment method was wallet
+        if (booking.paymentMethod === 'wallet' && customer.wallet) {
+          if (customer.wallet.balance >= totalOvertimeCost) {
+            customer.wallet.balance -= totalOvertimeCost;
+            await customer.save();
+
+            // Create transaction record
+            await Transaction.create({
+              user: customer._id,
+              userType: 'homeowner',
+              type: 'debit',
+              amount: totalOvertimeCost,
+              description: `Overtime charges for ${booking.serviceName} (${overtimeResult.overtimeType})`,
+              status: 'completed',
+              relatedBooking: booking._id
+            });
+          }
+        }
+
+        // Credit provider wallet
+        const provider = await ServiceProvider.findById(jobSession.provider);
+        if (provider.wallet) {
+          provider.wallet.balance += totalOvertimeCost;
+          await provider.save();
+
+          // Create transaction record
+          await Transaction.create({
+            user: provider._id,
+            userType: 'provider',
+            type: 'credit',
+            amount: totalOvertimeCost,
+            description: `Overtime payment for ${booking.serviceName} (${overtimeResult.overtimeType})`,
+            status: 'completed',
+            relatedBooking: booking._id
+          });
+        }
+      }
+
+    } else if (overtimeData.overtimeCharge > 0) {
+      // Legacy overtime handling (backward compatibility)
       booking.totalPrice += overtimeData.overtimeCharge;
-    }
 
-    await booking.save();
-
-    // Notify customer that job is completed
-    const homeowner = await Homeowner.findById(jobSession.customer);
-    if (homeowner) {
-        await createAndSendNotification({
-            title: '✅ Job Completed',
-            message: `The job ${booking.serviceName} is completed. Total: ₹${jobSession.totalCharge}`,
-            recipientId: jobSession.customer.toString(),
-            recipientType: 'homeowner',
-            pushToken: homeowner.pushToken,
-            type: 'job_completed',
-            data: { bookingId: booking._id.toString() },
-            bookingId: booking._id.toString()
-        });
-    }
-
-    // Process overtime payment if applicable
-    if (overtimeData.overtimeCharge > 0) {
-      // Charge customer
+      // Process overtime payment
       const customer = await Homeowner.findById(jobSession.customer);
-      
+
       // Deduct from wallet if payment method was wallet
       if (booking.paymentMethod === 'wallet' && customer.wallet) {
         if (customer.wallet.balance >= overtimeData.overtimeCharge) {
@@ -156,18 +215,61 @@ export async function POST(request) {
       }
     }
 
+    await booking.save();
+
+    // Notify customer that job is completed
+    const homeowner = await Homeowner.findById(jobSession.customer);
+    if (homeowner) {
+      await createAndSendNotification({
+        title: '✅ Job Completed',
+        message: `The job ${booking.serviceName} is completed. Total: ₹${jobSession.totalCharge}`,
+        recipientId: jobSession.customer.toString(),
+        recipientType: 'homeowner',
+        pushToken: homeowner.pushToken,
+        type: 'job_completed',
+        data: { bookingId: booking._id.toString() },
+        bookingId: booking._id.toString()
+      });
+    }
+
+
+
+    // Prepare response data
+    let responseData = {
+      endTime: jobSession.endTime,
+      duration: overtimeData.duration,
+      expectedDuration: jobSession.expectedDuration,
+      status: jobSession.status
+    };
+
+    // Add hourly booking overtime details if applicable
+    if (booking.hourlyBookingDetails && booking.hourlyBookingDetails.bookedHours) {
+      responseData.overtime = {
+        type: booking.hourlyBookingDetails.overtimeType,
+        actualHours: booking.hourlyBookingDetails.actualHours,
+        bookedHours: booking.hourlyBookingDetails.bookedHours,
+        overtimeHours: booking.hourlyBookingDetails.overtimeHours,
+        overtimeCost: booking.hourlyBookingDetails.overtimeCost,
+        shiftOvertimeHours: booking.hourlyBookingDetails.shiftOvertimeHours,
+        shiftOvertimeCost: booking.hourlyBookingDetails.shiftOvertimeCost
+      };
+      responseData.charges = {
+        baseCost: booking.hourlyBookingDetails.baseCost,
+        overtimeCost: booking.hourlyBookingDetails.overtimeCost,
+        shiftOvertimeCost: booking.hourlyBookingDetails.shiftOvertimeCost,
+        totalCharge: booking.hourlyBookingDetails.totalHourlyCharge
+      };
+    } else {
+      // Legacy overtime response
+      responseData.overtimeDuration = overtimeData.overtimeDuration;
+      responseData.overtimeCharge = overtimeData.overtimeCharge;
+      responseData.totalCharge = overtimeData.totalCharge;
+    }
+
     return NextResponse.json({
       success: true,
       message: 'Job completed successfully',
-      data: {
-        endTime: jobSession.endTime,
-        duration: overtimeData.duration,
-        expectedDuration: jobSession.expectedDuration,
-        overtimeDuration: overtimeData.overtimeDuration,
-        overtimeCharge: overtimeData.overtimeCharge,
-        totalCharge: overtimeData.totalCharge,
-        status: jobSession.status
-      }
+      data: responseData
     });
 
   } catch (error) {

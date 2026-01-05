@@ -4,6 +4,7 @@ import Booking from '@/models/Booking';
 import ServiceProvider from '@/models/ServiceProvider';
 import ResidentRequest from '@/models/ResidentRequest';
 import { createAndSendNotification } from '@/lib/notificationHelper';
+import { validateDriverCarType, checkHourlyBillingSupport } from '@/utils/bookingValidator';
 
 export async function POST(request) {
   try {
@@ -13,7 +14,7 @@ export async function POST(request) {
 
     // Validate required fields
     const requiredFields = ['serviceId', 'serviceName', 'serviceCategory', 'customerPhone', 'customerAddress', 'bookingDate', 'bookingTime', 'providerId'];
-    
+
     for (const field of requiredFields) {
       if (!bookingData[field]) {
         return NextResponse.json(
@@ -49,8 +50,84 @@ export async function POST(request) {
     const extrasTotal = extras.reduce((sum, extra) => sum + (extra?.price || 0), 0);
 
     let driverDetails = null;
+    let hourlyBookingDetails = null;
 
-    if (bookingData.serviceCategory === 'driver') {
+    // NEW: Hourly booking support for all services
+    if (bookingData.bookedHours && bookingData.bookedHours > 0) {
+      // Validate hourly billing support
+      const hourlySupport = checkHourlyBillingSupport(provider, bookingData.serviceName);
+
+      if (!hourlySupport.supported) {
+        return NextResponse.json(
+          { success: false, message: hourlySupport.message },
+          { status: 400 }
+        );
+      }
+
+      const hourlyRate = hourlySupport.hourlyRate;
+      const bookedHours = Number(bookingData.bookedHours);
+
+      // Validate booked hours
+      if (bookedHours < 1 || bookedHours > 24) {
+        return NextResponse.json(
+          { success: false, message: 'Booked hours must be between 1 and 24' },
+          { status: 400 }
+        );
+      }
+
+      // Driver car type validation
+      if (bookingData.serviceCategory === 'driver' && bookingData.driverRequirements?.carType) {
+        const carTypeValidation = validateDriverCarType(
+          bookingData.driverRequirements.carType,
+          provider.driverProfile?.carTypeSupported
+        );
+
+        if (!carTypeValidation.valid) {
+          return NextResponse.json(
+            { success: false, message: carTypeValidation.message },
+            { status: 400 }
+          );
+        }
+      }
+
+      // Calculate scheduled times
+      const bookingDateTime = new Date(bookingData.bookingDate);
+      const [hours, minutes] = bookingData.bookingTime.split(':').map(Number);
+      bookingDateTime.setHours(hours, minutes, 0, 0);
+
+      const scheduledStartTime = bookingDateTime;
+      const expectedEndTime = new Date(scheduledStartTime);
+      expectedEndTime.setHours(expectedEndTime.getHours() + bookedHours);
+
+      // Calculate base cost
+      const baseCost = bookedHours * hourlyRate;
+
+      // Check shift overlap
+      let partnerShiftStart = null;
+      let partnerShiftEnd = null;
+
+      if (provider.workingShifts && provider.workingShifts.enabled) {
+        partnerShiftStart = provider.workingShifts.startTime;
+        partnerShiftEnd = provider.workingShifts.endTime;
+      }
+
+      hourlyBookingDetails = {
+        bookedHours,
+        hourlyRate,
+        scheduledStartTime,
+        expectedEndTime,
+        partnerShiftStart,
+        partnerShiftEnd,
+        baseCost,
+        overtimeRate: hourlyRate, // Type 1 overtime rate (1×)
+        shiftOvertimeRate: hourlyRate * 2, // Type 2 overtime rate (2×)
+        totalHourlyCharge: baseCost
+      };
+
+      bookingData.totalPrice = Number((baseCost + extrasTotal).toFixed(2));
+
+    } else if (bookingData.serviceCategory === 'driver') {
+      // Legacy driver details (backward compatibility)
       const driverPayload = bookingData.driverDetails || {};
       const parseToMinutes = (value) => {
         if (!value || typeof value !== 'string' || !value.includes(':')) return null;
@@ -99,6 +176,7 @@ export async function POST(request) {
       bookingData.bookingTime = resolvedStartTime;
       bookingData.totalPrice = Number((baseCost + overtimeCost + extrasTotal).toFixed(2));
     } else {
+      // Standard fixed-price booking
       const quantity = Number(bookingData.quantity) || 1;
       const billingType = bookingData.billingType || 'one-time';
       const billingMultiplier = billingType === 'monthly' ? 4 : 1;
@@ -125,8 +203,8 @@ export async function POST(request) {
       notes: bookingData.notes || '',
       status: 'pending',
       driverDetails,
-      assignedProvider: provider._id,
-      driverDetails,
+      hourlyBookingDetails,
+      driverRequirements: bookingData.driverRequirements || null,
       assignedProvider: provider._id,
       providerName: provider.name,
       latitude: bookingData.latitude || null,
@@ -153,9 +231,9 @@ export async function POST(request) {
 
     // Find all service providers who offer this service
     const serviceName = bookingData.serviceName;
-    
+
     console.log('🔍 Searching for providers with service:', serviceName);
-    
+
     // Find providers whose services array contains this service name (exact match)
     const availableProviders = await ServiceProvider.find({
       services: { $in: [serviceName] }, // Check if serviceName exists in services array
@@ -163,7 +241,7 @@ export async function POST(request) {
     }).select('_id name email phone services');
 
     console.log(`📢 Booking created! Found ${availableProviders.length} providers for "${serviceName}"`);
-    
+
     if (availableProviders.length > 0) {
       console.log('✅ Providers who will receive this booking:');
       availableProviders.forEach(p => {
@@ -173,8 +251,8 @@ export async function POST(request) {
       console.log('⚠️ WARNING: No providers found for this service!');
       console.log('💡 Tip: Make sure providers register with exact service name:', serviceName);
     }
-    
-    
+
+
     // Send persistent notification to provider
     if (provider) {
       await createAndSendNotification({
@@ -212,10 +290,10 @@ export async function POST(request) {
   } catch (error) {
     console.error('Booking creation error:', error);
     return NextResponse.json(
-      { 
-        success: false, 
+      {
+        success: false,
         message: 'Failed to create booking',
-        error: error.message 
+        error: error.message
       },
       { status: 500 }
     );
