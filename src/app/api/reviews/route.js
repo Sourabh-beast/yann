@@ -25,7 +25,16 @@ export async function POST(request) {
         }
 
         // Verify homeowner authentication
-        const token = cookies().get(HOMEOWNER_COOKIE)?.value;
+        let token = cookies().get(HOMEOWNER_COOKIE)?.value;
+
+        // If no cookie, check Authorization header (for mobile app)
+        if (!token) {
+            const authHeader = request.headers.get('authorization');
+            if (authHeader && authHeader.startsWith('Bearer ')) {
+                token = authHeader.split(' ')[1];
+            }
+        }
+
         if (!token) {
             return NextResponse.json(
                 { success: false, message: 'Unauthorized - Please login' },
