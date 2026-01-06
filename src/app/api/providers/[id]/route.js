@@ -15,7 +15,7 @@ async function calculateAverageResponseTime(providerId) {
     }).select('createdAt providerResponses');
 
     if (!bookings || bookings.length === 0) {
-      return '< 1 hr'; // Default for new providers
+      return { time: 'New', count: 0 }; // No data yet
     }
 
     let totalResponseTimeMinutes = 0;
@@ -35,24 +35,27 @@ async function calculateAverageResponseTime(providerId) {
     });
 
     if (responseCount === 0) {
-      return '< 1 hr';
+      return { time: 'New', count: 0 };
     }
 
     const avgMinutes = totalResponseTimeMinutes / responseCount;
 
     // Format response time
+    let formattedTime;
     if (avgMinutes < 60) {
-      return '< 1 hr';
+      formattedTime = '< 1 hr';
     } else if (avgMinutes < 1440) { // Less than 24 hours
       const hours = Math.round(avgMinutes / 60);
-      return `${hours} hr${hours > 1 ? 's' : ''}`;
+      formattedTime = `${hours} hr${hours > 1 ? 's' : ''}`;
     } else {
       const days = Math.round(avgMinutes / 1440);
-      return `${days} day${days > 1 ? 's' : ''}`;
+      formattedTime = `${days} day${days > 1 ? 's' : ''}`;
     }
+
+    return { time: formattedTime, count: responseCount };
   } catch (error) {
     console.error('Error calculating response time:', error);
-    return '< 1 hr'; // Fallback
+    return { time: 'New', count: 0 }; // Fallback
   }
 }
 
@@ -74,7 +77,7 @@ export async function GET(request, { params }) {
     }
 
     const provider = await ServiceProvider.findById(id)
-      .select('name email phone experience rating totalReviews serviceRates workingHours profileImage services status bio');
+      .select('name email phone experience rating totalReviews serviceRates workingHours profileImage services status bio isVerified aadhaarVerified');
 
     if (!provider) {
       return NextResponse.json(
@@ -84,7 +87,7 @@ export async function GET(request, { params }) {
     }
 
     // Calculate average response time
-    const averageResponseTime = await calculateAverageResponseTime(id);
+    const responseTimeData = await calculateAverageResponseTime(id);
 
     return NextResponse.json({
       success: true,
@@ -102,7 +105,9 @@ export async function GET(request, { params }) {
         profileImage: provider.profileImage || '',
         status: provider.status,
         bio: provider.bio || '',
-        averageResponseTime: averageResponseTime,
+        isVerified: provider.isVerified || provider.aadhaarVerified || false,
+        averageResponseTime: responseTimeData.time,
+        responseCount: responseTimeData.count,
       },
     });
   } catch (error) {
