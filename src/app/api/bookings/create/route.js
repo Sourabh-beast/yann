@@ -6,6 +6,7 @@ import ResidentRequest from '@/models/ResidentRequest';
 import { createAndSendNotification } from '@/lib/notificationHelper';
 import { validateDriverCarType, checkHourlyBillingSupport } from '@/utils/bookingValidator';
 import { requireAuth, verifyOwnership } from '@/lib/authMiddleware';
+import { validateInput, bookingCreateSchema } from '@/lib/validation';
 
 export async function POST(request) {
   try {
@@ -19,8 +20,19 @@ export async function POST(request) {
 
     const bookingData = await request.json();
 
+    // VALIDATION: Validate input data with Zod
+    const validation = validateInput(bookingData, bookingCreateSchema);
+    if (!validation.success) {
+      return NextResponse.json(
+        { success: false, message: validation.message, errors: validation.errors },
+        { status: 400 }
+      );
+    }
+
+    const validatedData = validation.data;
+
     // SECURITY: Verify customerId matches authenticated user (prevent IDOR)
-    if (bookingData.customerId && !verifyOwnership(authResult.user, bookingData.customerId, 'homeowner')) {
+    if (validatedData.customerId && !verifyOwnership(authResult.user, validatedData.customerId, 'homeowner')) {
       return NextResponse.json(
         { success: false, message: 'You can only create bookings for your own account' },
         { status: 403 }
@@ -28,15 +40,15 @@ export async function POST(request) {
     }
 
     // If no customerId provided, use authenticated user's ID
-    if (!bookingData.customerId && authResult.user.audience === 'homeowner') {
-      bookingData.customerId = authResult.user.id;
+    if (!validatedData.customerId && authResult.user.audience === 'homeowner') {
+      validatedData.customerId = authResult.user.id;
     }
 
     // Validate required fields
     const requiredFields = ['serviceId', 'serviceName', 'serviceCategory', 'customerPhone', 'customerAddress', 'bookingDate', 'bookingTime', 'providerId'];
 
     for (const field of requiredFields) {
-      if (!bookingData[field]) {
+      if (!validatedData[field]) {
         return NextResponse.json(
           { success: false, message: `${field} is required` },
           { status: 400 }
@@ -45,7 +57,7 @@ export async function POST(request) {
     }
 
     // Resolve provider pricing
-    const provider = await ServiceProvider.findById(bookingData.providerId);
+    const provider = await ServiceProvider.findById(validatedData.providerId);
     if (!provider || provider.status !== 'active') {
       return NextResponse.json(
         { success: false, message: 'Selected service partner is no longer available' },
