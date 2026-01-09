@@ -5,12 +5,13 @@ import connectDB from '@/lib/connectDB';
 import Booking from '@/models/Booking';
 import Homeowner from '@/models/Homeowner';
 import JobSession from '@/models/JobSession';
+import { getPaginationParams, createPaginationMeta } from '@/lib/pagination';
 
 const HOME_COOKIE = 'yann_home_session';
 
 /**
  * GET /api/bookings
- * Get all bookings for the authenticated homeowner
+ * Get all bookings for the authenticated homeowner with pagination
  */
 export async function GET(request) {
   try {
@@ -72,9 +73,17 @@ export async function GET(request) {
       );
     }
 
-    // Get bookings for this homeowner (using customerId, not customerEmail)
+    // Get pagination parameters
+    const { page, limit, skip } = getPaginationParams(request);
+
+    // Get total count for pagination
+    const total = await Booking.countDocuments({ customerId: homeowner._id });
+
+    // Get bookings for this homeowner with pagination
     const bookings = await Booking.find({ customerId: homeowner._id })
       .sort({ createdAt: -1 })
+      .skip(skip)
+      .limit(limit)
       .populate('assignedProvider', 'name email phone rating profileImage')
       .populate('jobSession');
 
@@ -124,6 +133,7 @@ export async function GET(request) {
       success: true,
       data: mappedBookings,
       meta: {
+        ...createPaginationMeta(total, page, limit),
         total: mappedBookings.length,
       },
     });

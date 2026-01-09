@@ -5,14 +5,15 @@ import connectDB from "@/lib/connectDB";
 import ServiceProvider from "@/models/ServiceProvider";
 import Homeowner from "@/models/Homeowner";
 import Otp from "@/models/Otp";
-import { 
-  sendOTPViaMSG91, 
-  formatPhoneNumber, 
-  isPhoneNumber, 
-  isEmail, 
-  detectInputType 
+import {
+  sendOTPViaMSG91,
+  formatPhoneNumber,
+  isPhoneNumber,
+  isEmail,
+  detectInputType
 } from "@/lib/msg91";
 import { isTestUser, getTestOTP, isTestMode, getTestUser } from "@/config/testUsers";
+import { applyRateLimit, otpRateLimiter } from "@/lib/rateLimiter";
 
 const OTP_EXPIRY_MS = 10 * 60 * 1000;
 const MIN_RESEND_INTERVAL_MS = 60 * 1000;
@@ -156,6 +157,18 @@ export async function POST(req) {
   try {
     await connectDB();
 
+    // Apply rate limiting to prevent OTP abuse
+    const rateLimitResult = applyRateLimit(req, otpRateLimiter);
+    if (!rateLimitResult.allowed) {
+      return NextResponse.json(
+        { success: false, message: rateLimitResult.message },
+        {
+          status: 429,
+          headers: { 'Retry-After': rateLimitResult.retryAfter.toString() }
+        }
+      );
+    }
+
     let payload;
     try {
       payload = await req.json();
@@ -176,11 +189,11 @@ export async function POST(req) {
 
     // Detect if input is email or phone
     const inputType = detectInputType(rawIdentifier);
-    
+
     if (!inputType) {
-      return NextResponse.json({ 
-        success: false, 
-        message: "Please enter a valid email address or 10-digit phone number" 
+      return NextResponse.json({
+        success: false,
+        message: "Please enter a valid email address or 10-digit phone number"
       }, { status: 400 });
     }
 
@@ -190,8 +203,8 @@ export async function POST(req) {
 
     // Google Play review bypass - skip for phone login
     if (email === 'review@yannhome.app') {
-      return NextResponse.json({ 
-        success: true, 
+      return NextResponse.json({
+        success: true,
         message: 'OTP sent successfully for your resident account',
         identifierType: 'email'
       });
@@ -206,24 +219,24 @@ export async function POST(req) {
       if (isPhoneLogin) {
         user = await ServiceProvider.findOne({ phone: phone });
         if (!user) {
-           if (isTestUser(rawIdentifier)) {
-             // Allow test user to proceed
-             const testUser = getTestUser(rawIdentifier);
-             recipientName = testUser ? testUser.name : "Test Provider";
-           } else {
-              return NextResponse.json({ success: false, message: "Phone number not registered as a partner" }, { status: 404 });
-           }
+          if (isTestUser(rawIdentifier)) {
+            // Allow test user to proceed
+            const testUser = getTestUser(rawIdentifier);
+            recipientName = testUser ? testUser.name : "Test Provider";
+          } else {
+            return NextResponse.json({ success: false, message: "Phone number not registered as a partner" }, { status: 404 });
+          }
         }
       } else {
         user = await ServiceProvider.findOne({ email });
         if (!user) {
-           if (isTestUser(rawIdentifier)) {
-             // Allow test user to proceed
-             const testUser = getTestUser(rawIdentifier);
-             recipientName = testUser ? testUser.name : "Test Provider";
-           } else {
-             return NextResponse.json({ success: false, message: "Email not registered as a partner" }, { status: 404 });
-           }
+          if (isTestUser(rawIdentifier)) {
+            // Allow test user to proceed
+            const testUser = getTestUser(rawIdentifier);
+            recipientName = testUser ? testUser.name : "Test Provider";
+          } else {
+            return NextResponse.json({ success: false, message: "Email not registered as a partner" }, { status: 404 });
+          }
         }
       }
       audienceName = "provider";
@@ -231,39 +244,39 @@ export async function POST(req) {
     } else {
       // For homeowners
       audienceName = "homeowner";
-      
+
       if (isPhoneLogin) {
         // Phone-based login/signup - search by phone OR email for flexibility
         const homeowner = await Homeowner.findOne({
           $or: [{ phone: phone }, { email: phone }]
         });
-        
+
         if (intent === "login") {
           if (!homeowner) {
-             if (isTestUser(rawIdentifier)) {
-               // Allow test user to proceed
-               const testUser = getTestUser(rawIdentifier);
-               recipientName = testUser ? testUser.name : "Test Resident";
-             } else {
-               return NextResponse.json({ 
-                 success: false, 
-                 message: "We could not find a resident account with this phone number" 
-               }, { status: 404 });
-             }
+            if (isTestUser(rawIdentifier)) {
+              // Allow test user to proceed
+              const testUser = getTestUser(rawIdentifier);
+              recipientName = testUser ? testUser.name : "Test Resident";
+            } else {
+              return NextResponse.json({
+                success: false,
+                message: "We could not find a resident account with this phone number"
+              }, { status: 404 });
+            }
           }
           recipientName = homeowner?.name || recipientName || "";
         } else {
           // Signup with phone
           if (homeowner) {
-            return NextResponse.json({ 
-              success: false, 
-              message: "An account already exists with this phone number. Try logging in." 
+            return NextResponse.json({
+              success: false,
+              message: "An account already exists with this phone number. Try logging in."
             }, { status: 409 });
           }
           if (!metadata?.name || typeof metadata.name !== "string") {
-            return NextResponse.json({ 
-              success: false, 
-              message: "Please share your name to create the account" 
+            return NextResponse.json({
+              success: false,
+              message: "Please share your name to create the account"
             }, { status: 400 });
           }
           recipientName = metadata.name;
@@ -273,32 +286,32 @@ export async function POST(req) {
         const homeowner = await Homeowner.findOne({
           $or: [{ email: email }, { phone: email }]
         });
-        
+
         if (intent === "login") {
           if (!homeowner) {
-             if (isTestUser(rawIdentifier)) {
-               // Allow test user to proceed
-               const testUser = getTestUser(rawIdentifier);
-               recipientName = testUser ? testUser.name : "Test Resident";
-             } else {
-               return NextResponse.json({ 
-                 success: false, 
-                 message: "We could not find a resident account with this email" 
-               }, { status: 404 });
-             }
+            if (isTestUser(rawIdentifier)) {
+              // Allow test user to proceed
+              const testUser = getTestUser(rawIdentifier);
+              recipientName = testUser ? testUser.name : "Test Resident";
+            } else {
+              return NextResponse.json({
+                success: false,
+                message: "We could not find a resident account with this email"
+              }, { status: 404 });
+            }
           }
           recipientName = homeowner?.name || recipientName || "";
         } else {
           if (homeowner) {
-            return NextResponse.json({ 
-              success: false, 
-              message: "An account already exists with this email. Try logging in." 
+            return NextResponse.json({
+              success: false,
+              message: "An account already exists with this email. Try logging in."
             }, { status: 409 });
           }
           if (!metadata?.name || typeof metadata.name !== "string") {
-            return NextResponse.json({ 
-              success: false, 
-              message: "Please share your name to create the account" 
+            return NextResponse.json({
+              success: false,
+              message: "Please share your name to create the account"
             }, { status: 400 });
           }
           recipientName = metadata.name;
@@ -311,7 +324,7 @@ export async function POST(req) {
     const now = new Date();
 
     // Build query based on identifier type
-    const otpQuery = isPhoneLogin 
+    const otpQuery = isPhoneLogin
       ? { phone: phone, audience: audienceName }
       : { email: email, audience: audienceName };
 
@@ -351,13 +364,13 @@ export async function POST(req) {
     if (isPhoneLogin) {
       // Check if this is a test user
       const testOTP = getTestOTP(rawIdentifier);
-      
+
       if (testOTP) {
         // Test user - skip MSG91 and use predefined OTP
         console.log(`🧪 Test mode: Using predefined OTP for ${phone}`);
-        
+
         const otpHash = crypto.createHash("sha256").update(testOTP).digest("hex");
-        
+
         await Otp.findOneAndUpdate(
           { phone: phone, audience: audienceName },
           {
@@ -382,21 +395,21 @@ export async function POST(req) {
           { upsert: true, new: true, setDefaultsOnInsert: true }
         );
 
-        return NextResponse.json({ 
-          success: true, 
+        return NextResponse.json({
+          success: true,
           message: `OTP sent to your phone number (Test Mode)`,
           identifierType: 'phone',
           testMode: true
         });
       }
-      
+
       // Send OTP via MSG91 for real users
       const msg91Result = await sendOTPViaMSG91(phone);
-      
+
       if (!msg91Result.success) {
-        return NextResponse.json({ 
-          success: false, 
-          message: msg91Result.message || "Failed to send OTP" 
+        return NextResponse.json({
+          success: false,
+          message: msg91Result.message || "Failed to send OTP"
         }, { status: 500 });
       }
 
@@ -426,8 +439,8 @@ export async function POST(req) {
       );
 
       const humanAudience = audienceName === "homeowner" ? "resident" : "partner";
-      return NextResponse.json({ 
-        success: true, 
+      return NextResponse.json({
+        success: true,
         message: `OTP sent to your phone number`,
         identifierType: 'phone'
       });
@@ -469,7 +482,7 @@ export async function POST(req) {
         });
 
         console.log(`📧 Sending OTP email to: ${email} for ${audienceName} ${intent}`);
-        
+
         await transporter.sendMail({
           from: `${COMPANY_NAME} <${process.env.EMAIL_USER}>`,
           to: email,
@@ -484,17 +497,17 @@ export async function POST(req) {
         console.error("❌ Email sending failed:", emailError);
         // Delete the OTP record since email failed
         await Otp.deleteOne({ email: email, audience: audienceName });
-        
-        return NextResponse.json({ 
-          success: false, 
+
+        return NextResponse.json({
+          success: false,
           message: "Failed to send OTP email. Please check your email address or try again later.",
           error: process.env.NODE_ENV === 'development' ? emailError.message : undefined
         }, { status: 500 });
       }
 
       const humanAudience = audienceName === "homeowner" ? "resident" : "partner";
-      return NextResponse.json({ 
-        success: true, 
+      return NextResponse.json({
+        success: true,
         message: `OTP sent successfully to your email`,
         identifierType: 'email'
       });

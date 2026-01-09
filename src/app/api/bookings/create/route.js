@@ -5,12 +5,32 @@ import ServiceProvider from '@/models/ServiceProvider';
 import ResidentRequest from '@/models/ResidentRequest';
 import { createAndSendNotification } from '@/lib/notificationHelper';
 import { validateDriverCarType, checkHourlyBillingSupport } from '@/utils/bookingValidator';
+import { requireAuth, verifyOwnership } from '@/lib/authMiddleware';
 
 export async function POST(request) {
   try {
     await connectDB();
 
+    // Verify authentication
+    const authResult = requireAuth(request);
+    if (!authResult.authorized) {
+      return authResult.response;
+    }
+
     const bookingData = await request.json();
+
+    // SECURITY: Verify customerId matches authenticated user (prevent IDOR)
+    if (bookingData.customerId && !verifyOwnership(authResult.user, bookingData.customerId, 'homeowner')) {
+      return NextResponse.json(
+        { success: false, message: 'You can only create bookings for your own account' },
+        { status: 403 }
+      );
+    }
+
+    // If no customerId provided, use authenticated user's ID
+    if (!bookingData.customerId && authResult.user.audience === 'homeowner') {
+      bookingData.customerId = authResult.user.id;
+    }
 
     // Validate required fields
     const requiredFields = ['serviceId', 'serviceName', 'serviceCategory', 'customerPhone', 'customerAddress', 'bookingDate', 'bookingTime', 'providerId'];

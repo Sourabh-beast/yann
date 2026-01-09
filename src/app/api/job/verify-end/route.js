@@ -129,44 +129,67 @@ export async function POST(request) {
       const totalOvertimeCost = overtimeResult.bookingOvertimeCost + overtimeResult.shiftOvertimeCost;
 
       if (totalOvertimeCost > 0) {
-        // Charge customer
-        const customer = await Homeowner.findById(jobSession.customer);
+        // Use MongoDB transaction for atomic wallet operations
+        const session = await Homeowner.startSession();
+        session.startTransaction();
 
-        // Deduct from wallet if payment method was wallet
-        if (booking.paymentMethod === 'wallet' && customer.wallet) {
-          if (customer.wallet.balance >= totalOvertimeCost) {
-            customer.wallet.balance -= totalOvertimeCost;
-            await customer.save();
+        try {
+          // Charge customer
+          const customer = await Homeowner.findById(jobSession.customer).session(session);
 
-            // Create transaction record
-            await Transaction.create({
-              user: customer._id,
-              userType: 'homeowner',
-              type: 'debit',
-              amount: totalOvertimeCost,
-              description: `Overtime charges for ${booking.serviceName} (${overtimeResult.overtimeType})`,
-              status: 'completed',
-              relatedBooking: booking._id
-            });
+          // Deduct from wallet if payment method was wallet
+          if (booking.paymentMethod === 'wallet' && customer.wallet) {
+            if (customer.wallet.balance >= totalOvertimeCost) {
+              customer.wallet.balance -= totalOvertimeCost;
+              await customer.save({ session });
+
+              // Create transaction record
+              await Transaction.create([{
+                user: customer._id,
+                userType: 'homeowner',
+                type: 'debit',
+                amount: totalOvertimeCost,
+                description: `Overtime charges for ${booking.serviceName} (${overtimeResult.overtimeType})`,
+                status: 'completed',
+                relatedBooking: booking._id
+              }], { session });
+
+              // Credit provider wallet
+              const provider = await ServiceProvider.findById(jobSession.provider).session(session);
+              if (provider.wallet) {
+                provider.wallet.balance += totalOvertimeCost;
+                await provider.save({ session });
+
+                // Create transaction record
+                await Transaction.create([{
+                  user: provider._id,
+                  userType: 'provider',
+                  type: 'credit',
+                  amount: totalOvertimeCost,
+                  description: `Overtime payment for ${booking.serviceName} (${overtimeResult.overtimeType})`,
+                  status: 'completed',
+                  relatedBooking: booking._id
+                }], { session });
+              }
+
+              // Commit the transaction
+              await session.commitTransaction();
+            } else {
+              // Insufficient balance - abort transaction
+              await session.abortTransaction();
+              console.warn(`Insufficient wallet balance for overtime charge: ${customer._id}`);
+            }
+          } else {
+            // Not wallet payment - abort transaction
+            await session.abortTransaction();
           }
-        }
-
-        // Credit provider wallet
-        const provider = await ServiceProvider.findById(jobSession.provider);
-        if (provider.wallet) {
-          provider.wallet.balance += totalOvertimeCost;
-          await provider.save();
-
-          // Create transaction record
-          await Transaction.create({
-            user: provider._id,
-            userType: 'provider',
-            type: 'credit',
-            amount: totalOvertimeCost,
-            description: `Overtime payment for ${booking.serviceName} (${overtimeResult.overtimeType})`,
-            status: 'completed',
-            relatedBooking: booking._id
-          });
+        } catch (error) {
+          // Rollback on error
+          await session.abortTransaction();
+          console.error('Wallet transaction failed:', error);
+          throw error;
+        } finally {
+          session.endSession();
         }
       }
 
@@ -174,44 +197,67 @@ export async function POST(request) {
       // Legacy overtime handling (backward compatibility)
       booking.totalPrice += overtimeData.overtimeCharge;
 
-      // Process overtime payment
-      const customer = await Homeowner.findById(jobSession.customer);
+      // Use MongoDB transaction for atomic wallet operations
+      const session = await Homeowner.startSession();
+      session.startTransaction();
 
-      // Deduct from wallet if payment method was wallet
-      if (booking.paymentMethod === 'wallet' && customer.wallet) {
-        if (customer.wallet.balance >= overtimeData.overtimeCharge) {
-          customer.wallet.balance -= overtimeData.overtimeCharge;
-          await customer.save();
+      try {
+        // Process overtime payment
+        const customer = await Homeowner.findById(jobSession.customer).session(session);
 
-          // Create transaction record
-          await Transaction.create({
-            user: customer._id,
-            userType: 'homeowner',
-            type: 'debit',
-            amount: overtimeData.overtimeCharge,
-            description: `Overtime charges for ${booking.serviceName}`,
-            status: 'completed',
-            relatedBooking: booking._id
-          });
+        // Deduct from wallet if payment method was wallet
+        if (booking.paymentMethod === 'wallet' && customer.wallet) {
+          if (customer.wallet.balance >= overtimeData.overtimeCharge) {
+            customer.wallet.balance -= overtimeData.overtimeCharge;
+            await customer.save({ session });
+
+            // Create transaction record
+            await Transaction.create([{
+              user: customer._id,
+              userType: 'homeowner',
+              type: 'debit',
+              amount: overtimeData.overtimeCharge,
+              description: `Overtime charges for ${booking.serviceName}`,
+              status: 'completed',
+              relatedBooking: booking._id
+            }], { session });
+
+            // Credit provider wallet
+            const provider = await ServiceProvider.findById(jobSession.provider).session(session);
+            if (provider.wallet) {
+              provider.wallet.balance += overtimeData.overtimeCharge;
+              await provider.save({ session });
+
+              // Create transaction record
+              await Transaction.create([{
+                user: provider._id,
+                userType: 'provider',
+                type: 'credit',
+                amount: overtimeData.overtimeCharge,
+                description: `Overtime payment for ${booking.serviceName}`,
+                status: 'completed',
+                relatedBooking: booking._id
+              }], { session });
+            }
+
+            // Commit the transaction
+            await session.commitTransaction();
+          } else {
+            // Insufficient balance - abort transaction
+            await session.abortTransaction();
+            console.warn(`Insufficient wallet balance for overtime charge: ${customer._id}`);
+          }
+        } else {
+          // Not wallet payment - abort transaction
+          await session.abortTransaction();
         }
-      }
-
-      // Credit provider wallet
-      const provider = await ServiceProvider.findById(jobSession.provider);
-      if (provider.wallet) {
-        provider.wallet.balance += overtimeData.overtimeCharge;
-        await provider.save();
-
-        // Create transaction record
-        await Transaction.create({
-          user: provider._id,
-          userType: 'provider',
-          type: 'credit',
-          amount: overtimeData.overtimeCharge,
-          description: `Overtime payment for ${booking.serviceName}`,
-          status: 'completed',
-          relatedBooking: booking._id
-        });
+      } catch (error) {
+        // Rollback on error
+        await session.abortTransaction();
+        console.error('Wallet transaction failed:', error);
+        throw error;
+      } finally {
+        session.endSession();
       }
     }
 
