@@ -22,7 +22,7 @@ export async function GET(request) {
         const { page, limit, skip } = getPaginationParams(request);
 
         // Build search query
-        const searchQuery: any = { status: 'active' };
+        const searchQuery = { status: 'active' };
 
         // Text search on name and services
         if (query) {
@@ -47,7 +47,7 @@ export async function GET(request) {
         const total = await ServiceProvider.countDocuments(searchQuery);
 
         // Build sort object
-        const sortObj: any = {};
+        const sortObj = {};
         if (sortBy === 'price') {
             sortObj['serviceRates.0.price'] = sortOrder;
         } else if (sortBy === 'rating') {

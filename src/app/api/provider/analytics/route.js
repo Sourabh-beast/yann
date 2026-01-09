@@ -59,7 +59,7 @@ export async function GET(request) {
             const date = t.createdAt.toISOString().split('T')[0];
             acc[date] = (acc[date] || 0) + t.amount;
             return acc;
-        }, {} as Record<string, number>);
+        }, {});
 
         // Popular services
         const serviceStats = bookings.reduce((acc, b) => {
@@ -70,7 +70,7 @@ export async function GET(request) {
             acc[service].count++;
             acc[service].revenue += b.totalPrice || 0;
             return acc;
-        }, {} as Record<string, { count: number; revenue: number }>);
+        }, {});
 
         const popularServices = Object.entries(serviceStats)
             .map(([name, stats]) => ({ name, ...stats }))
