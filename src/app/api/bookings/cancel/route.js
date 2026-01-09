@@ -8,7 +8,7 @@ export async function POST(req) {
   try {
     // Extract user ID from request headers (sent by mobile app)
     const userId = req.headers.get('x-user-id');
-    
+
     if (!userId) {
       return NextResponse.json({ success: false, message: 'Unauthorized' }, { status: 401 });
     }
@@ -46,40 +46,58 @@ export async function POST(req) {
     // Determine refund amount (currently 100%, can be modified for partial refunds)
     const refundAmount = booking.totalPrice || 0;
 
-    // Credit to wallet (regardless of original payment method)
-    const balanceBefore = user.wallet?.balance || 0;
-    const balanceAfter = balanceBefore + refundAmount;
+    // Use MongoDB transaction for atomic refund and booking update
+    const session = await Homeowner.startSession();
+    session.startTransaction();
 
-    user.wallet = {
-      balance: balanceAfter,
-      currency: 'INR'
-    };
-    await user.save();
+    try {
+      // Credit to wallet (regardless of original payment method)
+      const balanceBefore = user.wallet?.balance || 0;
+      const balanceAfter = balanceBefore + refundAmount;
 
-    // Log refund transaction
-    await Transaction.create({
-      bookingId: booking._id,
-      customerId: booking.customerId,
-      providerId: booking.providerId,
-      type: 'wallet_refund',
-      amount: refundAmount,
-      balanceBefore,
-      balanceAfter,
-      description: `Refund for cancelled booking #${booking._id}`,
-      status: 'completed',
-      paymentMethod: booking.paymentMethod,
-      currency: 'INR',
-      serviceName: booking.serviceName,
-      serviceCategory: booking.serviceCategory,
-      notes: reason || 'Customer cancellation'
-    });
+      user.wallet = {
+        balance: balanceAfter,
+        currency: 'INR'
+      };
+      await user.save({ session });
 
-    // Update booking status
-    booking.status = 'cancelled';
-    booking.paymentStatus = 'refunded';
-    booking.cancellationReason = reason || 'Cancelled by customer';
-    booking.cancelledAt = new Date();
-    await booking.save();
+      // Log refund transaction
+      await Transaction.create([{
+        bookingId: booking._id,
+        customerId: booking.customerId,
+        providerId: booking.providerId,
+        type: 'wallet_refund',
+        amount: refundAmount,
+        balanceBefore,
+        balanceAfter,
+        description: `Refund for cancelled booking #${booking._id}`,
+        status: 'completed',
+        paymentMethod: booking.paymentMethod,
+        currency: 'INR',
+        serviceName: booking.serviceName,
+        serviceCategory: booking.serviceCategory,
+        notes: reason || 'Customer cancellation'
+      }], { session });
+
+      // Update booking status
+      booking.status = 'cancelled';
+      booking.paymentStatus = 'refunded';
+      booking.cancellationReason = reason || 'Cancelled by customer';
+      booking.cancelledAt = new Date();
+      await booking.save({ session });
+
+      // Commit transaction
+      await session.commitTransaction();
+    } catch (error) {
+      // Rollback on error
+      await session.abortTransaction();
+      console.error('Cancellation transaction failed:', error);
+      throw error;
+    } finally {
+      session.endSession();
+    }
+
+    const balanceAfter = user.wallet.balance;
 
     return NextResponse.json({
       success: true,

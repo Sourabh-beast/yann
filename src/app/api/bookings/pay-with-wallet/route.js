@@ -8,9 +8,9 @@ export async function POST(req) {
   try {
     // Extract user ID from request headers (sent by mobile app)
     const userId = req.headers.get('x-user-id');
-    
+
     console.log('📥 Wallet payment request:', { userId: userId ? `${userId.substring(0, 8)}...` : 'missing' });
-    
+
     if (!userId) {
       console.error('❌ Missing user ID');
       return NextResponse.json({ success: false, message: 'Unauthorized - User ID required' }, { status: 401 });
@@ -55,33 +55,39 @@ export async function POST(req) {
       }, { status: 400 });
     }
 
-    // Deduct from wallet (ESCROW: money held by platform until provider accepts/rejects)
+    // Use MongoDB transaction for atomic wallet debit and booking creation
+    const session = await Homeowner.startSession();
+    session.startTransaction();
+
+    let booking;
     const balanceBefore = currentBalance;
     const balanceAfter = currentBalance - totalPrice;
 
-    user.wallet.balance = balanceAfter;
-    await user.save();
-
-    console.log('✅ Wallet debited (held in escrow):', { before: balanceBefore, after: balanceAfter, amount: totalPrice });
-
-    let booking;
     try {
+      // Deduct from wallet (ESCROW: money held by platform until provider accepts/rejects)
+      user.wallet.balance = balanceAfter;
+      await user.save({ session });
+
+      console.log('✅ Wallet debited (held in escrow):', { before: balanceBefore, after: balanceAfter, amount: totalPrice });
+
       // Convert bookingDate string to Date object if needed
       const parsedBookingDate = typeof bookingDate === 'string' ? new Date(bookingDate) : bookingDate;
 
       // Create booking with escrow payment status
-      booking = await Booking.create({
+      booking = await Booking.create([{
         ...bookingData,
         bookingDate: parsedBookingDate,
         paymentMethod: 'wallet',
         paymentStatus: 'paid', // Money is paid and held in escrow
         customerId: userId
-      });
+      }], { session });
+
+      booking = booking[0]; // Extract from array
 
       console.log('✅ Booking created:', booking._id);
 
       // Log transaction (money held in escrow)
-      await Transaction.create({
+      await Transaction.create([{
         bookingId: booking._id,
         customerId: userId,
         providerId: bookingData.providerId || null,
@@ -95,22 +101,23 @@ export async function POST(req) {
         currency: 'INR',
         serviceName: bookingData.serviceName,
         serviceCategory: bookingData.serviceCategory
-      });
+      }], { session });
 
       console.log('✅ Transaction logged (escrow)');
       console.log('💡 Money will be transferred to provider when booking is accepted');
       console.log('💡 Money will be refunded to customer if booking is rejected');
+
+      // Commit the transaction
+      await session.commitTransaction();
     } catch (bookingError) {
-      // CRITICAL: Rollback wallet deduction if booking creation fails
-      console.error('❌ Booking creation failed, rolling back wallet deduction:', bookingError.message);
+      // CRITICAL: Rollback on any error
+      await session.abortTransaction();
+      console.error('❌ Transaction failed, rolled back:', bookingError.message);
       console.error('Error details:', bookingError);
-      
-      user.wallet.balance = balanceBefore;
-      await user.save();
-      
-      console.log('✅ Wallet balance restored:', balanceBefore);
-      
+
       throw new Error(`Booking creation failed: ${bookingError.message}`);
+    } finally {
+      session.endSession();
     }
 
     return NextResponse.json({
@@ -124,9 +131,9 @@ export async function POST(req) {
       message: error.message,
       stack: error.stack
     });
-    return NextResponse.json({ 
-      success: false, 
-      message: error.message || 'Booking failed' 
+    return NextResponse.json({
+      success: false,
+      message: error.message || 'Booking failed'
     }, { status: 500 });
   }
 }

@@ -11,7 +11,7 @@ import { isTestUser, getTestOTP, isTestMode, getTestUser } from "@/config/testUs
 const MAX_ATTEMPTS = 5;
 const BLOCK_DURATION_MS = 15 * 60 * 1000;
 const TOKEN_COOKIE_NAME = "yann_session";
-const TOKEN_MAX_AGE = 60 * 60; // seconds
+const TOKEN_MAX_AGE = 30 * 24 * 60 * 60; // 30 days (improved from 1 hour for better UX)
 
 /**
  * Normalize phone number to 10 digits for storage
