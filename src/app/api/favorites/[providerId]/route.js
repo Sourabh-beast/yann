@@ -41,13 +41,25 @@ export async function DELETE(request, { params }) {
             );
         }
 
-        const decoded = jwt.verify(token, process.env.JWT_SECRET);
-        if (!decoded?.userId) {
+        let decoded;
+        try {
+            decoded = jwt.verify(token, process.env.JWT_SECRET);
+        } catch (error) {
             return NextResponse.json(
-                { success: false, message: 'Invalid token' },
+                { success: false, message: 'Session expired' },
                 { status: 401 }
             );
         }
+
+        // Only reject if audience is explicitly set to something other than homeowner
+        if (decoded?.audience && decoded.audience !== 'homeowner') {
+            return NextResponse.json(
+                { success: false, message: 'Homeowner access only' },
+                { status: 403 }
+            );
+        }
+
+        const userId = decoded.userId || decoded.id;
 
         const { providerId } = params;
 
@@ -59,7 +71,7 @@ export async function DELETE(request, { params }) {
         }
 
         // Get user
-        const user = await Homeowner.findById(decoded.userId);
+        const user = await Homeowner.findById(userId);
         if (!user) {
             return NextResponse.json(
                 { success: false, message: 'User not found' },

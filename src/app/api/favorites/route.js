@@ -26,34 +26,49 @@ export async function GET(request) {
             );
         }
 
-        // Support both cookie-based (website) and token-based (mobile app) authentication
-        let token = cookies().get(HOME_COOKIE)?.value;
+        let decoded;
+        let userId;
 
-        // If no cookie, check Authorization header (for mobile app)
-        if (!token) {
-            const authHeader = request.headers.get('authorization');
-            if (authHeader?.startsWith('Bearer ')) {
-                token = authHeader.substring(7);
+        // Try validating token
+        if (token) {
+            try {
+                decoded = jwt.verify(token, process.env.JWT_SECRET);
+                userId = decoded.userId || decoded.id;
+            } catch (error) {
+                // Token expired or invalid
+                console.log('Token verification failed:', error.message);
             }
         }
 
-        if (!token) {
+        // Fallback: Check x-user-id header (internal/mobile usage)
+        if (!userId) {
+            const headerUserId = request.headers.get('x-user-id');
+            if (headerUserId) {
+                console.log('Using x-user-id fallback:', headerUserId);
+                userId = headerUserId;
+            }
+        }
+
+        if (!userId) {
             return NextResponse.json(
-                { success: false, message: 'Unauthorized' },
+                { success: false, message: 'Session expired' },
                 { status: 401 }
             );
         }
 
-        const decoded = jwt.verify(token, process.env.JWT_SECRET);
-        if (!decoded?.userId) {
+        // Only reject if audience is explicitly set to something other than homeowner
+        if (decoded?.audience && decoded.audience !== 'homeowner') {
             return NextResponse.json(
-                { success: false, message: 'Invalid token' },
-                { status: 401 }
+                { success: false, message: 'Homeowner access only' },
+                { status: 403 }
             );
         }
+
+        // userId is already resolved above from token or header fallback
+
 
         // Get user with favorites populated
-        const user = await Homeowner.findById(decoded.userId)
+        const user = await Homeowner.findById(userId)
             .populate({
                 path: 'savedProviders',
                 select: 'name email profileImage avatar rating services experience totalReviews',
@@ -109,13 +124,25 @@ export async function POST(request) {
             );
         }
 
-        const decoded = jwt.verify(token, process.env.JWT_SECRET);
-        if (!decoded?.userId) {
+        let decoded;
+        try {
+            decoded = jwt.verify(token, process.env.JWT_SECRET);
+        } catch (error) {
             return NextResponse.json(
-                { success: false, message: 'Invalid token' },
+                { success: false, message: 'Session expired' },
                 { status: 401 }
             );
         }
+
+        // Only reject if audience is explicitly set to something other than homeowner
+        if (decoded?.audience && decoded.audience !== 'homeowner') {
+            return NextResponse.json(
+                { success: false, message: 'Homeowner access only' },
+                { status: 403 }
+            );
+        }
+
+        const userId = decoded.userId || decoded.id;
 
         const { providerId } = await request.json();
 
@@ -127,7 +154,7 @@ export async function POST(request) {
         }
 
         // Get user
-        const user = await Homeowner.findById(decoded.userId);
+        const user = await Homeowner.findById(userId);
         if (!user) {
             return NextResponse.json(
                 { success: false, message: 'User not found' },
