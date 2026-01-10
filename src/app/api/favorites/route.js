@@ -10,6 +10,7 @@ import { cookies } from 'next/headers';
 import jwt from 'jsonwebtoken';
 import connectDB from '@/lib/connectDB';
 import Homeowner from '@/models/Homeowner';
+import ServiceProvider from '@/models/ServiceProvider';
 
 const HOME_COOKIE = 'yann_home_session';
 
