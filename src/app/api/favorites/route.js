@@ -44,16 +44,29 @@ export async function GET(request) {
             );
         }
 
-        const decoded = jwt.verify(token, process.env.JWT_SECRET);
-        if (!decoded?.userId) {
+        let decoded;
+        try {
+            decoded = jwt.verify(token, process.env.JWT_SECRET);
+        } catch (error) {
             return NextResponse.json(
-                { success: false, message: 'Invalid token' },
+                { success: false, message: 'Session expired' },
                 { status: 401 }
             );
         }
 
+        // Only reject if audience is explicitly set to something other than homeowner
+        // Allow tokens without audience field (older tokens) or with homeowner audience
+        if (decoded?.audience && decoded.audience !== 'homeowner') {
+            return NextResponse.json(
+                { success: false, message: 'Homeowner access only' },
+                { status: 403 }
+            );
+        }
+
+        const userId = decoded.userId || decoded.id;
+
         // Get user with favorites populated
-        const user = await Homeowner.findById(decoded.userId)
+        const user = await Homeowner.findById(userId)
             .populate({
                 path: 'savedProviders',
                 select: 'name email profileImage avatar rating services experience totalReviews',
@@ -109,13 +122,25 @@ export async function POST(request) {
             );
         }
 
-        const decoded = jwt.verify(token, process.env.JWT_SECRET);
-        if (!decoded?.userId) {
+        let decoded;
+        try {
+            decoded = jwt.verify(token, process.env.JWT_SECRET);
+        } catch (error) {
             return NextResponse.json(
-                { success: false, message: 'Invalid token' },
+                { success: false, message: 'Session expired' },
                 { status: 401 }
             );
         }
+
+        // Only reject if audience is explicitly set to something other than homeowner
+        if (decoded?.audience && decoded.audience !== 'homeowner') {
+            return NextResponse.json(
+                { success: false, message: 'Homeowner access only' },
+                { status: 403 }
+            );
+        }
+
+        const userId = decoded.userId || decoded.id;
 
         const { providerId } = await request.json();
 
@@ -127,7 +152,7 @@ export async function POST(request) {
         }
 
         // Get user
-        const user = await Homeowner.findById(decoded.userId);
+        const user = await Homeowner.findById(userId);
         if (!user) {
             return NextResponse.json(
                 { success: false, message: 'User not found' },
