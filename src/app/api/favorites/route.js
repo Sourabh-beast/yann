@@ -29,6 +29,15 @@ export async function GET(request) {
         let decoded;
         let userId;
 
+        // Get token from cookie or header
+        let token = cookies().get(HOME_COOKIE)?.value;
+        if (!token) {
+            const authHeader = request.headers.get('authorization');
+            if (authHeader?.startsWith('Bearer ')) {
+                token = authHeader.substring(7);
+            }
+        }
+
         // Try validating token
         if (token) {
             try {
