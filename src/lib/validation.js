@@ -61,41 +61,31 @@ export const flexibleIdSchema = z.union([
 ]).transform(val => String(val));
 
 /**
- * Booking creation validation schema
+ * Booking creation validation schema - LENIENT VERSION
+ * Uses flexible validation to handle various frontend data formats
  */
 export const bookingCreateSchema = z.object({
     serviceId: flexibleIdSchema,
     serviceName: z.string().min(1).max(200),
     serviceCategory: z.string().min(1).max(100),
-    customerId: objectIdSchema.optional(),
-    customerName: z.string().min(1).max(200),
-    customerPhone: phoneSchema,
-    customerAddress: z.string().min(1).max(500),
-    bookingDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Date must be in YYYY-MM-DD format'), // Accept date-only format
-    bookingTime: timeSchema,
-    providerId: objectIdSchema,
-    basePrice: priceSchema.optional(),
-    totalPrice: priceSchema.optional(),
-    paymentMethod: z.enum(['cash', 'wallet', 'online']).default('cash'),
-    billingType: z.enum(['one-time', 'monthly']).default('one-time'),
-    quantity: z.number().int().positive().max(100).default(1),
-    notes: z.string().max(1000).optional(),
-    bookedHours: z.number().positive().max(24).optional(),
-    extras: z.array(z.object({
-        name: z.string().max(100),
-        price: priceSchema
-    })).optional(),
-    driverDetails: z.object({
-        startTime: timeSchema,
-        endTime: timeSchema,
-        baseHours: z.number().positive().max(24).optional(),
-        hourlyRate: priceSchema.optional()
-    }).optional(),
-    driverRequirements: z.object({
-        carType: z.string().max(50).optional(),
-        licenseRequired: z.boolean().optional()
-    }).optional()
-});
+    customerId: z.string().optional(), // Allow any string format or undefined
+    customerName: z.string().max(200).optional().default('Guest'),
+    customerPhone: z.string().max(20).optional().default(''),
+    customerAddress: z.string().max(500).optional().default(''),
+    bookingDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Date must be in YYYY-MM-DD format'),
+    bookingTime: z.string().regex(/^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$/, 'Time must be in HH:MM format'),
+    providerId: flexibleIdSchema, // Use flexible ID to accept MongoDB ObjectId or other formats
+    basePrice: z.number().optional(),
+    totalPrice: z.number().optional(),
+    paymentMethod: z.string().default('cash'),
+    billingType: z.string().default('one-time'),
+    quantity: z.number().optional().default(1),
+    notes: z.string().max(1000).optional().default(''),
+    bookedHours: z.number().optional(),
+    extras: z.array(z.any()).optional(),
+    driverDetails: z.any().optional(),
+    driverRequirements: z.any().optional()
+}).passthrough(); // IMPORTANT: Allow extra fields not defined in schema
 
 /**
  * OTP validation schema
