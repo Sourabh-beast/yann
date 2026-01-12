@@ -51,6 +51,8 @@ export async function POST(request) {
     // VALIDATION: Validate input data with Zod
     const validation = validateInput(bookingData, bookingCreateSchema);
     if (!validation.success) {
+      console.error('❌ Validation failed:', JSON.stringify(validation, null, 2));
+      console.error('📦 Received booking data:', JSON.stringify(bookingData, null, 2));
       return NextResponse.json(
         { success: false, message: validation.message, errors: validation.errors },
         { status: 400 }
