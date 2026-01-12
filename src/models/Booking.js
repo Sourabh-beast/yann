@@ -3,7 +3,7 @@ import mongoose from 'mongoose';
 const bookingSchema = new mongoose.Schema({
   // Service Details
   serviceId: {
-    type: Number,
+    type: String,  // Changed from Number to String to accept MongoDB ObjectIds
     required: true
   },
   serviceName: {
@@ -25,7 +25,14 @@ const bookingSchema = new mongoose.Schema({
       'pujari',
       'specialty',
       'driver',
-      'general'
+      'general',
+      'domestic',
+      'maintenance',
+      'healthcare',
+      'security',
+      'beauty',
+      'events',
+      'office'
     ]
   },
 
@@ -41,8 +48,8 @@ const bookingSchema = new mongoose.Schema({
   },
   customerPhone: {
     type: String,
-    required: true,
-    match: [/^[0-9]{10}$/, 'Please enter a valid 10-digit phone number']
+    required: false,  // Made optional for flexibility
+    default: ''
   },
   customerAddress: {
     type: String,
