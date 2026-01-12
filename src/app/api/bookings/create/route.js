@@ -8,25 +8,42 @@ import { validateDriverCarType, checkHourlyBillingSupport } from '@/utils/bookin
 import { requireAuth, verifyOwnership } from '@/lib/authMiddleware';
 import { validateInput, bookingCreateSchema } from '@/lib/validation';
 
-// Service Configuration - GST Rates per Service
+// Service Configuration - GST Rates per Service (Based on Services charges.xlsx)
 const SERVICE_CONFIG = {
-  'Drivers': { gstRate: 0.18 },
-  'Pujari': { gstRate: 0 },
-  'Maids': { gstRate: 0.18 },
-  'Baby Sitters': { gstRate: 0.18 },
-  'Nurses': { gstRate: 0.18 },
-  'Attendants': { gstRate: 0.18 },
-  'Cleaners': { gstRate: 0.18 },
-  'Office Boys': { gstRate: 0.18 },
-  'Chaprasi': { gstRate: 0.18 },
-  'Heena Artists': { gstRate: 0.18 },
-  'AC Service Technicians': { gstRate: 0.18 },
-  'RO Service Technicians': { gstRate: 0.18 },
-  'Refrigerator Service Technicians': { gstRate: 0.18 },
-  'Air Purifier Service Technicians': { gstRate: 0.18 },
-  'Toilet Cleaning Experts': { gstRate: 0.18 },
-  'Chimney Service Technicians': { gstRate: 0.18 },
-  'Security Guards': { gstRate: 0.18 },
+  // ===== DRIVERS (18% GST) =====
+  'Full-Day Personal Driver': { gstRate: 0.18, hasOvertime: true },
+  'Outstation Driving Service': { gstRate: 0.18, hasOvertime: true },
+
+  // ===== PUJARI SERVICES (0% GST) =====
+  'Lakshmi Puja': { gstRate: 0 },
+  'Satyanarayan Katha': { gstRate: 0 },
+  'Ganesh Puja at Home': { gstRate: 0 },
+  'Griha Pravesh Puja': { gstRate: 0 },
+  'Vastu Shanti Puja': { gstRate: 0 },
+  'Havan Ceremony': { gstRate: 0 },
+  'Rudrabhishek Puja': { gstRate: 0 },
+  'Vivah (Wedding Ceremony)': { gstRate: 0 },
+  'Ring Ceremony': { gstRate: 0 },
+  'Ramjan Path': { gstRate: 0 },
+  'Mahamrityunjay Jaap': { gstRate: 0 },
+  'Gayatri Jaap': { gstRate: 0 },
+  'Pitra Shanti Puja': { gstRate: 0 },
+  'Nav Graha Shanti': { gstRate: 0 },
+  'Bhoomi Poojan': { gstRate: 0 },
+  'Vaahan Poojan': { gstRate: 0 },
+  'Shraddh Karm': { gstRate: 0 },
+  'Janmadin Poojan': { gstRate: 0 },
+  'Sundarkand Path': { gstRate: 0 },
+
+  // ===== CLEANING SERVICES (18% GST) =====
+  'Deep House Cleaning': { gstRate: 0.18, hasOvertime: true },
+  'Regular House Cleaning': { gstRate: 0.18, hasOvertime: true },
+  'Bathroom Deep Clean': { gstRate: 0.18, hasOvertime: true },
+  'Car Washing': { gstRate: 0.18 },
+  'Laundry & Ironing': { gstRate: 0.18, hasOvertime: true },
+  'Dry Cleaning Service': { gstRate: 0.18 },
+  'Chimney & Exhaust Cleaning': { gstRate: 0.18 },
+  'Water Tank Cleaning': { gstRate: 0.18, hasOvertime: true },
 };
 
 // Get GST rate for a service (default 18% if not found)
