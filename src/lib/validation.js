@@ -62,7 +62,7 @@ export const bookingCreateSchema = z.object({
     customerName: z.string().min(1).max(200),
     customerPhone: phoneSchema,
     customerAddress: z.string().min(1).max(500),
-    bookingDate: dateSchema,
+    bookingDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Date must be in YYYY-MM-DD format'), // Accept date-only format
     bookingTime: timeSchema,
     providerId: objectIdSchema,
     basePrice: priceSchema.optional(),
