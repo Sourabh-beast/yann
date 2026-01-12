@@ -174,9 +174,6 @@ export async function POST(request) {
       let partnerShiftEnd = null;
 
       if (provider.workingShifts && provider.workingShifts.enabled) {
-        if (Array.isArray(provider.workingShifts.days) && provider.workingShifts.days.map) {
-          console.log('Checking working days map capability');
-        }
         partnerShiftStart = provider.workingShifts.startTime;
         partnerShiftEnd = provider.workingShifts.endTime;
       }
