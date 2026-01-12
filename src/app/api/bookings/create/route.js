@@ -221,8 +221,8 @@ export async function POST(request) {
       const gstAmount = baseCost * gstRate;
       bookingData.totalPrice = Number((baseCost + gstAmount + extrasTotal).toFixed(2));
 
-    } else if (bookingData.serviceCategory === 'driver') {
-      // Legacy driver details (backward compatibility)
+    } else if (bookingData.serviceCategory === 'driver' && bookingData.driverDetails?.endTime) {
+      // Legacy driver details (only if end time is explicitly provided)
       const driverPayload = bookingData.driverDetails || {};
       const parseToMinutes = (value) => {
         if (!value || typeof value !== 'string' || !value.includes(':')) return null;
@@ -234,49 +234,56 @@ export async function POST(request) {
       };
 
       const startMinutes = parseToMinutes(driverPayload.startTime || bookingData.bookingTime);
-      const endMinutes = parseToMinutes(driverPayload.endTime || driverPayload.startTime);
+      const endMinutes = parseToMinutes(driverPayload.endTime);
 
-      if (startMinutes === null || endMinutes === null || endMinutes <= startMinutes) {
-        return NextResponse.json(
-          { success: false, message: 'Valid driver start and end time are required' },
-          { status: 400 }
-        );
+      // Only apply driver calculation if we have valid times
+      if (startMinutes !== null && endMinutes !== null && endMinutes > startMinutes) {
+        const totalMinutes = endMinutes - startMinutes;
+        const totalHours = totalMinutes / 60;
+        const baseHours = driverPayload.baseHours || 10;
+        const hourlyRate = driverPayload.hourlyRate || (bookingData.basePrice / baseHours);
+        const overtimeMultiplier = driverPayload.overtimeMultiplier || 2;
+        const overtimeHours = Math.max(0, totalHours - baseHours);
+        const billableBaseHours = Math.min(totalHours, baseHours);
+        const baseCost = billableBaseHours * hourlyRate;
+        const overtimeRate = hourlyRate * overtimeMultiplier;
+        const overtimeCost = overtimeHours * overtimeRate;
+
+        const resolvedStartTime = driverPayload.startTime || bookingData.bookingTime;
+        const resolvedEndTime = driverPayload.endTime;
+
+        driverDetails = {
+          startTime: resolvedStartTime,
+          endTime: resolvedEndTime,
+          totalHours: Number(totalHours.toFixed(2)),
+          baseHours,
+          hourlyRate,
+          overtimeHours: Number(overtimeHours.toFixed(2)),
+          overtimeRate,
+          overtimeMultiplier,
+          baseCost,
+          overtimeCost
+        };
+
+        bookingData.bookingTime = resolvedStartTime;
+        bookingData.basePrice = baseCost + overtimeCost;
+
+        // Apply GST based on service configuration
+        const gstRate = getServiceGstRate(bookingData.serviceName, bookingData.serviceCategory);
+        const gstAmount = (baseCost + overtimeCost) * gstRate;
+        bookingData.totalPrice = Number((baseCost + overtimeCost + gstAmount + extrasTotal).toFixed(2));
+      } else {
+        // Fallback to standard booking if times are invalid
+        const quantity = Number(bookingData.quantity) || 1;
+        const billingType = bookingData.billingType || 'one-time';
+        const billingMultiplier = billingType === 'monthly' ? 4 : 1;
+        const baseAmount = bookingData.basePrice + extrasTotal;
+
+        const gstRate = getServiceGstRate(bookingData.serviceName, bookingData.serviceCategory);
+        const gstAmount = baseAmount * gstRate;
+        bookingData.totalPrice = (baseAmount + gstAmount) * billingMultiplier * quantity;
       }
 
-      const totalMinutes = endMinutes - startMinutes;
-      const totalHours = totalMinutes / 60;
-      const baseHours = driverPayload.baseHours || 10;
-      const hourlyRate = driverPayload.hourlyRate || (bookingData.basePrice / baseHours);
-      const overtimeMultiplier = driverPayload.overtimeMultiplier || 2;
-      const overtimeHours = Math.max(0, totalHours - baseHours);
-      const billableBaseHours = Math.min(totalHours, baseHours);
-      const baseCost = billableBaseHours * hourlyRate;
-      const overtimeRate = hourlyRate * overtimeMultiplier;
-      const overtimeCost = overtimeHours * overtimeRate;
-
-      const resolvedStartTime = driverPayload.startTime || bookingData.bookingTime;
-      const resolvedEndTime = driverPayload.endTime || driverPayload.startTime;
-
-      driverDetails = {
-        startTime: resolvedStartTime,
-        endTime: resolvedEndTime,
-        totalHours: Number(totalHours.toFixed(2)),
-        baseHours,
-        hourlyRate,
-        overtimeHours: Number(overtimeHours.toFixed(2)),
-        overtimeRate,
-        overtimeMultiplier,
-        baseCost,
-        overtimeCost
-      };
-
-      bookingData.bookingTime = resolvedStartTime;
-      bookingData.basePrice = baseCost + overtimeCost;
-
-      // Apply GST based on service configuration
-      const gstRate = getServiceGstRate(bookingData.serviceName, bookingData.serviceCategory);
-      const gstAmount = (baseCost + overtimeCost) * gstRate;
-      bookingData.totalPrice = Number((baseCost + overtimeCost + gstAmount + extrasTotal).toFixed(2));
     } else {
       // Standard fixed-price booking
       const quantity = Number(bookingData.quantity) || 1;
@@ -343,7 +350,7 @@ export async function POST(request) {
 
     // Find providers whose services array contains this service name (exact match)
     const availableProviders = await ServiceProvider.find({
-      services: { $in: [serviceName] }, // Check if serviceName exists in services array
+      services: { $in: [serviceName] },
       status: 'active'
     }).select('_id name email phone services');
 
@@ -358,7 +365,6 @@ export async function POST(request) {
       console.log('⚠️ WARNING: No providers found for this service!');
       console.log('💡 Tip: Make sure providers register with exact service name:', serviceName);
     }
-
 
     // Send persistent notification to provider
     if (provider) {
