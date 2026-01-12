@@ -30,7 +30,13 @@ const SERVICE_CONFIG = {
 };
 
 // Get GST rate for a service (default 18% if not found)
-function getServiceGstRate(serviceName) {
+function getServiceGstRate(serviceName, serviceCategory) {
+  // Check category first - all pujari services have 0% GST
+  if (serviceCategory === 'pujari') {
+    return 0;
+  }
+
+  // Then check specific service name
   const config = SERVICE_CONFIG[serviceName];
   return config ? config.gstRate : 0.18;
 }
@@ -194,7 +200,7 @@ export async function POST(request) {
       };
 
       // Apply GST based on service configuration
-      const gstRate = getServiceGstRate(bookingData.serviceName);
+      const gstRate = getServiceGstRate(bookingData.serviceName, bookingData.serviceCategory);
       const gstAmount = baseCost * gstRate;
       bookingData.totalPrice = Number((baseCost + gstAmount + extrasTotal).toFixed(2));
 
@@ -251,7 +257,7 @@ export async function POST(request) {
       bookingData.basePrice = baseCost + overtimeCost;
 
       // Apply GST based on service configuration
-      const gstRate = getServiceGstRate(bookingData.serviceName);
+      const gstRate = getServiceGstRate(bookingData.serviceName, bookingData.serviceCategory);
       const gstAmount = (baseCost + overtimeCost) * gstRate;
       bookingData.totalPrice = Number((baseCost + overtimeCost + gstAmount + extrasTotal).toFixed(2));
     } else {
@@ -262,7 +268,7 @@ export async function POST(request) {
       const baseAmount = bookingData.basePrice + extrasTotal;
 
       // Apply GST based on service configuration
-      const gstRate = getServiceGstRate(bookingData.serviceName);
+      const gstRate = getServiceGstRate(bookingData.serviceName, bookingData.serviceCategory);
       const gstAmount = baseAmount * gstRate;
       bookingData.totalPrice = (baseAmount + gstAmount) * billingMultiplier * quantity;
     }
