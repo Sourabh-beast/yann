@@ -126,15 +126,15 @@ export function validateInput(data, schema) {
         return { success: true, data: validated };
     } catch (error) {
         if (error instanceof z.ZodError) {
-            const errors = error.errors.map(err => ({
+            const errors = error.errors?.map(err => ({
                 field: err.path.join('.'),
                 message: err.message
-            }));
+            })) || [];
 
             return {
                 success: false,
-                errors,
-                message: `Validation failed: ${errors[0].message}`
+                message: 'Validation failed',
+                errors
             };
         }
 
