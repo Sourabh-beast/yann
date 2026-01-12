@@ -8,6 +8,33 @@ import { validateDriverCarType, checkHourlyBillingSupport } from '@/utils/bookin
 import { requireAuth, verifyOwnership } from '@/lib/authMiddleware';
 import { validateInput, bookingCreateSchema } from '@/lib/validation';
 
+// Service Configuration - GST Rates per Service
+const SERVICE_CONFIG = {
+  'Drivers': { gstRate: 0.18 },
+  'Pujari': { gstRate: 0 },
+  'Maids': { gstRate: 0.18 },
+  'Baby Sitters': { gstRate: 0.18 },
+  'Nurses': { gstRate: 0.18 },
+  'Attendants': { gstRate: 0.18 },
+  'Cleaners': { gstRate: 0.18 },
+  'Office Boys': { gstRate: 0.18 },
+  'Chaprasi': { gstRate: 0.18 },
+  'Heena Artists': { gstRate: 0.18 },
+  'AC Service Technicians': { gstRate: 0.18 },
+  'RO Service Technicians': { gstRate: 0.18 },
+  'Refrigerator Service Technicians': { gstRate: 0.18 },
+  'Air Purifier Service Technicians': { gstRate: 0.18 },
+  'Toilet Cleaning Experts': { gstRate: 0.18 },
+  'Chimney Service Technicians': { gstRate: 0.18 },
+  'Security Guards': { gstRate: 0.18 },
+};
+
+// Get GST rate for a service (default 18% if not found)
+function getServiceGstRate(serviceName) {
+  const config = SERVICE_CONFIG[serviceName];
+  return config ? config.gstRate : 0.18;
+}
+
 export async function POST(request) {
   try {
     await connectDB();
@@ -167,7 +194,10 @@ export async function POST(request) {
         totalHourlyCharge: baseCost
       };
 
-      bookingData.totalPrice = Number((baseCost + extrasTotal).toFixed(2));
+      // Apply GST based on service configuration
+      const gstRate = getServiceGstRate(bookingData.serviceName);
+      const gstAmount = baseCost * gstRate;
+      bookingData.totalPrice = Number((baseCost + gstAmount + extrasTotal).toFixed(2));
 
     } else if (bookingData.serviceCategory === 'driver') {
       // Legacy driver details (backward compatibility)
@@ -219,13 +249,23 @@ export async function POST(request) {
       };
 
       bookingData.bookingTime = resolvedStartTime;
-      bookingData.totalPrice = Number((baseCost + overtimeCost + extrasTotal).toFixed(2));
+      bookingData.basePrice = baseCost + overtimeCost;
+
+      // Apply GST based on service configuration
+      const gstRate = getServiceGstRate(bookingData.serviceName);
+      const gstAmount = (baseCost + overtimeCost) * gstRate;
+      bookingData.totalPrice = Number((baseCost + overtimeCost + gstAmount + extrasTotal).toFixed(2));
     } else {
       // Standard fixed-price booking
       const quantity = Number(bookingData.quantity) || 1;
       const billingType = bookingData.billingType || 'one-time';
       const billingMultiplier = billingType === 'monthly' ? 4 : 1;
-      bookingData.totalPrice = (bookingData.basePrice + extrasTotal) * billingMultiplier * quantity;
+      const baseAmount = bookingData.basePrice + extrasTotal;
+
+      // Apply GST based on service configuration
+      const gstRate = getServiceGstRate(bookingData.serviceName);
+      const gstAmount = baseAmount * gstRate;
+      bookingData.totalPrice = (baseAmount + gstAmount) * billingMultiplier * quantity;
     }
 
     // Create new booking
