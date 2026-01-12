@@ -52,10 +52,19 @@ export const addressSchema = z.object({
 });
 
 /**
+ * Flexible ID schema - accepts MongoDB ObjectId or numeric ID
+ */
+export const flexibleIdSchema = z.union([
+    objectIdSchema,
+    z.string().regex(/^\d+$/, 'Must be a valid numeric ID'),
+    z.number().int().positive()
+]).transform(val => String(val));
+
+/**
  * Booking creation validation schema
  */
 export const bookingCreateSchema = z.object({
-    serviceId: objectIdSchema,
+    serviceId: flexibleIdSchema,
     serviceName: z.string().min(1).max(200),
     serviceCategory: z.string().min(1).max(100),
     customerId: objectIdSchema.optional(),
