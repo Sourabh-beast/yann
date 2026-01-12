@@ -1,10 +1,10 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-    output: 'export',
-    // Optional: Add trailing slash if preferred for GH pages, but usually not strictly required if not using custom server
-    trailingSlash: true,
+    // output: 'export', // Reverted: API routes require dynamic server/serverless (not static export)
+    // trailingSlash: true, // Optional
     images: {
-        unoptimized: true, // Required for static export
+        // unoptimized: true, // Only needed for static export
+        domains: ['res.cloudinary.com'], // Add common image domains if needed
     },
 };
 

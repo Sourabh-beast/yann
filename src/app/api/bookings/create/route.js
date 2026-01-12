@@ -11,6 +11,7 @@ import { validateInput, bookingCreateSchema } from '@/lib/validation';
 export async function POST(request) {
   try {
     await connectDB();
+    console.log('✅ DB Connected');
 
     // Verify authentication
     const authResult = requireAuth(request);
@@ -124,7 +125,14 @@ export async function POST(request) {
 
       // Calculate scheduled times
       const bookingDateTime = new Date(bookingData.bookingDate);
-      const [hours, minutes] = bookingData.bookingTime.split(':').map(Number);
+
+      let hours = 0, minutes = 0;
+      if (bookingData.bookingTime && typeof bookingData.bookingTime === 'string') {
+        [hours, minutes] = bookingData.bookingTime.split(':').map(Number);
+      } else {
+        console.error('Invalid bookingTime:', bookingData.bookingTime);
+      }
+
       bookingDateTime.setHours(hours, minutes, 0, 0);
 
       const scheduledStartTime = bookingDateTime;
@@ -139,6 +147,9 @@ export async function POST(request) {
       let partnerShiftEnd = null;
 
       if (provider.workingShifts && provider.workingShifts.enabled) {
+        if (Array.isArray(provider.workingShifts.days) && provider.workingShifts.days.map) {
+          console.log('Checking working days map capability');
+        }
         partnerShiftStart = provider.workingShifts.startTime;
         partnerShiftEnd = provider.workingShifts.endTime;
       }
@@ -163,9 +174,11 @@ export async function POST(request) {
       const driverPayload = bookingData.driverDetails || {};
       const parseToMinutes = (value) => {
         if (!value || typeof value !== 'string' || !value.includes(':')) return null;
-        const [hours, minutes] = value.split(':').map(Number);
-        if (Number.isNaN(hours) || Number.isNaN(minutes)) return null;
-        return hours * 60 + minutes;
+        try {
+          const [hours, minutes] = value.split(':').map(Number);
+          if (Number.isNaN(hours) || Number.isNaN(minutes)) return null;
+          return hours * 60 + minutes;
+        } catch (e) { return null; }
       };
 
       const startMinutes = parseToMinutes(driverPayload.startTime || bookingData.bookingTime);
@@ -320,12 +333,14 @@ export async function POST(request) {
     }, { status: 201 });
 
   } catch (error) {
-    console.error('Booking creation error:', error);
+    console.error('Booking creation error TRACE:', error);
+    console.error('Stack:', error.stack);
     return NextResponse.json(
       {
         success: false,
         message: 'Failed to create booking',
-        error: error.message
+        error: error.message,
+        stack: error.stack
       },
       { status: 500 }
     );
