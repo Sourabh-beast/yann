@@ -39,10 +39,14 @@ export async function POST(request) {
 
     await booking.save();
 
-    // CRITICAL FIX: Check if this booking was assigned to a specific provider
-    // If the assigned provider rejects, refund immediately
-    const isAssignedProviderRejection = booking.assignedProvider &&
-      booking.assignedProvider.toString() === providerId.toString();
+    // CRITICAL DEBUG: Check assignment and refund logic
+    let isAssignedProviderRejection = false;
+    if (booking.assignedProvider) {
+      isAssignedProviderRejection = booking.assignedProvider.toString() === providerId.toString();
+      console.log(`🔍 Booking Assignment Check: Assigned=${booking.assignedProvider}, Requesting=${providerId}, Match=${isAssignedProviderRejection}`);
+    } else {
+      console.log(`🔍 Booking Assignment Check: Not assigned to specific provider (Broadcast)`);
+    }
 
     // Check if all providers have rejected (for broadcast bookings)
     const allProviders = await ServiceProvider.find({
@@ -50,8 +54,14 @@ export async function POST(request) {
       status: 'active'
     });
 
+    // Count rejections including this one (since we just pushed it)
     const rejectedCount = booking.providerResponses.filter(r => r.response === 'rejected').length;
+
+    console.log(`📊 Rejection Stats: Total Active Providers=${allProviders.length}, Rejected Count=${rejectedCount}`);
+
     const shouldRefund = isAssignedProviderRejection || (rejectedCount >= allProviders.length);
+
+    console.log(`🤔 Should Refund? ${shouldRefund} (Assigned=${isAssignedProviderRejection}, AllRejected=${rejectedCount >= allProviders.length})`);
 
     if (shouldRefund) {
       booking.status = 'rejected';
