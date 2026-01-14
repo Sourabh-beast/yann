@@ -92,8 +92,8 @@ export async function POST(request) {
               balanceBefore: customerBalanceBefore,
               balanceAfter: homeowner.wallet.balance,
               escrowStatus: 'refunded',
-              paymentStage: 'initial_25',Provider
-              description: `25% booking deposit refunded (₹${refundAmount}) - All providers rejected`,
+              paymentStage: 'initial_25',
+              description: `25% booking deposit refunded (₹${refundAmount}) - Provider rejected`,
               status: 'completed',
               paymentMethod: 'wallet',
               currency: 'INR',
