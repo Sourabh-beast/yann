@@ -115,7 +115,10 @@ export async function GET(request) {
       } : null,
       jobSession: booking.jobSession ? {
         id: booking.jobSession._id,
+        _id: booking.jobSession._id,
         status: booking.jobSession.status,
+        startTime: booking.jobSession.startTime,
+        expectedDuration: booking.jobSession.expectedDuration,
         startOTP: booking.jobSession.startOTPPlain,
         endOTP: booking.jobSession.endOTPPlain,
       } : null,
