@@ -39,44 +39,25 @@ export async function POST(request) {
 
     await booking.save();
 
-    // CRITICAL DEBUG: Check assignment and refund logic
-    let isAssignedProviderRejection = false;
-    if (booking.assignedProvider) {
-      isAssignedProviderRejection = booking.assignedProvider.toString() === providerId.toString();
-      console.log(`🔍 Booking Assignment Check: Assigned=${booking.assignedProvider}, Requesting=${providerId}, Match=${isAssignedProviderRejection}`);
-    } else {
-      console.log(`🔍 Booking Assignment Check: Not assigned to specific provider (Broadcast)`);
+    // CRITICAL FIX: Immediately refund when ANY provider rejects
+    // This prevents money from being stuck in escrow
+    // Member can then rebook with another provider
+    console.log(`🔴 Provider ${providerId} rejected booking ${bookingId}`);
+    
+    // Immediately mark booking as rejected and process refund
+    booking.status = 'rejected';
+    if (booking.negotiation && booking.negotiation.isActive) {
+      booking.negotiation.isActive = false;
+      booking.negotiation.status = 'declined';
+      booking.negotiation.respondedAt = new Date();
     }
+    await booking.save();
 
-    // Check if all providers have rejected (for broadcast bookings)
-    const allProviders = await ServiceProvider.find({
-      services: booking.serviceName,
-      status: 'active'
-    });
+    console.log(`✅ Booking marked as rejected. Processing refund...`);
 
-    // Count rejections including this one (since we just pushed it)
-    const rejectedCount = booking.providerResponses.filter(r => r.response === 'rejected').length;
-
-    console.log(`📊 Rejection Stats: Total Active Providers=${allProviders.length}, Rejected Count=${rejectedCount}`);
-
-    const shouldRefund = isAssignedProviderRejection || (rejectedCount >= allProviders.length);
-
-    console.log(`🤔 Should Refund? ${shouldRefund} (Assigned=${isAssignedProviderRejection}, AllRejected=${rejectedCount >= allProviders.length})`);
-
-    if (shouldRefund) {
-      booking.status = 'rejected';
-      if (booking.negotiation && booking.negotiation.isActive) {
-        booking.negotiation.isActive = false;
-        booking.negotiation.status = 'declined';
-        booking.negotiation.respondedAt = new Date();
-      }
-      await booking.save();
-
-      console.log(`🔴 Booking rejected. Reason: ${isAssignedProviderRejection ? 'Assigned provider rejected' : 'All providers rejected'}`);
-
-      // 💰 ESCROW REFUND: Handle wallet payment refunds based on staging
-      if (booking.paymentMethod === 'wallet') {
-        const homeowner = await Homeowner.findById(booking.customerId);
+    // 💰 ESCROW REFUND: Handle wallet payment refunds based on staging
+    if (booking.paymentMethod === 'wallet') {
+      const homeowner = await Homeowner.findById(booking.customerId);
 
         if (homeowner) {
           // Initialize wallet if not exists
@@ -154,47 +135,54 @@ export async function POST(request) {
         }
       }
 
-      if (booking.residentRequest) {
-        const requestUpdate = { status: 'denied' };
-        if (booking.negotiation) {
-          requestUpdate.negotiation = {
-            ...booking.negotiation,
-            isActive: false,
-            status: 'declined',
-            updatedAt: new Date()
-          };
-        }
-        await ResidentRequest.findByIdAndUpdate(booking.residentRequest, { $set: requestUpdate });
+    if (booking.residentRequest) {
+      const requestUpdate = { status: 'denied' };
+      if (booking.negotiation) {
+        requestUpdate.negotiation = {
+          ...booking.negotiation,
+          isActive: false,
+          status: 'declined',
+          updatedAt: new Date()
+        };
       }
-
-      // Send push notification to member when all providers reject
-      const homeowner = await Homeowner.findById(booking.customerId);
-      if (homeowner?.pushToken && homeowner?.pushNotificationsEnabled) {
-        try {
-          const { sendBookingRejectedNotification } = await import('@/lib/sendPushNotification');
-          await sendBookingRejectedNotification(
-            homeowner.pushToken,
-            booking.serviceName,
-            booking._id.toString()
-          );
-          console.log(`📱 Push notification sent to member: ${homeowner.name}`);
-        } catch (notifError) {
-          console.error('Failed to send push notification:', notifError);
-          // Don't fail the rejection if notification fails
-        }
-      }
-
-      console.log(`❌ All providers rejected booking ${bookingId}`);
+      await ResidentRequest.findByIdAndUpdate(booking.residentRequest, { $set: requestUpdate });
     }
 
-    console.log(`⏭️ Provider rejected booking ${bookingId}. Reason: ${reason || 'Not specified'}`);
+    // Send push notification to member
+    const homeowner = await Homeowner.findById(booking.customerId);
+    if (homeowner) {
+      // Create persistent notification in database
+      try {
+        const { createAndSendNotification } = await import('@/lib/notificationHelper');
+        await createAndSendNotification({
+          title: '❌ Booking Declined',
+          message: `Unfortunately, the partner has declined your ${booking.serviceName} booking. Your ${booking.paymentMethod === 'wallet' ? 'wallet payment has been refunded' : 'booking has been cancelled'}. Please try booking again.`,
+          recipientId: booking.customerId.toString(),
+          recipientType: 'homeowner',
+          pushToken: homeowner.pushToken,
+          type: 'booking_rejected',
+          data: {
+            type: 'booking_rejected',
+            bookingId: booking._id.toString()
+          },
+          bookingId: booking._id.toString()
+        });
+        console.log(`📱 Notification sent to member: ${homeowner.name}`);
+      } catch (notifError) {
+        console.error('Failed to send notification:', notifError);
+        // Don't fail the rejection if notification fails
+      }
+    }
+
+    console.log(`❌ Booking ${bookingId} rejected and refunded successfully`);
 
     return NextResponse.json({
       success: true,
-      message: 'Booking rejected. It will be offered to other providers.',
+      message: 'Booking rejected and refunded successfully.',
       booking: {
         id: booking._id,
-        status: booking.status
+        status: booking.status,
+        refunded: booking.paymentMethod === 'wallet' && booking.paymentStatus === 'refunded'
       }
     }, { status: 200 });
 
