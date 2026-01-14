@@ -202,8 +202,9 @@ export async function POST(req) {
             session.endSession();
         }
 
-        // Send notification to provider (outside transaction)
+        // Send notifications (outside transaction)
         try {
+            // Notify provider
             await createAndSendNotification({
                 title: '💰 Payment Received!',
                 message: `You received ₹${completionAmount} for completing ${booking.serviceName}. Total booking amount received.`,
@@ -213,6 +214,22 @@ export async function POST(req) {
                 type: 'payment_received',
                 data: {
                     type: 'payment_received',
+                    bookingId: booking._id.toString(),
+                    amount: completionAmount
+                },
+                bookingId: booking._id.toString()
+            });
+
+            // Notify member
+            await createAndSendNotification({
+                title: '✅ Payment Completed!',
+                message: `₹${completionAmount} has been paid to ${provider.name} for ${booking.serviceName}. Thank you for using our service!`,
+                recipientId: user._id.toString(),
+                recipientType: 'homeowner',
+                pushToken: user.pushToken,
+                type: 'payment_completed',
+                data: {
+                    type: 'payment_completed',
                     bookingId: booking._id.toString(),
                     amount: completionAmount
                 },
