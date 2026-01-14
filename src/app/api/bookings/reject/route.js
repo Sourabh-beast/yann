@@ -39,9 +39,10 @@ export async function POST(request) {
 
     await booking.save();
 
-    // CRITICAL FIX: Immediately refund when ANY provider rejects
-    // This prevents money from being stuck in escrow
-    // Member can then rebook with another provider
+    // ONE-TO-ONE REJECTION LOGIC:
+    // Member books with a specific provider → Only that provider gets notified
+    // When that provider rejects → Immediate refund and booking rejection
+    // Member can then book with a different provider
     console.log(`🔴 Provider ${providerId} rejected booking ${bookingId}`);
     
     // Immediately mark booking as rejected and process refund
@@ -91,7 +92,7 @@ export async function POST(request) {
               balanceBefore: customerBalanceBefore,
               balanceAfter: homeowner.wallet.balance,
               escrowStatus: 'refunded',
-              paymentStage: 'initial_25',
+              paymentStage: 'initial_25',Provider
               description: `25% booking deposit refunded (₹${refundAmount}) - All providers rejected`,
               status: 'completed',
               paymentMethod: 'wallet',
