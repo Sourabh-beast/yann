@@ -97,7 +97,7 @@ const bookingSchema = new mongoose.Schema({
   },
   paymentStatus: {
     type: String,
-    enum: ['pending', 'paid', 'failed', 'refunded'],
+    enum: ['pending', 'paid', 'failed', 'refunded', 'partial'],  // Added 'partial' for staged payments
     default: 'pending'
   },
   razorpayOrderId: {
@@ -107,6 +107,23 @@ const bookingSchema = new mongoose.Schema({
   razorpayPaymentId: {
     type: String,
     default: null
+  },
+
+  // Wallet Payment Staging (for escrow-based wallet payments)
+  walletPaymentStage: {
+    type: String,
+    enum: ['none', 'initial_25_held', 'initial_25_released', 'completion_75_pending', 'completed'],
+    default: 'none'
+  },
+
+  // Escrow tracking for wallet payments
+  escrowDetails: {
+    initialAmount: { type: Number, default: 0 },        // 25% amount
+    completionAmount: { type: Number, default: 0 },     // 75% amount
+    initialPaidAt: { type: Date, default: null },       // When 25% was paid
+    initialReleasedAt: { type: Date, default: null },   // When 25% was released to partner
+    initialRefundedAt: { type: Date, default: null },   // When 25% was refunded (if rejected)
+    completionPaidAt: { type: Date, default: null }     // When 75% was paid
   },
 
   // Billing Type (for non-pujari services)

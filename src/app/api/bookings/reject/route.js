@@ -46,7 +46,7 @@ export async function POST(request) {
     });
 
     const rejectedCount = booking.providerResponses.filter(r => r.response === 'rejected').length;
-    
+
     if (rejectedCount >= allProviders.length) {
       booking.status = 'rejected';
       if (booking.negotiation && booking.negotiation.isActive) {
@@ -56,46 +56,83 @@ export async function POST(request) {
       }
       await booking.save();
 
-      // 💰 ESCROW REFUND: If payment was via wallet, refund to customer
-      if (booking.paymentMethod === 'wallet' && booking.paymentStatus === 'paid') {
-        const refundAmount = booking.totalPrice;
+      // 💰 ESCROW REFUND: Handle wallet payment refunds based on staging
+      if (booking.paymentMethod === 'wallet') {
         const homeowner = await Homeowner.findById(booking.customerId);
-        
+
         if (homeowner) {
           // Initialize wallet if not exists
           if (!homeowner.wallet) {
             homeowner.wallet = { balance: 0, currency: 'INR' };
           }
-          
+
           const customerBalanceBefore = homeowner.wallet.balance || 0;
-          
-          // Add back to customer's wallet
-          homeowner.wallet.balance = customerBalanceBefore + refundAmount;
-          await homeowner.save();
-          
-          // Create refund transaction record for member ONLY (no providerId)
-          // This ensures it only appears in member's wallet, not provider's wallet
-          await Transaction.create({
-            bookingId: bookingId,
-            customerId: booking.customerId,
-            // providerId is intentionally NOT included - this is member's refund
-            type: 'wallet_credit',
-            amount: refundAmount,
-            balanceBefore: customerBalanceBefore,
-            balanceAfter: homeowner.wallet.balance,
-            description: `Refund for rejected booking #${bookingId}: ${booking.serviceName}`,
-            status: 'completed',
-            paymentMethod: 'wallet',
-            currency: 'INR',
-            serviceName: booking.serviceName,
-            serviceCategory: booking.serviceCategory
-          });
-          
-          // Update booking payment status
-          booking.paymentStatus = 'refunded';
-          await booking.save();
-          
-          console.log(`💰 ESCROW REFUNDED: Returned ₹${refundAmount} to customer ${homeowner.name}'s wallet`);
+
+          // NEW: Check for staged payment (25% escrow)
+          if (booking.walletPaymentStage === 'initial_25_held') {
+            // Refund only the 25% that was held in escrow
+            const refundAmount = booking.escrowDetails?.initialAmount || booking.totalPrice * 0.25;
+
+            // Add back to customer's wallet
+            homeowner.wallet.balance = customerBalanceBefore + refundAmount;
+            await homeowner.save();
+
+            // Update booking escrow status
+            booking.walletPaymentStage = 'none';
+            booking.escrowDetails.initialRefundedAt = new Date();
+            booking.paymentStatus = 'refunded';
+            await booking.save();
+
+            // Create escrow_refund transaction record
+            await Transaction.create({
+              bookingId: bookingId,
+              customerId: booking.customerId,
+              type: 'escrow_refund',
+              amount: refundAmount,
+              balanceBefore: customerBalanceBefore,
+              balanceAfter: homeowner.wallet.balance,
+              escrowStatus: 'refunded',
+              paymentStage: 'initial_25',
+              description: `25% booking deposit refunded (₹${refundAmount}) - All providers rejected`,
+              status: 'completed',
+              paymentMethod: 'wallet',
+              currency: 'INR',
+              serviceName: booking.serviceName,
+              serviceCategory: booking.serviceCategory
+            });
+
+            console.log(`💰 ESCROW REFUNDED (25%): Returned ₹${refundAmount} to customer ${homeowner.name}'s wallet`);
+          }
+          // LEGACY: Handle old full-amount escrow bookings (backward compatibility)
+          else if (booking.paymentStatus === 'paid' && !booking.walletPaymentStage) {
+            const refundAmount = booking.totalPrice;
+
+            // Add back to customer's wallet
+            homeowner.wallet.balance = customerBalanceBefore + refundAmount;
+            await homeowner.save();
+
+            // Create refund transaction record
+            await Transaction.create({
+              bookingId: bookingId,
+              customerId: booking.customerId,
+              type: 'wallet_refund',
+              amount: refundAmount,
+              balanceBefore: customerBalanceBefore,
+              balanceAfter: homeowner.wallet.balance,
+              description: `Refund for rejected booking #${bookingId}: ${booking.serviceName}`,
+              status: 'completed',
+              paymentMethod: 'wallet',
+              currency: 'INR',
+              serviceName: booking.serviceName,
+              serviceCategory: booking.serviceCategory
+            });
+
+            // Update booking payment status
+            booking.paymentStatus = 'refunded';
+            await booking.save();
+
+            console.log(`💰 ESCROW REFUNDED (LEGACY): Returned ₹${refundAmount} to customer ${homeowner.name}'s wallet`);
+          }
         }
       }
 
@@ -111,7 +148,7 @@ export async function POST(request) {
         }
         await ResidentRequest.findByIdAndUpdate(booking.residentRequest, { $set: requestUpdate });
       }
-      
+
       // Send push notification to member when all providers reject
       const homeowner = await Homeowner.findById(booking.customerId);
       if (homeowner?.pushToken && homeowner?.pushNotificationsEnabled) {
@@ -128,7 +165,7 @@ export async function POST(request) {
           // Don't fail the rejection if notification fails
         }
       }
-      
+
       console.log(`❌ All providers rejected booking ${bookingId}`);
     }
 
@@ -146,10 +183,10 @@ export async function POST(request) {
   } catch (error) {
     console.error('Booking rejection error:', error);
     return NextResponse.json(
-      { 
-        success: false, 
+      {
+        success: false,
         message: 'Failed to reject booking',
-        error: error.message 
+        error: error.message
       },
       { status: 500 }
     );

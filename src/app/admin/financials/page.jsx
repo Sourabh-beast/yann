@@ -2,12 +2,12 @@
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { 
-  Users, Briefcase, ClipboardList, Activity, Menu, X, Search, 
+import {
+  Users, Briefcase, ClipboardList, Activity, Menu, X, Search,
   DollarSign, Package, Settings, LogOut, TrendingUp, TrendingDown,
   Calendar, CreditCard, RefreshCw, AlertTriangle, CheckCircle, Clock,
   ArrowUpRight, ArrowDownRight, Filter, Download, Eye, XCircle,
-  BarChart3, Star, Bell, Gift, HeadphonesIcon, FileText
+  BarChart3, Star, Bell, Gift, HeadphonesIcon, FileText, Wallet
 } from 'lucide-react';
 
 export default function FinancialsPage() {
@@ -15,13 +15,17 @@ export default function FinancialsPage() {
   const [loading, setLoading] = useState(true);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [activeTab, setActiveTab] = useState('overview'); // overview, transactions, refunds, disputes
-  
+
   // Data states
   const [revenue, setRevenue] = useState(null);
   const [transactions, setTransactions] = useState([]);
   const [disputes, setDisputes] = useState([]);
   const [period, setPeriod] = useState('monthly');
-  
+
+  // Platform Wallet State
+  const [platformWallet, setPlatformWallet] = useState(null);
+  const [withdrawalRequests, setWithdrawalRequests] = useState([]);
+
   // Filters
   const [transactionFilter, setTransactionFilter] = useState({ type: '', status: '' });
   const [searchTerm, setSearchTerm] = useState('');
@@ -57,6 +61,28 @@ export default function FinancialsPage() {
       const disputeData = await disputeRes.json();
       if (disputeData.success) {
         setDisputes(disputeData.data.disputes);
+      }
+
+      // Fetch platform wallet data
+      try {
+        const walletRes = await fetch('/api/admin/wallet');
+        const walletData = await walletRes.json();
+        if (walletData.success) {
+          setPlatformWallet(walletData.data);
+        }
+      } catch (e) {
+        console.log('Platform wallet not available:', e);
+      }
+
+      // Fetch withdrawal requests
+      try {
+        const withdrawRes = await fetch('/api/admin/withdrawals');
+        const withdrawData = await withdrawRes.json();
+        if (withdrawData.success) {
+          setWithdrawalRequests(withdrawData.data || []);
+        }
+      } catch (e) {
+        console.log('Withdrawals not available:', e);
       }
     } catch (error) {
       console.error('Error fetching data:', error);
@@ -124,6 +150,64 @@ export default function FinancialsPage() {
     }
   };
 
+  // Handle withdrawal approval
+  const handleApproveWithdrawal = async (withdrawalId) => {
+    if (!confirm('Are you sure you want to approve this withdrawal?')) return;
+
+    try {
+      const res = await fetch('/api/admin/withdrawals', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          withdrawalId,
+          action: 'approve',
+          processedBy: 'admin'
+        })
+      });
+
+      const data = await res.json();
+      if (data.success) {
+        alert('✅ Withdrawal approved and processed!');
+        fetchData();
+      } else {
+        alert('❌ ' + data.message);
+      }
+    } catch (error) {
+      console.error('Error approving withdrawal:', error);
+      alert('❌ Failed to approve withdrawal');
+    }
+  };
+
+  // Handle withdrawal rejection
+  const handleRejectWithdrawal = async (withdrawalId) => {
+    const reason = prompt('Please enter a reason for rejection:');
+    if (!reason) return;
+
+    try {
+      const res = await fetch('/api/admin/withdrawals', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          withdrawalId,
+          action: 'reject',
+          reason,
+          processedBy: 'admin'
+        })
+      });
+
+      const data = await res.json();
+      if (data.success) {
+        alert('✅ Withdrawal rejected and funds returned to provider!');
+        fetchData();
+      } else {
+        alert('❌ ' + data.message);
+      }
+    } catch (error) {
+      console.error('Error rejecting withdrawal:', error);
+      alert('❌ Failed to reject withdrawal');
+    }
+  };
+
   const sidebarItems = [
     { label: 'Dashboard', href: '/admin', icon: Activity },
     { label: 'Analytics', href: '/admin/analytics', icon: BarChart3 },
@@ -162,7 +246,7 @@ export default function FinancialsPage() {
           </h1>
           <p className="text-sm text-gray-500 mt-1">Management Panel</p>
         </div>
-        
+
         <nav className="p-4 overflow-y-auto" style={{ maxHeight: 'calc(100vh - 180px)' }}>
           <ul className="space-y-2">
             {sidebarItems.map((item) => {
@@ -173,11 +257,10 @@ export default function FinancialsPage() {
                   <Link
                     href={item.href}
                     onClick={() => setSidebarOpen(false)}
-                    className={`flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-300 font-medium ${
-                      isActive 
-                        ? 'bg-gradient-to-r from-blue-500 to-purple-500 text-white shadow-lg' 
-                        : 'text-gray-700 hover:bg-gradient-to-r hover:from-blue-50 hover:to-purple-50 hover:text-blue-600'
-                    }`}
+                    className={`flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-300 font-medium ${isActive
+                      ? 'bg-gradient-to-r from-blue-500 to-purple-500 text-white shadow-lg'
+                      : 'text-gray-700 hover:bg-gradient-to-r hover:from-blue-50 hover:to-purple-50 hover:text-blue-600'
+                      }`}
                   >
                     <Icon className="w-5 h-5" />
                     {item.label}
@@ -234,6 +317,7 @@ export default function FinancialsPage() {
         <div className="flex gap-2 mb-6 overflow-x-auto pb-2">
           {[
             { id: 'overview', label: 'Overview', icon: TrendingUp },
+            { id: 'wallet', label: 'Platform Wallet', icon: Wallet },
             { id: 'transactions', label: 'Transactions', icon: CreditCard },
             { id: 'refunds', label: 'Refunds', icon: RefreshCw },
             { id: 'disputes', label: 'Disputes', icon: AlertTriangle }
@@ -243,11 +327,10 @@ export default function FinancialsPage() {
               <button
                 key={tab.id}
                 onClick={() => setActiveTab(tab.id)}
-                className={`flex items-center gap-2 px-4 py-2 rounded-xl font-medium whitespace-nowrap transition ${
-                  activeTab === tab.id
-                    ? 'bg-gradient-to-r from-blue-600 to-purple-600 text-white'
-                    : 'bg-white text-gray-600 hover:bg-gray-50'
-                }`}
+                className={`flex items-center gap-2 px-4 py-2 rounded-xl font-medium whitespace-nowrap transition ${activeTab === tab.id
+                  ? 'bg-gradient-to-r from-blue-600 to-purple-600 text-white'
+                  : 'bg-white text-gray-600 hover:bg-gray-50'
+                  }`}
               >
                 <Icon className="w-4 h-4" />
                 {tab.label}
@@ -310,7 +393,7 @@ export default function FinancialsPage() {
                           <span className="text-sm font-medium text-gray-700 capitalize">{cat._id || 'Other'}</span>
                           <div className="flex items-center gap-3">
                             <div className="w-32 h-2 bg-gray-200 rounded-full overflow-hidden">
-                              <div 
+                              <div
                                 className="h-full bg-gradient-to-r from-blue-500 to-purple-500 rounded-full"
                                 style={{ width: `${(cat.revenue / revenue.summary.totalRevenue) * 100}%` }}
                               />
@@ -362,6 +445,134 @@ export default function FinancialsPage() {
               </>
             )}
 
+            {/* Platform Wallet Tab */}
+            {activeTab === 'wallet' && (
+              <>
+                {/* Wallet Summary Cards */}
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+                  <StatCard
+                    title="Platform Wallet Balance"
+                    value={formatCurrency(platformWallet?.balance || 0)}
+                    subtitle="Available for operations"
+                    icon={Wallet}
+                    gradient="from-indigo-500 to-purple-600"
+                  />
+                  <StatCard
+                    title="Total Commission Earned"
+                    value={formatCurrency(platformWallet?.totalCommissionsEarned || 0)}
+                    subtitle="From partner withdrawals"
+                    icon={TrendingUp}
+                    gradient="from-green-500 to-emerald-600"
+                  />
+                  <StatCard
+                    title="Total Volume Processed"
+                    value={formatCurrency(platformWallet?.totalVolumeProcessed || 0)}
+                    subtitle="All time transactions"
+                    icon={CreditCard}
+                    gradient="from-blue-500 to-blue-600"
+                  />
+                </div>
+
+                {/* Pending Withdrawal Requests */}
+                <div className="bg-white rounded-2xl shadow-lg border border-gray-100 p-6 mb-6">
+                  <h3 className="text-xl font-bold text-gray-900 mb-4">Pending Withdrawal Requests</h3>
+                  {withdrawalRequests.filter(w => w.status === 'pending').length === 0 ? (
+                    <div className="py-12 text-center text-gray-500">
+                      <Clock className="w-12 h-12 mx-auto mb-4 text-gray-300" />
+                      <p>No pending withdrawal requests</p>
+                    </div>
+                  ) : (
+                    <div className="space-y-4">
+                      {withdrawalRequests.filter(w => w.status === 'pending').map((req) => (
+                        <div key={req._id} className="p-4 border border-gray-200 rounded-xl flex items-center justify-between">
+                          <div>
+                            <p className="font-semibold text-gray-900">
+                              {req.providerId?.name || 'Partner'}
+                            </p>
+                            <p className="text-sm text-gray-600">
+                              Bank: {req.withdrawalDetails?.bankAccount || 'N/A'}
+                            </p>
+                            <p className="text-xs text-gray-500">
+                              Requested: {new Date(req.createdAt).toLocaleDateString('en-IN')}
+                            </p>
+                          </div>
+                          <div className="text-right">
+                            <p className="text-xl font-bold text-gray-900">
+                              {formatCurrency(req.amount)}
+                            </p>
+                            <p className="text-xs text-gray-500">
+                              Commission: {formatCurrency(req.withdrawalDetails?.commission || 0)}
+                            </p>
+                            <div className="flex gap-2 mt-2">
+                              <button
+                                className="px-3 py-1 bg-green-600 text-white rounded-lg text-sm hover:bg-green-700"
+                                onClick={() => handleApproveWithdrawal(req._id)}
+                              >
+                                Approve
+                              </button>
+                              <button
+                                className="px-3 py-1 bg-red-600 text-white rounded-lg text-sm hover:bg-red-700"
+                                onClick={() => handleRejectWithdrawal(req._id)}
+                              >
+                                Reject
+                              </button>
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+
+                {/* Recent Commission Transactions */}
+                <div className="bg-white rounded-2xl shadow-lg border border-gray-100 p-6">
+                  <h3 className="text-xl font-bold text-gray-900 mb-4">Recent Commission History</h3>
+                  <div className="overflow-x-auto">
+                    <table className="w-full">
+                      <thead className="bg-gray-50">
+                        <tr>
+                          <th className="text-left py-4 px-6 text-sm font-semibold text-gray-600">Date</th>
+                          <th className="text-left py-4 px-6 text-sm font-semibold text-gray-600">Partner</th>
+                          <th className="text-left py-4 px-6 text-sm font-semibold text-gray-600">Type</th>
+                          <th className="text-left py-4 px-6 text-sm font-semibold text-gray-600">Withdrawal Amount</th>
+                          <th className="text-left py-4 px-6 text-sm font-semibold text-gray-600">Commission</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {(platformWallet?.recentTransactions || []).length === 0 ? (
+                          <tr>
+                            <td colSpan="5" className="py-12 text-center text-gray-500">
+                              No commission transactions yet
+                            </td>
+                          </tr>
+                        ) : (
+                          (platformWallet?.recentTransactions || []).slice(0, 10).map((tx) => (
+                            <tr key={tx._id} className="border-t border-gray-100 hover:bg-gray-50">
+                              <td className="py-4 px-6 text-sm text-gray-600">
+                                {new Date(tx.createdAt).toLocaleDateString('en-IN')}
+                              </td>
+                              <td className="py-4 px-6 text-sm font-medium text-gray-900">
+                                {tx.providerId?.name || 'Partner'}
+                              </td>
+                              <td className="py-4 px-6 text-sm text-gray-600 capitalize">
+                                {tx.type?.replace(/_/g, ' ') || 'Commission'}
+                              </td>
+                              <td className="py-4 px-6 text-sm text-gray-600">
+                                {formatCurrency(tx.withdrawalDetails?.requestedAmount || tx.amount)}
+                              </td>
+                              <td className="py-4 px-6 text-sm font-bold text-green-600">
+                                +{formatCurrency(tx.withdrawalDetails?.commission || tx.amount)}
+                              </td>
+                            </tr>
+                          ))
+                        )}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              </>
+            )}
+
             {/* Transactions Tab */}
             {activeTab === 'transactions' && (
               <div className="bg-white rounded-2xl shadow-lg border border-gray-100 overflow-hidden">
@@ -381,7 +592,7 @@ export default function FinancialsPage() {
                       </div>
                       <select
                         value={transactionFilter.status}
-                        onChange={(e) => setTransactionFilter({...transactionFilter, status: e.target.value})}
+                        onChange={(e) => setTransactionFilter({ ...transactionFilter, status: e.target.value })}
                         className="px-3 py-2 border border-gray-200 rounded-lg"
                       >
                         <option value="">All Status</option>
@@ -453,7 +664,7 @@ export default function FinancialsPage() {
               <div className="bg-white rounded-2xl shadow-lg border border-gray-100 p-6">
                 <h3 className="text-xl font-bold text-gray-900 mb-4">Refund Management</h3>
                 <p className="text-gray-600 mb-6">Process refunds for completed bookings. Go to Bookings page to initiate refund.</p>
-                
+
                 <div className="space-y-4">
                   {transactions.filter(t => t.type === 'refund').length === 0 ? (
                     <div className="py-12 text-center text-gray-500">
@@ -489,7 +700,7 @@ export default function FinancialsPage() {
             {activeTab === 'disputes' && (
               <div className="bg-white rounded-2xl shadow-lg border border-gray-100 p-6">
                 <h3 className="text-xl font-bold text-gray-900 mb-4">Payment Disputes</h3>
-                
+
                 <div className="space-y-4">
                   {disputes.length === 0 ? (
                     <div className="py-12 text-center text-gray-500">
@@ -503,7 +714,7 @@ export default function FinancialsPage() {
                           <div>
                             <p className="font-semibold text-gray-900">{dispute.serviceName}</p>
                             <p className="text-sm text-gray-600">
-                              Raised by: {dispute.dispute?.raisedBy} | 
+                              Raised by: {dispute.dispute?.raisedBy} |
                               Reason: {dispute.dispute?.reason}
                             </p>
                             <p className="text-xs text-gray-500">
@@ -511,11 +722,10 @@ export default function FinancialsPage() {
                             </p>
                           </div>
                           <div className="flex items-center gap-2">
-                            <span className={`px-2 py-1 rounded-full text-xs font-semibold ${
-                              dispute.dispute?.status === 'open' ? 'bg-yellow-100 text-yellow-700' :
+                            <span className={`px-2 py-1 rounded-full text-xs font-semibold ${dispute.dispute?.status === 'open' ? 'bg-yellow-100 text-yellow-700' :
                               dispute.dispute?.status === 'resolved' ? 'bg-green-100 text-green-700' :
-                              'bg-gray-100 text-gray-700'
-                            }`}>
+                                'bg-gray-100 text-gray-700'
+                              }`}>
                               {dispute.dispute?.status}
                             </span>
                             {dispute.dispute?.status === 'open' && (

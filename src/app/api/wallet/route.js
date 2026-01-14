@@ -8,7 +8,7 @@ export async function GET(req) {
   try {
     // Extract user ID from request headers (sent by mobile app)
     const userId = req.headers.get('x-user-id');
-    
+
     if (!userId) {
       return NextResponse.json({ success: false, message: 'Unauthorized' }, { status: 401 });
     }
@@ -23,21 +23,37 @@ export async function GET(req) {
     user = await Homeowner.findById(userId).select('wallet');
     if (user) {
       userType = 'homeowner';
-      // Members see only THEIR transactions (topup, debit, refund)
-      // wallet_credit is for providers only (earnings from bookings)
-      transactionQuery = { 
+      // Members see their transactions (topup, debit, refund, escrow)
+      transactionQuery = {
         customerId: userId,
-        type: { $in: ['wallet_topup', 'wallet_debit', 'wallet_refund'] }
+        type: {
+          $in: [
+            'wallet_topup',
+            'wallet_debit',
+            'wallet_refund',
+            'escrow_hold',      // 25% held for booking
+            'escrow_refund',    // 25% refunded when rejected
+            'completion_payment' // 75% paid after completion
+          ]
+        }
       };
     } else {
       // If not found, try ServiceProvider
       user = await ServiceProvider.findById(userId).select('wallet');
       if (user) {
         userType = 'provider';
-        // Providers ONLY see earnings (wallet_credit from accepted bookings)
-        transactionQuery = { 
+        // Providers see earnings and withdrawal transactions
+        transactionQuery = {
           providerId: userId,
-          type: 'wallet_credit' // Only show earnings, not expenses
+          type: {
+            $in: [
+              'wallet_credit',        // Earnings from bookings
+              'escrow_release',       // 25% received on acceptance
+              'withdrawal_request',   // Withdrawal requested
+              'withdrawal_completed', // Withdrawal processed
+              'withdrawal_rejected'   // Withdrawal rejected
+            ]
+          }
         };
       }
     }
