@@ -4,6 +4,7 @@ import jwt from 'jsonwebtoken';
 import connectDB from '@/lib/connectDB';
 import Booking from '@/models/Booking';
 import Homeowner from '@/models/Homeowner';
+import ServiceProvider from '@/models/ServiceProvider'; // Fixed: Import ServiceProvider
 import JobSession from '@/models/JobSession';
 import { getPaginationParams, createPaginationMeta } from '@/lib/pagination';
 
