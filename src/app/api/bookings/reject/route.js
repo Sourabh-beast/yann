@@ -39,15 +39,21 @@ export async function POST(request) {
 
     await booking.save();
 
-    // Check if all providers have rejected
+    // CRITICAL FIX: Check if this booking was assigned to a specific provider
+    // If the assigned provider rejects, refund immediately
+    const isAssignedProviderRejection = booking.assignedProvider &&
+      booking.assignedProvider.toString() === providerId.toString();
+
+    // Check if all providers have rejected (for broadcast bookings)
     const allProviders = await ServiceProvider.find({
       services: booking.serviceName,
       status: 'active'
     });
 
     const rejectedCount = booking.providerResponses.filter(r => r.response === 'rejected').length;
+    const shouldRefund = isAssignedProviderRejection || (rejectedCount >= allProviders.length);
 
-    if (rejectedCount >= allProviders.length) {
+    if (shouldRefund) {
       booking.status = 'rejected';
       if (booking.negotiation && booking.negotiation.isActive) {
         booking.negotiation.isActive = false;
@@ -55,6 +61,8 @@ export async function POST(request) {
         booking.negotiation.respondedAt = new Date();
       }
       await booking.save();
+
+      console.log(`🔴 Booking rejected. Reason: ${isAssignedProviderRejection ? 'Assigned provider rejected' : 'All providers rejected'}`);
 
       // 💰 ESCROW REFUND: Handle wallet payment refunds based on staging
       if (booking.paymentMethod === 'wallet') {
