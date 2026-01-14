@@ -15,7 +15,7 @@ async function getAuthenticatedProvider(request) {
   // First try x-user-id header (mobile app sends this)
   const headersList = headers();
   const userId = headersList.get('x-user-id');
-  
+
   if (userId) {
     const provider = await ServiceProvider.findById(userId);
     if (provider) {
@@ -26,14 +26,14 @@ async function getAuthenticatedProvider(request) {
 
   // Then try JWT from cookie or Authorization header
   let token = cookies().get(PROVIDER_COOKIE)?.value;
-  
+
   if (!token) {
     const authHeader = request.headers.get('authorization');
     if (authHeader?.startsWith('Bearer ')) {
       token = authHeader.substring(7);
     }
   }
-  
+
   if (token && process.env.JWT_SECRET) {
     try {
       const decoded = jwt.verify(token, process.env.JWT_SECRET);
@@ -87,7 +87,8 @@ export async function GET(request) {
     // Get bookings assigned to this provider
     const bookings = await Booking.find(query)
       .sort({ createdAt: -1 })
-      .populate('customerId', 'name email phone');
+      .populate('customerId', 'name email phone')
+      .populate('jobSession'); // Populate job session details
 
     console.log(`✅ Found ${bookings.length} bookings for provider ${provider.name}`);
 
@@ -117,6 +118,17 @@ export async function GET(request) {
       customerAddress: booking.customerAddress,
       paymentMethod: booking.paymentMethod,
       paymentStatus: booking.paymentStatus,
+      walletPaymentStage: booking.walletPaymentStage || null,
+      escrowDetails: booking.escrowDetails || null,
+      jobSession: booking.jobSession ? {
+        _id: booking.jobSession._id,
+        id: booking.jobSession._id,
+        status: booking.jobSession.status,
+        startTime: booking.jobSession.startTime,
+        expectedDuration: booking.jobSession.expectedDuration,
+        startOTP: booking.jobSession.startOTPPlain,
+        endOTP: booking.jobSession.endOTPPlain,
+      } : null,
       customer: booking.customerId ? {
         id: booking.customerId._id?.toString(),
         name: booking.customerId.name,
@@ -130,6 +142,7 @@ export async function GET(request) {
       completedAt: booking.completedAt,
       createdAt: booking.createdAt,
       updatedAt: booking.updatedAt,
+      customerAvatar: booking.customerId?.profileImage || null,
     }));
 
     const mappedPendingRequests = pendingRequests.map((booking) => ({
