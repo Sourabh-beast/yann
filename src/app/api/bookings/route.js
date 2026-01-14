@@ -27,7 +27,8 @@ export async function GET(request) {
     }
 
     // Support both cookie-based (website) and token-based (mobile app) authentication
-    let token = cookies().get(HOME_COOKIE)?.value;
+    const cookieStore = await cookies();
+    let token = cookieStore.get(HOME_COOKIE)?.value;
 
     // If no cookie, check Authorization header for mobile app
     if (!token) {

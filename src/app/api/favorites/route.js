@@ -31,7 +31,8 @@ export async function GET(request) {
         let userId;
 
         // Get token from cookie or header
-        let token = cookies().get(HOME_COOKIE)?.value;
+        const cookieStore = await cookies();
+        let token = cookieStore.get(HOME_COOKIE)?.value;
         if (!token) {
             const authHeader = request.headers.get('authorization');
             if (authHeader?.startsWith('Bearer ')) {
@@ -118,7 +119,8 @@ export async function POST(request) {
         }
 
         // Support both cookie-based and token-based authentication
-        let token = cookies().get(HOME_COOKIE)?.value;
+        const cookieStore = await cookies();
+        let token = cookieStore.get(HOME_COOKIE)?.value;
 
         if (!token) {
             const authHeader = request.headers.get('authorization');

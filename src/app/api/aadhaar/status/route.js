@@ -24,7 +24,8 @@ export async function GET(request) {
     let userType = null;
 
     // Try homeowner cookie
-    const homeownerToken = cookies().get(HOMEOWNER_COOKIE)?.value;
+    const cookieStore = await cookies();
+    const homeownerToken = cookieStore.get(HOMEOWNER_COOKIE)?.value;
     if (homeownerToken && process.env.JWT_SECRET) {
       try {
         const decoded = jwt.verify(homeownerToken, process.env.JWT_SECRET);
@@ -37,7 +38,7 @@ export async function GET(request) {
 
     // Try provider cookie
     if (!user) {
-      const providerToken = cookies().get(PROVIDER_COOKIE)?.value;
+      const providerToken = cookieStore.get(PROVIDER_COOKIE)?.value;
       if (providerToken && process.env.JWT_SECRET) {
         try {
           const decoded = jwt.verify(providerToken, process.env.JWT_SECRET);

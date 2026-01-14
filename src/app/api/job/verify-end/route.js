@@ -273,12 +273,18 @@ export async function POST(request) {
 
       const completionAmount = booking.escrowDetails?.completionAmount || (booking.totalPrice * 0.75);
 
+      console.log('🔔 Sending completion notification:');
+      console.log(`   Payment required: ${needsCompletionPayment}`);
+      console.log(`   Completion amount: ₹${completionAmount}`);
+      console.log(`   Booking ID: ${booking._id}`);
+      console.log(`   Homeowner ID: ${homeowner._id}`);
+
       await createAndSendNotification({
         title: needsCompletionPayment ? '💰 Payment Required' : '✅ Job Completed',
         message: needsCompletionPayment 
           ? `Job completed! Please pay ₹${completionAmount} (75%) to settle the booking for ${booking.serviceName}.`
           : `The job ${booking.serviceName} is completed. Total: ₹${jobSession.totalCharge}`,
-        recipientId: jobSession.customer.toString(),
+        recipientId: homeowner._id.toString(),
         recipientType: 'homeowner',
         pushToken: homeowner.pushToken,
         type: needsCompletionPayment ? 'payment_required' : 'job_completed',
@@ -289,6 +295,8 @@ export async function POST(request) {
         },
         bookingId: booking._id.toString()
       });
+
+      console.log('✅ Completion notification sent');
     }
 
 

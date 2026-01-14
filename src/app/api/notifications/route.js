@@ -49,7 +49,7 @@ export async function GET(request) {
     // Map to mobile app format
     const formattedNotifications = notifications.map(n => ({
         id: n._id.toString(),
-        type: n.tags?.[0] || 'general', // Use first tag as type
+        type: n.type || n.tags?.[0] || 'general', // Use type field first, then tags
         title: n.title,
         message: n.message,
         timestamp: n.createdAt,
@@ -57,9 +57,19 @@ export async function GET(request) {
         data: n.metadata || {}
     }));
 
+    console.log('📤 Returning formatted notifications:', formattedNotifications.length);
+    if (formattedNotifications.length > 0) {
+      console.log('   Sample notification types:', formattedNotifications.slice(0, 5).map(n => n.type));
+      const paymentNotif = formattedNotifications.find(n => n.type === 'payment_required');
+      if (paymentNotif) {
+        console.log('   💰 Payment notification data:', paymentNotif.data);
+      }
+    }
+
     return NextResponse.json({
       success: true,
-      notifications: formattedNotifications,
+      data: formattedNotifications, // Changed from 'notifications' to 'data' for consistency
+      notifications: formattedNotifications, // Keep both for backwards compatibility
       meta: {
         page,
         limit,

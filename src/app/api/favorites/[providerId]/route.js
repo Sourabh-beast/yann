@@ -25,10 +25,8 @@ export async function DELETE(request, { params }) {
         }
 
         // Support both cookie-based and token-based authentication
-        let token = cookies().get(HOME_COOKIE)?.value;
-
-        if (!token) {
-            const authHeader = request.headers.get('authorization');
+    const cookieStore = await cookies();
+    let token = cookieStore.get(HOME_COOKIE)?.value;
             if (authHeader?.startsWith('Bearer ')) {
                 token = authHeader.substring(7);
             }

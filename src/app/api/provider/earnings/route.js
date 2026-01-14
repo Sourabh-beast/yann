@@ -23,7 +23,8 @@ export async function GET(request) {
 
     // Also check JWT token from cookie
     if (!providerId) {
-      const token = cookies().get('yann_session')?.value;
+      const cookieStore = await cookies();
+      const token = cookieStore.get('yann_session')?.value;
       if (token && process.env.JWT_SECRET) {
         try {
           const decoded = jwt.verify(token, process.env.JWT_SECRET);

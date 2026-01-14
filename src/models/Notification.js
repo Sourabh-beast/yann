@@ -4,7 +4,29 @@ const notificationSchema = new mongoose.Schema({
   // Notification type
   type: {
     type: String,
-    enum: ['push', 'email', 'sms', 'announcement', 'in-app'],
+    enum: [
+      'push', 
+      'email', 
+      'sms', 
+      'announcement', 
+      'in-app',
+      // Booking lifecycle
+      'new_booking',
+      'booking_accepted',
+      'booking_rejected',
+      'booking_cancelled',
+      // Job lifecycle
+      'job_started',
+      'job_completed',
+      'otp_start',
+      'otp_end',
+      // Payment
+      'payment_required',
+      'payment_received',
+      'refund_processed',
+      // General
+      'general'
+    ],
     required: true
   },
   

@@ -24,7 +24,8 @@ export async function GET(request) {
     }
 
     // Try to get token from cookie first (for web)
-    let token = cookies().get(PROVIDER_COOKIE)?.value;
+    const cookieStore = await cookies();
+    let token = cookieStore.get(PROVIDER_COOKIE)?.value;
 
     // If no cookie, try Authorization header (for mobile)
     if (!token) {
@@ -131,7 +132,8 @@ async function handleProfileUpdate(request) {
     }
 
     // Try to get token from cookie first (for web)
-    let token = cookies().get(PROVIDER_COOKIE)?.value;
+    const cookieStore = await cookies();
+    let token = cookieStore.get(PROVIDER_COOKIE)?.value;
 
     // If no cookie, try Authorization header (for mobile)
     if (!token) {

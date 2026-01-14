@@ -17,7 +17,8 @@ async function getAuthenticatedProvider(request) {
   }
 
   // Support both cookie-based (website) and token-based (mobile app) authentication
-  let token = cookies().get(PROVIDER_COOKIE)?.value;
+  const cookieStore = await cookies();
+  let token = cookieStore.get(PROVIDER_COOKIE)?.value;
   
   // If no cookie, check Authorization header for mobile app
   if (!token) {
