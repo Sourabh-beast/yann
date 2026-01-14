@@ -60,6 +60,10 @@ export async function GET(request) {
     console.log('📤 Returning formatted notifications:', formattedNotifications.length);
     if (formattedNotifications.length > 0) {
       console.log('   Sample notification types:', formattedNotifications.slice(0, 5).map(n => n.type));
+      const paymentNotif = formattedNotifications.find(n => n.type === 'payment_required');
+      if (paymentNotif) {
+        console.log('   💰 Payment notification data:', paymentNotif.data);
+      }
     }
 
     return NextResponse.json({
