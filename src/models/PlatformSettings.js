@@ -7,7 +7,7 @@ const platformSettingsSchema = new mongoose.Schema({
     default: 'platform_settings',
     unique: true
   },
-  
+
   // Commission Settings
   commission: {
     defaultPercentage: {
@@ -23,7 +23,7 @@ const platformSettingsSchema = new mongoose.Schema({
       default: 10
     }
   },
-  
+
   // Cancellation Policy
   cancellation: {
     freeCancellationHours: {
@@ -43,7 +43,7 @@ const platformSettingsSchema = new mongoose.Schema({
       default: 100 // Fixed amount
     }
   },
-  
+
   // Booking Settings
   booking: {
     advanceBookingDays: {
@@ -67,7 +67,7 @@ const platformSettingsSchema = new mongoose.Schema({
       default: true
     }
   },
-  
+
   // Payment Settings
   payment: {
     supportedMethods: [{
@@ -87,7 +87,45 @@ const platformSettingsSchema = new mongoose.Schema({
       default: 7
     }
   },
-  
+
+  // Wallet Payment Configuration
+  walletPayment: {
+    // Percentage of booking amount required upfront (25%)
+    initialBookingPercentage: {
+      type: Number,
+      default: 25,
+      min: 10,
+      max: 50
+    },
+    // Commission percentage on partner withdrawals (10-20%)
+    partnerWithdrawalCommission: {
+      type: Number,
+      default: 15,
+      min: 10,
+      max: 20
+    },
+    // Minimum withdrawal amount
+    minWithdrawalAmount: {
+      type: Number,
+      default: 100
+    },
+    // Maximum withdrawal amount per transaction
+    maxWithdrawalAmount: {
+      type: Number,
+      default: 100000
+    },
+    // Auto-approve withdrawals below this amount
+    autoApproveWithdrawalLimit: {
+      type: Number,
+      default: 1000
+    },
+    // Withdrawal processing days
+    withdrawalProcessingDays: {
+      type: Number,
+      default: 3
+    }
+  },
+
   // Service Areas
   serviceAreas: {
     cities: [String],
@@ -97,7 +135,7 @@ const platformSettingsSchema = new mongoose.Schema({
       default: true
     }
   },
-  
+
   // Operating Hours
   operatingHours: {
     startTime: {
@@ -112,7 +150,7 @@ const platformSettingsSchema = new mongoose.Schema({
       type: Number // 0-6, 0 = Sunday
     }]
   },
-  
+
   // Notification Settings
   notifications: {
     emailEnabled: {
@@ -128,7 +166,7 @@ const platformSettingsSchema = new mongoose.Schema({
       default: true
     }
   },
-  
+
   // Referral Program
   referral: {
     enabled: {
@@ -148,7 +186,7 @@ const platformSettingsSchema = new mongoose.Schema({
       default: 10
     }
   },
-  
+
   // Provider Settings
   provider: {
     autoApproveEnabled: {
@@ -168,7 +206,7 @@ const platformSettingsSchema = new mongoose.Schema({
       default: 5
     }
   },
-  
+
   // Support Settings
   support: {
     email: String,
@@ -179,7 +217,7 @@ const platformSettingsSchema = new mongoose.Schema({
       default: 24
     }
   },
-  
+
   // Maintenance Mode
   maintenance: {
     enabled: {
@@ -189,7 +227,7 @@ const platformSettingsSchema = new mongoose.Schema({
     message: String,
     allowedIPs: [String]
   },
-  
+
   // Last updated
   lastUpdatedBy: {
     adminId: mongoose.Schema.Types.ObjectId,
@@ -201,10 +239,10 @@ const platformSettingsSchema = new mongoose.Schema({
 });
 
 // Ensure only one settings document exists
-platformSettingsSchema.statics.getSettings = async function() {
+platformSettingsSchema.statics.getSettings = async function () {
   let settings = await this.findOne({ key: 'platform_settings' });
   if (!settings) {
-    settings = await this.create({ 
+    settings = await this.create({
       key: 'platform_settings',
       'payment.supportedMethods': ['upi', 'card', 'netbanking', 'wallet', 'cash'],
       'operatingHours.workingDays': [1, 2, 3, 4, 5, 6], // Mon-Sat

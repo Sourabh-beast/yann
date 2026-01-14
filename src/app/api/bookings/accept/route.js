@@ -40,7 +40,7 @@ export async function POST(request) {
 
     // Verify provider exists and offers this service
     const provider = await ServiceProvider.findById(providerId);
-    
+
     if (!provider) {
       return NextResponse.json(
         { success: false, message: 'Provider not found' },
@@ -65,7 +65,7 @@ export async function POST(request) {
       booking.negotiation.status = 'accepted';
       booking.negotiation.respondedAt = new Date();
     }
-    
+
     // Add to provider responses
     booking.providerResponses.push({
       providerId: providerId,
@@ -75,40 +75,76 @@ export async function POST(request) {
 
     await booking.save();
 
-    // 💰 ESCROW TRANSFER: If payment was via wallet, transfer to provider's wallet
-    if (booking.paymentMethod === 'wallet' && booking.paymentStatus === 'paid') {
-      const transferAmount = booking.totalPrice;
-      
+    // 💰 ESCROW TRANSFER: Handle wallet payments based on staging
+    if (booking.paymentMethod === 'wallet') {
       // Initialize provider wallet if not exists
       if (!provider.wallet) {
         provider.wallet = { balance: 0, currency: 'INR' };
       }
-      
+
       const providerBalanceBefore = provider.wallet.balance || 0;
-      
-      // Add to provider's wallet
-      provider.wallet.balance = providerBalanceBefore + transferAmount;
-      await provider.save();
-      
-      // Create transaction record for provider ONLY (no customerId)
-      // This ensures it only appears in provider's wallet, not member's wallet
-      await Transaction.create({
-        bookingId: bookingId,
-        providerId: providerId,
-        // customerId is intentionally NOT included - this is provider's earning
-        type: 'wallet_credit',
-        amount: transferAmount,
-        balanceBefore: providerBalanceBefore,
-        balanceAfter: provider.wallet.balance,
-        description: `Earnings from booking #${bookingId}: ${booking.serviceName}`,
-        status: 'completed',
-        paymentMethod: 'wallet',
-        currency: 'INR',
-        serviceName: booking.serviceName,
-        serviceCategory: booking.serviceCategory
-      });
-      
-      console.log(`💰 ESCROW RELEASED: Transferred ₹${transferAmount} to provider ${provider.name}'s wallet`);
+
+      // NEW: Check for staged payment (25% escrow)
+      if (booking.walletPaymentStage === 'initial_25_held') {
+        // Release 25% escrow to provider
+        const releaseAmount = booking.escrowDetails?.initialAmount || booking.totalPrice * 0.25;
+
+        // Add to provider's wallet
+        provider.wallet.balance = providerBalanceBefore + releaseAmount;
+        await provider.save();
+
+        // Update booking escrow status
+        booking.walletPaymentStage = 'initial_25_released';
+        booking.escrowDetails.initialReleasedAt = new Date();
+        await booking.save();
+
+        // Create escrow_release transaction for provider
+        await Transaction.create({
+          bookingId: bookingId,
+          providerId: providerId,
+          type: 'escrow_release',
+          amount: releaseAmount,
+          balanceBefore: providerBalanceBefore,
+          balanceAfter: provider.wallet.balance,
+          escrowStatus: 'released',
+          paymentStage: 'initial_25',
+          description: `25% booking deposit released (₹${releaseAmount}) - ${booking.serviceName}`,
+          status: 'completed',
+          paymentMethod: 'wallet',
+          currency: 'INR',
+          serviceName: booking.serviceName,
+          serviceCategory: booking.serviceCategory
+        });
+
+        console.log(`💰 ESCROW RELEASED (25%): Transferred ₹${releaseAmount} to provider ${provider.name}'s wallet`);
+        console.log(`💡 Remaining 75% (₹${booking.escrowDetails?.completionAmount}) will be paid after job completion`);
+      }
+      // LEGACY: Handle old full-amount escrow bookings (backward compatibility)
+      else if (booking.paymentStatus === 'paid' && !booking.walletPaymentStage) {
+        const transferAmount = booking.totalPrice;
+
+        // Add to provider's wallet
+        provider.wallet.balance = providerBalanceBefore + transferAmount;
+        await provider.save();
+
+        // Create wallet_credit transaction for provider
+        await Transaction.create({
+          bookingId: bookingId,
+          providerId: providerId,
+          type: 'wallet_credit',
+          amount: transferAmount,
+          balanceBefore: providerBalanceBefore,
+          balanceAfter: provider.wallet.balance,
+          description: `Earnings from booking #${bookingId}: ${booking.serviceName}`,
+          status: 'completed',
+          paymentMethod: 'wallet',
+          currency: 'INR',
+          serviceName: booking.serviceName,
+          serviceCategory: booking.serviceCategory
+        });
+
+        console.log(`💰 ESCROW RELEASED (LEGACY): Transferred ₹${transferAmount} to provider ${provider.name}'s wallet`);
+      }
     }
 
     if (booking.residentRequest) {
@@ -149,7 +185,7 @@ export async function POST(request) {
         bookingId: booking._id.toString()
       });
     }
-    
+
     console.log(`✅ Booking ${bookingId} accepted by ${providerName}`);
 
     return NextResponse.json({
@@ -171,10 +207,10 @@ export async function POST(request) {
   } catch (error) {
     console.error('Booking acceptance error:', error);
     return NextResponse.json(
-      { 
-        success: false, 
+      {
+        success: false,
         message: 'Failed to accept booking',
-        error: error.message 
+        error: error.message
       },
       { status: 500 }
     );
