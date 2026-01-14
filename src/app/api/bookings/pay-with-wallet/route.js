@@ -10,12 +10,13 @@ import ServiceProvider from '@/models/ServiceProvider';
 /**
  * POST /api/bookings/pay-with-wallet
  * 
- * Wallet Payment Flow with 25% Escrow:
+ * Wallet Payment Flow with 25% Escrow (ONE-TO-ONE):
  * 1. Deduct 25% from user wallet (held in escrow)
  * 2. Create booking with walletPaymentStage: 'initial_25_held'
- * 3. When partner accepts → Release 25% to partner wallet
- * 4. When partner rejects (all) → Refund 25% to user wallet
- * 5. After job completion → User pays remaining 75%
+ * 3. Notify the selected provider
+ * 4. When provider accepts → Release 25% to provider wallet
+ * 5. When provider rejects → Refund 25% to user wallet
+ * 6. After job completion → User pays remaining 75%
  */
 export async function POST(req) {
   try {
