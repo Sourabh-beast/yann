@@ -22,7 +22,8 @@ export async function GET() {
         }
 
         // Verify homeowner authentication
-        const token = cookies().get(HOMEOWNER_COOKIE)?.value;
+        const cookieStore = await cookies();
+        const token = cookieStore.get(HOMEOWNER_COOKIE)?.value;
         if (!token) {
             return NextResponse.json(
                 { success: false, message: 'Unauthorized - Please login' },

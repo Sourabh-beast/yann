@@ -6,9 +6,10 @@ import Homeowner from "@/models/Homeowner";
 
 const HOME_COOKIE = "yann_home_session";
 
-const getAuthToken = (request) => {
+const getAuthToken = async (request) => {
   // Support both cookie-based (website) and token-based (mobile app) authentication
-  let token = cookies().get(HOME_COOKIE)?.value;
+  const cookieStore = await cookies();
+  let token = cookieStore.get(HOME_COOKIE)?.value;
   
   // If no cookie, check Authorization header for mobile app
   if (!token) {
@@ -55,7 +56,7 @@ export async function GET(request) {
   try {
     await connectDB();
 
-    const token = getAuthToken(request);
+    const token = await getAuthToken(request);
     const authResult = await verifyHomeowner(token);
 
     if (!authResult.success) {
@@ -102,7 +103,7 @@ export async function POST(request) {
   try {
     await connectDB();
 
-    const token = getAuthToken(request);
+    const token = await getAuthToken(request);
     const authResult = await verifyHomeowner(token);
 
     if (!authResult.success) {

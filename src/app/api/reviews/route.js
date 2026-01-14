@@ -25,7 +25,8 @@ export async function POST(request) {
         }
 
         // Verify homeowner authentication
-        let token = cookies().get(HOMEOWNER_COOKIE)?.value;
+        const cookieStore = await cookies();
+        let token = cookieStore.get(HOMEOWNER_COOKIE)?.value;
 
         // If no cookie, check Authorization header (for mobile app)
         if (!token) {

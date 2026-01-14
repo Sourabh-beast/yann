@@ -25,7 +25,8 @@ async function getAuthenticatedProvider(request) {
   }
 
   // Then try JWT from cookie or Authorization header
-  let token = cookies().get(PROVIDER_COOKIE)?.value;
+  const cookieStore = await cookies();
+  let token = cookieStore.get(PROVIDER_COOKIE)?.value;
 
   if (!token) {
     const authHeader = request.headers.get('authorization');
