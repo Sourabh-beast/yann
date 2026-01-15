@@ -576,12 +576,16 @@ export default function FinancialsPage() {
                                 const commissionAmount = req.commissionAmount || req.withdrawalDetails?.commissionAmount || 0;
                                 const amountToPay = req.providerAmount || req.withdrawalDetails?.netAmount || 0;
                                 
-                                console.log('Withdrawal data:', {
+                                console.log('💰 Withdrawal calculation:', {
+                                  id: req._id,
                                   requestedAmount,
                                   commissionRate,
                                   commissionAmount,
                                   amountToPay,
-                                  rawReq: req
+                                  'req.commissionAmount': req.commissionAmount,
+                                  'req.providerAmount': req.providerAmount,
+                                  'req.withdrawalDetails': req.withdrawalDetails,
+                                  'Full req object': JSON.stringify(req, null, 2)
                                 });
                                 
                                 return (
