@@ -82,7 +82,7 @@ export async function GET(req) {
                 .lean()
             ]);
 
-            return {
+            const enrichedData = {
               ...withdrawal,
               provider: {
                 _id: provider._id,
@@ -109,6 +109,17 @@ export async function GET(req) {
                 recentBookings,
               },
             };
+            
+            console.log('🔍 Backend withdrawal data:', {
+              _id: withdrawal._id,
+              amount: withdrawal.amount,
+              commissionAmount: withdrawal.commissionAmount,
+              providerAmount: withdrawal.providerAmount,
+              commissionPercentage: withdrawal.commissionPercentage,
+              withdrawalDetails: withdrawal.withdrawalDetails
+            });
+            
+            return enrichedData;
           })
         );
 
