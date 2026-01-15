@@ -66,7 +66,8 @@ export async function POST(req) {
         console.log('🔍 DEBUG - minWithdrawalAmount from DB:', walletConfig.minWithdrawalAmount);
 
         const commissionRate = walletConfig.partnerWithdrawalCommission || 15; // 15% default
-        const minWithdrawal = walletConfig.minWithdrawalAmount || 1;
+        // TEMPORARY FIX: Override old value until Vercel deploys new schema
+        const minWithdrawal = walletConfig.minWithdrawalAmount === 100 ? 1 : (walletConfig.minWithdrawalAmount || 1);
         const maxWithdrawal = walletConfig.maxWithdrawalAmount || 100000;
         const autoApproveLimit = walletConfig.autoApproveWithdrawalLimit || 1000;
         const processingDays = walletConfig.withdrawalProcessingDays || 3;
@@ -281,7 +282,8 @@ export async function GET(req) {
                     : null,
                 withdrawalConfig: {
                     commissionRate: walletConfig.partnerWithdrawalCommission || 15,
-                    minAmount: walletConfig.minWithdrawalAmount || 1,
+                    // TEMPORARY FIX: Override old value until Vercel deploys new schema
+                    minAmount: walletConfig.minWithdrawalAmount === 100 ? 1 : (walletConfig.minWithdrawalAmount || 1),
                     maxAmount: walletConfig.maxWithdrawalAmount || 100000,
                     autoApproveLimit: walletConfig.autoApproveWithdrawalLimit || 1000,
                     processingDays: walletConfig.withdrawalProcessingDays || 3
