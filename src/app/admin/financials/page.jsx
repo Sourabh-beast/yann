@@ -76,9 +76,11 @@ export default function FinancialsPage() {
 
       // Fetch withdrawal requests
       try {
-        const withdrawRes = await fetch('/api/admin/withdrawals');
+        const withdrawRes = await fetch('/api/admin/withdrawals?status=pending');
         const withdrawData = await withdrawRes.json();
+        console.log('📊 Withdrawal API Response:', withdrawData);
         if (withdrawData.success) {
+          console.log('📊 Withdrawals data:', withdrawData.data);
           setWithdrawalRequests(withdrawData.data || []);
         }
       } catch (e) {
@@ -535,17 +537,22 @@ export default function FinancialsPage() {
                               {/* Booking Stats */}
                               <div className="bg-gray-50 p-4 rounded-lg">
                                 <p className="text-xs font-semibold text-gray-900 mb-2">Booking History:</p>
-                                <div className="flex gap-4 text-sm">
-                                  <span className="text-gray-700">
-                                    Total: <strong>{req.bookingStats?.totalBookings || 0}</strong>
-                                  </span>
-                                  <span className="text-green-600">
-                                    Completed: <strong>{req.bookingStats?.completedBookings || 0}</strong>
-                                  </span>
-                                  <span className="text-blue-600">
-                                    Earnings: <strong>{formatCurrency(req.bookingStats?.totalEarnings || 0)}</strong>
-                                  </span>
-                                </div>
+                                {console.log('Booking stats for withdrawal:', req._id, req.bookingStats)}
+                                {req.bookingStats ? (
+                                  <div className="flex gap-4 text-sm">
+                                    <span className="text-gray-700">
+                                      Total: <strong>{req.bookingStats.totalBookings || 0}</strong>
+                                    </span>
+                                    <span className="text-green-600">
+                                      Completed: <strong>{req.bookingStats.completedBookings || 0}</strong>
+                                    </span>
+                                    <span className="text-blue-600">
+                                      Earnings: <strong>{formatCurrency(req.bookingStats.totalEarnings || 0)}</strong>
+                                    </span>
+                                  </div>
+                                ) : (
+                                  <p className="text-sm text-gray-500">Loading booking data...</p>
+                                )}
                               </div>
 
                               <p className="text-xs text-gray-500 mt-3">
@@ -562,10 +569,20 @@ export default function FinancialsPage() {
                             {/* Amount & Actions */}
                             <div className="text-right border-l border-gray-200 pl-6">
                               {(() => {
+                                // Get values from the correct fields
                                 const requestedAmount = req.amount || 0;
                                 const commissionRate = req.commissionPercentage || 15;
-                                const commissionAmount = req.commissionAmount || Math.round(requestedAmount * (commissionRate / 100) * 100) / 100;
-                                const amountToPay = req.providerAmount || (requestedAmount - commissionAmount);
+                                // Use the already calculated values from backend
+                                const commissionAmount = req.commissionAmount || req.withdrawalDetails?.commissionAmount || 0;
+                                const amountToPay = req.providerAmount || req.withdrawalDetails?.netAmount || 0;
+                                
+                                console.log('Withdrawal data:', {
+                                  requestedAmount,
+                                  commissionRate,
+                                  commissionAmount,
+                                  amountToPay,
+                                  rawReq: req
+                                });
                                 
                                 return (
                                   <>
