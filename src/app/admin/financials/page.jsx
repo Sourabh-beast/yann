@@ -573,11 +573,17 @@ export default function FinancialsPage() {
                             {/* Amount & Actions */}
                             <div className="text-right border-l border-gray-200 pl-6">
                               {(() => {
-                                // Get values directly from backend - these are calculated when the withdrawal is created
+                                // Calculate commission on frontend to ensure it always displays correctly
                                 const requestedAmount = req.amount || 0;
                                 const commissionRate = req.commissionPercentage || 15;
-                                const commissionAmount = req.commissionAmount || 0;
-                                const amountToPay = req.providerAmount || 0;
+                                
+                                // Always calculate commission from the amount
+                                const calculatedCommission = Math.round(requestedAmount * (commissionRate / 100) * 100) / 100;
+                                const calculatedNetAmount = Math.round((requestedAmount - calculatedCommission) * 100) / 100;
+                                
+                                // Use backend values if they exist, otherwise use calculated
+                                const commissionAmount = req.commissionAmount || calculatedCommission;
+                                const amountToPay = req.providerAmount || calculatedNetAmount;
                                 
                                 return (
                                   <>
