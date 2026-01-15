@@ -62,8 +62,11 @@ export async function POST(req) {
         const settings = await PlatformSettings.getSettings();
         const walletConfig = settings.walletPayment || {};
 
+        console.log('🔍 DEBUG - walletConfig:', JSON.stringify(walletConfig, null, 2));
+        console.log('🔍 DEBUG - minWithdrawalAmount from DB:', walletConfig.minWithdrawalAmount);
+
         const commissionRate = walletConfig.partnerWithdrawalCommission || 15; // 15% default
-        const minWithdrawal = walletConfig.minWithdrawalAmount || 100;
+        const minWithdrawal = walletConfig.minWithdrawalAmount || 1;
         const maxWithdrawal = walletConfig.maxWithdrawalAmount || 100000;
         const autoApproveLimit = walletConfig.autoApproveWithdrawalLimit || 1000;
         const processingDays = walletConfig.withdrawalProcessingDays || 3;
@@ -257,12 +260,15 @@ export async function GET(req) {
         const settings = await PlatformSettings.getSettings();
         const walletConfig = settings.walletPayment || {};
 
+        console.log('🔍 GET DEBUG - walletConfig:', JSON.stringify(walletConfig, null, 2));
+        console.log('🔍 GET DEBUG - minWithdrawalAmount from DB:', walletConfig.minWithdrawalAmount);
+
         const hasBankDetails = !!(
             provider.documents?.bankDetails?.accountNumber &&
             provider.documents?.bankDetails?.ifscCode
         );
 
-        return NextResponse.json({
+        const responseData = {
             success: true,
             data: {
                 balance: provider.wallet?.balance || 0,
@@ -275,13 +281,17 @@ export async function GET(req) {
                     : null,
                 withdrawalConfig: {
                     commissionRate: walletConfig.partnerWithdrawalCommission || 15,
-                    minAmount: walletConfig.minWithdrawalAmount || 100,
+                    minAmount: walletConfig.minWithdrawalAmount || 1,
                     maxAmount: walletConfig.maxWithdrawalAmount || 100000,
                     autoApproveLimit: walletConfig.autoApproveWithdrawalLimit || 1000,
                     processingDays: walletConfig.withdrawalProcessingDays || 3
                 }
             }
-        });
+        };
+
+        console.log('🔍 GET DEBUG - Returning minAmount:', responseData.data.withdrawalConfig.minAmount);
+
+        return NextResponse.json(responseData);
 
     } catch (error) {
         console.error('Withdrawal info error:', error);

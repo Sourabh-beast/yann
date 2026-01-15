@@ -89,6 +89,21 @@ const bookingSchema = new mongoose.Schema({
     required: true
   },
 
+  // Pricing Breakdown (GST details)
+  pricingBreakdown: {
+    baseCost: Number,
+    gst: Number,
+    gstPercentage: Number,
+    extras: Number,
+    quantity: Number,
+    subtotal: Number,
+    total: Number,
+    breakdown: {
+      type: mongoose.Schema.Types.Mixed,
+      default: {}
+    }
+  },
+
   // Payment Details (different for pujari vs others)
   paymentMethod: {
     type: String,

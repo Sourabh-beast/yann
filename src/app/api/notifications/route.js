@@ -63,6 +63,9 @@ export async function GET(request) {
       const paymentNotif = formattedNotifications.find(n => n.type === 'payment_required');
       if (paymentNotif) {
         console.log('   💰 Payment notification data:', paymentNotif.data);
+        // Also log the raw notification from DB
+        const rawPaymentNotif = notifications.find(n => n.type === 'payment_required');
+        console.log('   📦 Raw notification metadata:', rawPaymentNotif?.metadata);
       }
     }
 

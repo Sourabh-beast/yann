@@ -4,6 +4,7 @@ import Homeowner from '@/models/Homeowner';
 import ServiceProvider from '@/models/ServiceProvider';
 import Booking from '@/models/Booking';
 import Transaction from '@/models/Transaction';
+import Notification from '@/models/Notification';
 import { createAndSendNotification } from '@/lib/notificationHelper';
 
 /**
@@ -200,6 +201,27 @@ export async function POST(req) {
             throw new Error(`Payment failed: ${paymentError.message}`);
         } finally {
             session.endSession();
+        }
+
+        // Delete payment_required notification (prevents modal from reappearing)
+        try {
+            const deletedCount = await Notification.deleteMany({
+                type: 'payment_required',
+                'recipients.userId': user._id,
+                'metadata.bookingId': { $in: [booking._id.toString(), booking._id] }
+            });
+            console.log(`🗑️ Deleted ${deletedCount.deletedCount} payment_required notifications for booking ${booking._id}`);
+            
+            if (deletedCount.deletedCount === 0) {
+                console.warn('⚠️ No notifications were deleted. Checking what exists...');
+                const existingNotifs = await Notification.find({
+                    type: 'payment_required',
+                    'recipients.userId': user._id
+                }).select('metadata');
+                console.warn('   Existing payment notifications:', existingNotifs.map(n => n.metadata?.bookingId));
+            }
+        } catch (deleteError) {
+            console.error('Failed to delete payment_required notification:', deleteError);
         }
 
         // Send notifications (outside transaction)

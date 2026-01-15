@@ -23,7 +23,11 @@ const notificationSchema = new mongoose.Schema({
       // Payment
       'payment_required',
       'payment_received',
+      'payment_completed',
       'refund_processed',
+      // Service management
+      'service_approved',
+      'service_rejected',
       // General
       'general'
     ],
@@ -113,6 +117,12 @@ const notificationSchema = new mongoose.Schema({
   isActive: {
     type: Boolean,
     default: true
+  },
+  
+  // Additional metadata for notifications (bookingId, completionAmount, etc.)
+  metadata: {
+    type: mongoose.Schema.Types.Mixed,
+    default: {}
   },
   
   // Created by

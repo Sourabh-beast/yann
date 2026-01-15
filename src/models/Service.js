@@ -46,6 +46,24 @@ const ServiceSchema = new mongoose.Schema({
     type: Number,
     default: 0,
   },
+  // Pricing model: 'hourly' for time-based services (drivers), 'fixed' for one-time services (puja)
+  pricingModel: {
+    type: String,
+    enum: ['hourly', 'fixed'],
+    default: 'fixed',
+  },
+  // GST percentage (default 18%)
+  gstPercentage: {
+    type: Number,
+    default: 18,
+    min: 0,
+    max: 100,
+  },
+  // Whether GST is included in the displayed price
+  gstIncluded: {
+    type: Boolean,
+    default: false,
+  },
   minPrice: {
     type: Number,
     default: 0,
