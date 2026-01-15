@@ -574,29 +574,27 @@ export default function FinancialsPage() {
                             <div className="text-right border-l border-gray-200 pl-6">
                               {(() => {
                                 // Get values directly from backend - these are calculated when the withdrawal is created
-                                const requestedAmount = req.amount || 0; // 100%
+                                const requestedAmount = req.amount || 0;
                                 const commissionRate = req.commissionPercentage || 15;
-                                const commissionAmount = req.commissionAmount || 0; // 15%
-                                const amountToPay = req.providerAmount || 0; // 85%
+                                const commissionAmount = req.commissionAmount || 0;
+                                const amountToPay = req.providerAmount || 0;
                                 
                                 return (
                                   <>
-                                    <p className="text-3xl font-bold text-green-600 mb-1">
-                                      {formatCurrency(amountToPay)}
-                                    </p>
-                                    <p className="text-xs text-green-700 font-semibold mb-3">Amount to Pay (85%)</p>
-                                    
-                                    <div className="bg-gray-50 p-3 rounded-lg mb-4 text-left">
-                                      <p className="text-sm text-gray-700 mb-1">
-                                        <span className="font-medium">Requested (100%):</span> {formatCurrency(requestedAmount)}
-                                      </p>
-                                      <p className="text-sm text-orange-600 mb-1">
-                                        <span className="font-medium">Commission ({commissionRate}%):</span> {formatCurrency(commissionAmount)}
-                                      </p>
-                                      <div className="border-t border-gray-300 my-2"></div>
-                                      <p className="text-sm font-bold text-green-600">
-                                        <span className="font-medium">Net to Pay (85%):</span> {formatCurrency(amountToPay)}
-                                      </p>
+                                    {/* Breakdown Card - matching mobile app style */}
+                                    <div className="bg-blue-50 border border-blue-200 rounded-xl p-4 mb-4 text-left">
+                                      <div className="flex justify-between items-center mb-2">
+                                        <span className="text-sm text-gray-700">Amount</span>
+                                        <span className="text-base font-semibold text-gray-900">{formatCurrency(requestedAmount)}</span>
+                                      </div>
+                                      <div className="flex justify-between items-center mb-3">
+                                        <span className="text-sm text-red-600">Commission ({commissionRate}%)</span>
+                                        <span className="text-base font-semibold text-red-600">-{formatCurrency(commissionAmount)}</span>
+                                      </div>
+                                      <div className="border-t-2 border-gray-300 pt-3 flex justify-between items-center">
+                                        <span className="text-base font-bold text-green-600">You'll Pay</span>
+                                        <span className="text-2xl font-bold text-green-600">{formatCurrency(amountToPay)}</span>
+                                      </div>
                                     </div>
                                   </>
                                 );
