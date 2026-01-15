@@ -44,14 +44,38 @@ export async function GET(req) {
             }
 
             // Get provider's booking statistics
+            const providerIdForQuery = withdrawal.providerId.toString ? withdrawal.providerId.toString() : withdrawal.providerId;
+            
             const [totalBookings, completedBookings, totalEarnings, recentBookings] = await Promise.all([
-              Booking.countDocuments({ providerId: withdrawal.providerId }),
-              Booking.countDocuments({ providerId: withdrawal.providerId, status: 'completed' }),
+              Booking.countDocuments({ 
+                $or: [
+                  { providerId: withdrawal.providerId },
+                  { providerId: providerIdForQuery }
+                ]
+              }),
+              Booking.countDocuments({ 
+                $or: [
+                  { providerId: withdrawal.providerId, status: 'completed' },
+                  { providerId: providerIdForQuery, status: 'completed' }
+                ]
+              }),
               Booking.aggregate([
-                { $match: { providerId: withdrawal.providerId, status: 'completed' } },
+                { 
+                  $match: { 
+                    $or: [
+                      { providerId: withdrawal.providerId, status: 'completed' },
+                      { providerId: providerIdForQuery, status: 'completed' }
+                    ]
+                  } 
+                },
                 { $group: { _id: null, total: { $sum: '$payment.amount' } } }
               ]),
-              Booking.find({ providerId: withdrawal.providerId })
+              Booking.find({ 
+                $or: [
+                  { providerId: withdrawal.providerId },
+                  { providerId: providerIdForQuery }
+                ]
+              })
                 .sort({ createdAt: -1 })
                 .limit(5)
                 .select('serviceType status payment.amount createdAt completedAt')
