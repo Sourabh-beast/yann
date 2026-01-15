@@ -150,6 +150,77 @@ export default function FinancialsPage() {
     }
   };
 
+  const handleApproveWithdrawal = async (transactionId) => {
+    const paymentRef = prompt('Enter payment reference ID (optional):');
+    
+    if (!confirm('Are you sure you want to approve this withdrawal? The amount will be deducted from the provider\'s wallet.')) {
+      return;
+    }
+
+    try {
+      const res = await fetch('/api/admin/withdrawals/process', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          transactionId,
+          action: 'approve',
+          paymentReferenceId: paymentRef || null
+        })
+      });
+
+      const data = await res.json();
+      if (data.success) {
+        alert('✅ Withdrawal approved! Please transfer the amount manually to the provider\'s bank account.\n\n' +
+          `Amount to transfer: ₹${data.data.netAmount}\n` +
+          `Account: ${data.data.bankDetails?.accountNumber}\n` +
+          `IFSC: ${data.data.bankDetails?.ifscCode}\n` +
+          `Bank: ${data.data.bankDetails?.bankName}`);
+        fetchData();
+      } else {
+        alert('❌ ' + data.message);
+      }
+    } catch (error) {
+      console.error('Error approving withdrawal:', error);
+      alert('❌ Failed to approve withdrawal');
+    }
+  };
+
+  const handleRejectWithdrawal = async (transactionId) => {
+    const reason = prompt('Enter rejection reason:');
+    
+    if (!reason) {
+      alert('Please provide a reason for rejection');
+      return;
+    }
+
+    if (!confirm('Are you sure you want to reject this withdrawal?')) {
+      return;
+    }
+
+    try {
+      const res = await fetch('/api/admin/withdrawals/process', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          transactionId,
+          action: 'reject',
+          rejectionReason: reason
+        })
+      });
+
+      const data = await res.json();
+      if (data.success) {
+        alert('✅ Withdrawal rejected. The amount remains in the provider\'s wallet.');
+        fetchData();
+      } else {
+        alert('❌ ' + data.message);
+      }
+    } catch (error) {
+      console.error('Error rejecting withdrawal:', error);
+      alert('❌ Failed to reject withdrawal');
+    }
+  };
+
   // Handle withdrawal approval
   const handleApproveWithdrawal = async (withdrawalId) => {
     if (!confirm('Are you sure you want to approve this withdrawal?')) return;
@@ -482,40 +553,96 @@ export default function FinancialsPage() {
                       <p>No pending withdrawal requests</p>
                     </div>
                   ) : (
-                    <div className="space-y-4">
+                    <div className="space-y-6">
                       {withdrawalRequests.filter(w => w.status === 'pending').map((req) => (
-                        <div key={req._id} className="p-4 border border-gray-200 rounded-xl flex items-center justify-between">
-                          <div>
-                            <p className="font-semibold text-gray-900">
-                              {req.providerId?.name || 'Partner'}
-                            </p>
-                            <p className="text-sm text-gray-600">
-                              Bank: {req.withdrawalDetails?.bankAccount || 'N/A'}
-                            </p>
-                            <p className="text-xs text-gray-500">
-                              Requested: {new Date(req.createdAt).toLocaleDateString('en-IN')}
-                            </p>
-                          </div>
-                          <div className="text-right">
-                            <p className="text-xl font-bold text-gray-900">
-                              {formatCurrency(req.amount)}
-                            </p>
-                            <p className="text-xs text-gray-500">
-                              Commission: {formatCurrency(req.withdrawalDetails?.commission || 0)}
-                            </p>
-                            <div className="flex gap-2 mt-2">
-                              <button
-                                className="px-3 py-1 bg-green-600 text-white rounded-lg text-sm hover:bg-green-700"
-                                onClick={() => handleApproveWithdrawal(req._id)}
-                              >
-                                Approve
-                              </button>
-                              <button
-                                className="px-3 py-1 bg-red-600 text-white rounded-lg text-sm hover:bg-red-700"
-                                onClick={() => handleRejectWithdrawal(req._id)}
-                              >
-                                Reject
-                              </button>
+                        <div key={req._id} className="p-6 border border-gray-200 rounded-xl hover:shadow-md transition">
+                          <div className="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-4">
+                            {/* Provider Info */}
+                            <div className="flex-1">
+                              <div className="mb-4">
+                                <h4 className="text-lg font-bold text-gray-900 mb-1">
+                                  {req.provider?.name || 'Partner'}
+                                </h4>
+                                <div className="flex items-center gap-4 text-sm text-gray-600">
+                                  <span>📞 {req.provider?.phone || 'N/A'}</span>
+                                  <span>💰 Balance: {formatCurrency(req.provider?.currentBalance || 0)}</span>
+                                  <span>⭐ {req.provider?.rating || 'N/A'} rating</span>
+                                </div>
+                              </div>
+
+                              {/* Bank Details */}
+                              <div className="bg-blue-50 p-4 rounded-lg mb-3">
+                                <p className="text-xs font-semibold text-blue-900 mb-2">Bank Account Details:</p>
+                                {req.provider?.bankDetails ? (
+                                  <>
+                                    <p className="text-sm text-gray-700">
+                                      <strong>A/C:</strong> {req.provider.bankDetails.fullAccountNumber || req.provider.bankDetails.accountNumber}
+                                    </p>
+                                    <p className="text-sm text-gray-700">
+                                      <strong>IFSC:</strong> {req.provider.bankDetails.ifscCode}
+                                    </p>
+                                    <p className="text-sm text-gray-700">
+                                      <strong>Bank:</strong> {req.provider.bankDetails.bankName}
+                                    </p>
+                                  </>
+                                ) : (
+                                  <p className="text-sm text-red-600">⚠️ No bank details available</p>
+                                )}
+                              </div>
+
+                              {/* Booking Stats */}
+                              <div className="bg-gray-50 p-4 rounded-lg">
+                                <p className="text-xs font-semibold text-gray-900 mb-2">Booking History:</p>
+                                <div className="flex gap-4 text-sm">
+                                  <span className="text-gray-700">
+                                    Total: <strong>{req.bookingStats?.totalBookings || 0}</strong>
+                                  </span>
+                                  <span className="text-green-600">
+                                    Completed: <strong>{req.bookingStats?.completedBookings || 0}</strong>
+                                  </span>
+                                  <span className="text-blue-600">
+                                    Earnings: <strong>{formatCurrency(req.bookingStats?.totalEarnings || 0)}</strong>
+                                  </span>
+                                </div>
+                              </div>
+
+                              <p className="text-xs text-gray-500 mt-3">
+                                Requested: {new Date(req.createdAt).toLocaleDateString('en-IN', { 
+                                  day: 'numeric', 
+                                  month: 'short', 
+                                  year: 'numeric',
+                                  hour: '2-digit',
+                                  minute: '2-digit'
+                                })}
+                              </p>
+                            </div>
+
+                            {/* Amount & Actions */}
+                            <div className="text-right border-l border-gray-200 pl-6">
+                              <p className="text-3xl font-bold text-gray-900 mb-1">
+                                {formatCurrency(req.providerAmount || req.withdrawalDetails?.netAmount || (req.amount - (req.commissionAmount || 0)))}
+                              </p>
+                              <p className="text-xs text-gray-500 mb-1">Amount to Pay</p>
+                              <p className="text-sm text-gray-600 mb-1">
+                                Requested: {formatCurrency(req.amount)}
+                              </p>
+                              <p className="text-sm text-orange-600 mb-4">
+                                Commission: {formatCurrency(req.commissionAmount || req.withdrawalDetails?.commissionAmount || 0)}
+                              </p>
+                              <div className="flex gap-2">
+                                <button
+                                  className="px-4 py-2 bg-green-600 text-white rounded-lg text-sm font-medium hover:bg-green-700 transition"
+                                  onClick={() => handleApproveWithdrawal(req._id)}
+                                >
+                                  Approve
+                                </button>
+                                <button
+                                  className="px-4 py-2 bg-red-600 text-white rounded-lg text-sm font-medium hover:bg-red-700 transition"
+                                  onClick={() => handleRejectWithdrawal(req._id)}
+                                >
+                                  Reject
+                                </button>
+                              </div>
                             </div>
                           </div>
                         </div>
