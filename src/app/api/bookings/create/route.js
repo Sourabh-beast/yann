@@ -1,12 +1,14 @@
 import { NextResponse } from 'next/server';
 import connectDB from '@/lib/connectDB';
 import Booking from '@/models/Booking';
+import Service from '@/models/Service';
 import ServiceProvider from '@/models/ServiceProvider';
 import ResidentRequest from '@/models/ResidentRequest';
 import { createAndSendNotification } from '@/lib/notificationHelper';
 import { validateDriverCarType, checkHourlyBillingSupport } from '@/utils/bookingValidator';
 import { requireAuth, verifyOwnership } from '@/lib/authMiddleware';
 import { validateInput, bookingCreateSchema } from '@/lib/validation';
+import { calculateGST, calculateHourlyServiceCost, calculateFixedServiceCost, calculateBookingTotal } from '@/utils/pricingCalculator';
 
 // Service Configuration - GST Rates per Service (Based on Services charges.xlsx)
 const SERVICE_CONFIG = {
@@ -118,6 +120,12 @@ export async function POST(request) {
       );
     }
 
+    // Fetch service config to determine pricing model and GST
+    const serviceConfig = await Service.findOne({ 
+      title: bookingData.serviceName,
+      category: bookingData.serviceCategory 
+    });
+
     const providerPrice = typeof provider.getPriceForService === 'function'
       ? provider.getPriceForService(bookingData.serviceName)
       : provider.serviceRates?.find(rate => rate.serviceName === bookingData.serviceName)?.price;
@@ -136,9 +144,18 @@ export async function POST(request) {
 
     let driverDetails = null;
     let hourlyBookingDetails = null;
+    let pricingBreakdown = null;
 
-    // NEW: Hourly booking support for all services
-    if (bookingData.bookedHours && bookingData.bookedHours > 0) {
+    // NEW: Unified pricing calculation using Service model
+    const pricingModel = serviceConfig?.pricingModel || 'fixed';
+    const gstPercentage = serviceConfig?.gstPercentage ?? 18;
+
+    // Check if this is an hourly service booking with start/end times
+    const hasTimeRange = bookingData.startTime && bookingData.endTime;
+
+    if (pricingModel === 'hourly' && hasTimeRange) {
+      // HOURLY PRICING: Calculate cost based on start/end times
+      
       // Validate hourly billing support
       const hourlySupport = checkHourlyBillingSupport(provider, bookingData.serviceName);
 
@@ -150,15 +167,6 @@ export async function POST(request) {
       }
 
       const hourlyRate = hourlySupport.hourlyRate;
-      const bookedHours = Number(bookingData.bookedHours);
-
-      // Validate booked hours
-      if (bookedHours < 1 || bookedHours > 24) {
-        return NextResponse.json(
-          { success: false, message: 'Booked hours must be between 1 and 24' },
-          { status: 400 }
-        );
-      }
 
       // Driver car type validation
       if (bookingData.serviceCategory === 'driver' && bookingData.driverRequirements?.carType) {
@@ -175,24 +183,34 @@ export async function POST(request) {
         }
       }
 
-      // Calculate scheduled times
-      const bookingDateTime = new Date(bookingData.bookingDate);
+      // Use pricing calculator for hourly service
+      const hourlyCost = calculateHourlyServiceCost(
+        bookingData.startTime,
+        bookingData.endTime,
+        hourlyRate
+      );
 
-      let hours = 0, minutes = 0;
-      if (bookingData.bookingTime && typeof bookingData.bookingTime === 'string') {
-        [hours, minutes] = bookingData.bookingTime.split(':').map(Number);
-      } else {
-        console.error('Invalid bookingTime:', bookingData.bookingTime);
+      if (!hourlyCost.success) {
+        return NextResponse.json(
+          { success: false, message: hourlyCost.error },
+          { status: 400 }
+        );
       }
 
+      // Calculate GST
+      const gst = calculateGST(hourlyCost.baseCost, gstPercentage);
+
+      // Calculate booking date/time
+      const bookingDateTime = new Date(bookingData.bookingDate);
+      let hours = 0, minutes = 0;
+      if (bookingData.startTime && typeof bookingData.startTime === 'string') {
+        [hours, minutes] = bookingData.startTime.split(':').map(Number);
+      }
       bookingDateTime.setHours(hours, minutes, 0, 0);
 
       const scheduledStartTime = bookingDateTime;
       const expectedEndTime = new Date(scheduledStartTime);
-      expectedEndTime.setHours(expectedEndTime.getHours() + bookedHours);
-
-      // Calculate base cost
-      const baseCost = bookedHours * hourlyRate;
+      expectedEndTime.setMinutes(expectedEndTime.getMinutes() + hourlyCost.durationMinutes);
 
       // Check shift overlap
       let partnerShiftStart = null;
@@ -204,22 +222,73 @@ export async function POST(request) {
       }
 
       hourlyBookingDetails = {
-        bookedHours,
+        bookedHours: hourlyCost.duration,
         hourlyRate,
         scheduledStartTime,
         expectedEndTime,
         partnerShiftStart,
         partnerShiftEnd,
-        baseCost,
-        overtimeRate: hourlyRate, // Type 1 overtime rate (1×)
-        shiftOvertimeRate: hourlyRate * 2, // Type 2 overtime rate (2×)
-        totalHourlyCharge: baseCost
+        baseCost: hourlyCost.baseCost,
+        overtimeRate: hourlyRate,
+        shiftOvertimeRate: hourlyRate * 2,
+        totalHourlyCharge: hourlyCost.baseCost
       };
 
-      // Apply GST based on service configuration
-      const gstRate = getServiceGstRate(bookingData.serviceName, bookingData.serviceCategory);
-      const gstAmount = baseCost * gstRate;
-      bookingData.totalPrice = Number((baseCost + gstAmount + extrasTotal).toFixed(2));
+      pricingBreakdown = {
+        baseCost: hourlyCost.baseCost,
+        gst: gst.gstAmount,
+        gstPercentage: gstPercentage,
+        extras: extrasTotal,
+        subtotal: hourlyCost.baseCost + extrasTotal,
+        total: hourlyCost.baseCost + gst.gstAmount + extrasTotal,
+        breakdown: {
+          startTime: bookingData.startTime,
+          endTime: bookingData.endTime,
+          duration: `${hourlyCost.duration} ${hourlyCost.duration === 1 ? 'hour' : 'hours'}`,
+          hourlyRate: `₹${hourlyRate}/hr`,
+          gstRate: `${gstPercentage}%`
+        }
+      };
+
+      bookingData.basePrice = hourlyCost.baseCost;
+      bookingData.totalPrice = Number(pricingBreakdown.total.toFixed(2));
+
+    } else if (pricingModel === 'fixed' || !hasTimeRange) {
+      // FIXED PRICING: One-time fixed cost with GST
+      
+      const quantity = Number(bookingData.quantity) || 1;
+      const billingType = bookingData.billingType || 'one-time';
+      const billingMultiplier = billingType === 'monthly' ? 4 : 1;
+
+      // Use pricing calculator for fixed service
+      const fixedCost = calculateFixedServiceCost(
+        bookingData.basePrice,
+        gstPercentage,
+        quantity
+      );
+
+      const totalBooking = calculateBookingTotal(
+        fixedCost.totalWithGST,
+        extrasTotal
+      );
+
+      pricingBreakdown = {
+        baseCost: bookingData.basePrice,
+        gst: fixedCost.gstAmount,
+        gstPercentage: gstPercentage,
+        extras: extrasTotal,
+        quantity: quantity,
+        subtotal: fixedCost.subtotal,
+        total: totalBooking.grandTotal * billingMultiplier,
+        breakdown: {
+          basePrice: `₹${bookingData.basePrice}`,
+          quantity: quantity > 1 ? `${quantity} unit${quantity > 1 ? 's' : ''}` : '1 service',
+          gstRate: `${gstPercentage}%`,
+          billingType: billingType
+        }
+      };
+
+      bookingData.totalPrice = Number(pricingBreakdown.total.toFixed(2));
 
     } else if (bookingData.serviceCategory === 'driver' && bookingData.driverDetails?.endTime) {
       // Legacy driver details (only if end time is explicitly provided)
@@ -311,6 +380,7 @@ export async function POST(request) {
       basePrice: bookingData.basePrice,
       extras,
       totalPrice: bookingData.totalPrice,
+      pricingBreakdown,
       paymentMethod: bookingData.paymentMethod || 'cash',
       billingType: bookingData.billingType || 'one-time',
       quantity: bookingData.quantity || 1,

@@ -171,7 +171,9 @@ const serviceProviderSchema = new mongoose.Schema({
     addedRates: {
       type: [{
         serviceName: String,
-        price: Number
+        price: Number,
+        hourlyRate: Number,
+        billingType: String
       }],
       default: []
     },
@@ -183,6 +185,34 @@ const serviceProviderSchema = new mongoose.Schema({
     requestedAt: {
       type: Date,
       default: null
+    },
+    // Update type: 'service_addition', 'rate_update', 'service_removal'
+    updateType: {
+      type: String,
+      enum: ['service_addition', 'rate_update', 'service_removal', null],
+      default: null
+    },
+    // For rate updates
+    updatedService: {
+      type: String,
+      default: null
+    },
+    previousRate: {
+      serviceName: String,
+      price: Number,
+      hourlyRate: Number,
+      billingType: String
+    },
+    // For service removal
+    removedService: {
+      type: String,
+      default: null
+    },
+    removedRate: {
+      serviceName: String,
+      price: Number,
+      hourlyRate: Number,
+      billingType: String
     }
   },
 

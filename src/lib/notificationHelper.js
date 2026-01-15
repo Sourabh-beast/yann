@@ -32,6 +32,7 @@ export async function createAndSendNotification({
     await connectDB();
 
     // 1. Create Persistent Notification Record
+
     const notification = new Notification({
       type: type || 'in-app', // Use the passed type (payment_required, job_completed, etc.)
       targetAudience: 'specific',
@@ -54,8 +55,6 @@ export async function createAndSendNotification({
     });
 
     await notification.save();
-    console.log(`💾 Notification saved to DB: ${notification._id} for ${recipientId}`);
-    console.log(`   Type: ${notification.type}, Tags: ${notification.tags.join(', ')}`);
 
     // 2. Send Push Notification (Fire and Forget or Await based on preference, here we await to log)
     if (pushToken) {

@@ -107,7 +107,7 @@ const platformSettingsSchema = new mongoose.Schema({
     // Minimum withdrawal amount
     minWithdrawalAmount: {
       type: Number,
-      default: 100
+      default: 1
     },
     // Maximum withdrawal amount per transaction
     maxWithdrawalAmount: {
