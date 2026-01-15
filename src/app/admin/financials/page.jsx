@@ -221,64 +221,6 @@ export default function FinancialsPage() {
     }
   };
 
-  // Handle withdrawal approval
-  const handleApproveWithdrawal = async (withdrawalId) => {
-    if (!confirm('Are you sure you want to approve this withdrawal?')) return;
-
-    try {
-      const res = await fetch('/api/admin/withdrawals', {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          withdrawalId,
-          action: 'approve',
-          processedBy: 'admin'
-        })
-      });
-
-      const data = await res.json();
-      if (data.success) {
-        alert('✅ Withdrawal approved and processed!');
-        fetchData();
-      } else {
-        alert('❌ ' + data.message);
-      }
-    } catch (error) {
-      console.error('Error approving withdrawal:', error);
-      alert('❌ Failed to approve withdrawal');
-    }
-  };
-
-  // Handle withdrawal rejection
-  const handleRejectWithdrawal = async (withdrawalId) => {
-    const reason = prompt('Please enter a reason for rejection:');
-    if (!reason) return;
-
-    try {
-      const res = await fetch('/api/admin/withdrawals', {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          withdrawalId,
-          action: 'reject',
-          reason,
-          processedBy: 'admin'
-        })
-      });
-
-      const data = await res.json();
-      if (data.success) {
-        alert('✅ Withdrawal rejected and funds returned to provider!');
-        fetchData();
-      } else {
-        alert('❌ ' + data.message);
-      }
-    } catch (error) {
-      console.error('Error rejecting withdrawal:', error);
-      alert('❌ Failed to reject withdrawal');
-    }
-  };
-
   const sidebarItems = [
     { label: 'Dashboard', href: '/admin', icon: Activity },
     { label: 'Analytics', href: '/admin/analytics', icon: BarChart3 },
