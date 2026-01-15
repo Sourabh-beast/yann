@@ -153,9 +153,14 @@ export default function FinancialsPage() {
   };
 
   const handleApproveWithdrawal = async (transactionId) => {
-    const paymentRef = prompt('Enter payment reference ID (optional):');
+    const paymentTransactionId = prompt('Enter the payment transaction ID (e.g., UTR, UPI ref):');
     
-    if (!confirm('Are you sure you want to approve this withdrawal? The amount will be deducted from the provider\'s wallet.')) {
+    if (!paymentTransactionId || paymentTransactionId.trim() === '') {
+      alert('⚠️ Transaction ID is required to approve withdrawal');
+      return;
+    }
+    
+    if (!confirm('Are you sure you want to approve this withdrawal? The amount will be deducted from the provider\'s wallet and the transaction ID will be sent to them.')) {
       return;
     }
 
@@ -166,17 +171,16 @@ export default function FinancialsPage() {
         body: JSON.stringify({
           transactionId,
           action: 'approve',
-          paymentReferenceId: paymentRef || null
+          paymentReferenceId: paymentTransactionId.trim()
         })
       });
 
       const data = await res.json();
       if (data.success) {
-        alert('✅ Withdrawal approved! Please transfer the amount manually to the provider\'s bank account.\n\n' +
-          `Amount to transfer: ₹${data.data.netAmount}\n` +
-          `Account: ${data.data.bankDetails?.accountNumber}\n` +
-          `IFSC: ${data.data.bankDetails?.ifscCode}\n` +
-          `Bank: ${data.data.bankDetails?.bankName}`);
+        alert('✅ Withdrawal approved!\n\n' +
+          `Transaction ID: ${paymentTransactionId}\n` +
+          `Amount transferred: ₹${data.data.netAmount}\n` +
+          `The transaction ID has been sent to the provider.`);
         fetchData();
       } else {
         alert('❌ ' + data.message);
@@ -569,24 +573,11 @@ export default function FinancialsPage() {
                             {/* Amount & Actions */}
                             <div className="text-right border-l border-gray-200 pl-6">
                               {(() => {
-                                // Get values from the correct fields
-                                const requestedAmount = req.amount || 0;
+                                // Get values directly from backend - these are calculated when the withdrawal is created
+                                const requestedAmount = req.amount || 0; // 100%
                                 const commissionRate = req.commissionPercentage || 15;
-                                // Use the already calculated values from backend
-                                const commissionAmount = req.commissionAmount || req.withdrawalDetails?.commissionAmount || 0;
-                                const amountToPay = req.providerAmount || req.withdrawalDetails?.netAmount || 0;
-                                
-                                console.log('💰 Withdrawal calculation:', {
-                                  id: req._id,
-                                  requestedAmount,
-                                  commissionRate,
-                                  commissionAmount,
-                                  amountToPay,
-                                  'req.commissionAmount': req.commissionAmount,
-                                  'req.providerAmount': req.providerAmount,
-                                  'req.withdrawalDetails': req.withdrawalDetails,
-                                  'Full req object': JSON.stringify(req, null, 2)
-                                });
+                                const commissionAmount = req.commissionAmount || 0; // 15%
+                                const amountToPay = req.providerAmount || 0; // 85%
                                 
                                 return (
                                   <>
@@ -597,14 +588,14 @@ export default function FinancialsPage() {
                                     
                                     <div className="bg-gray-50 p-3 rounded-lg mb-4 text-left">
                                       <p className="text-sm text-gray-700 mb-1">
-                                        <span className="font-medium">Requested:</span> {formatCurrency(requestedAmount)}
+                                        <span className="font-medium">Requested (100%):</span> {formatCurrency(requestedAmount)}
                                       </p>
                                       <p className="text-sm text-orange-600 mb-1">
                                         <span className="font-medium">Commission ({commissionRate}%):</span> {formatCurrency(commissionAmount)}
                                       </p>
                                       <div className="border-t border-gray-300 my-2"></div>
                                       <p className="text-sm font-bold text-green-600">
-                                        <span className="font-medium">Net to Pay:</span> {formatCurrency(amountToPay)}
+                                        <span className="font-medium">Net to Pay (85%):</span> {formatCurrency(amountToPay)}
                                       </p>
                                     </div>
                                   </>

@@ -115,7 +115,7 @@ export async function POST(request) {
 
         await session.commitTransaction();
 
-        // Send success notification
+        // Send success notification with transaction ID
         await createAndSendNotification(
           'general',
           null,
@@ -123,10 +123,13 @@ export async function POST(request) {
           transaction.providerId,
           {
             title: 'Withdrawal Approved! 💰',
-            body: `₹${transaction.withdrawalDetails.netAmount.toFixed(2)} has been approved and will be transferred to your bank account`,
+            body: paymentReferenceId 
+              ? `₹${transaction.withdrawalDetails.netAmount.toFixed(2)} has been approved and transferred. Transaction ID: ${paymentReferenceId}`
+              : `₹${transaction.withdrawalDetails.netAmount.toFixed(2)} has been approved and will be transferred to your bank account`,
             amount: transaction.withdrawalDetails.requestedAmount,
             netAmount: transaction.withdrawalDetails.netAmount,
-            transactionId: transaction._id
+            transactionId: transaction._id,
+            paymentTransactionId: paymentReferenceId || null
           }
         );
 
