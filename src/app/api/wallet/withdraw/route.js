@@ -124,8 +124,8 @@ export async function POST(req) {
         console.log(`   Commission: ₹${commissionAmount} (${commissionRate}%)`);
         console.log(`   Net to partner: ₹${netAmount}`);
 
-        // Determine if auto-approve
-        const autoApproved = amount <= autoApproveLimit;
+        // ALL withdrawals require admin approval (no auto-approve)
+        const autoApproved = false;
 
         // Use MongoDB transaction
         const session = await ServiceProvider.startSession();
@@ -133,25 +133,16 @@ export async function POST(req) {
 
         try {
             const providerBalanceBefore = providerBalance;
-            const providerBalanceAfter = providerBalance - amount;
+            // Don't deduct balance yet - only deduct when admin approves
+            const providerBalanceAfter = providerBalance;
 
-            // Deduct from provider wallet
-            provider.wallet.balance = providerBalanceAfter;
-            await provider.save({ session });
-
-            // Credit commission to admin wallet
-            await AdminWallet.addCommission(commissionAmount, `Commission from ${provider.name}'s withdrawal`);
-
-            // Track total volume
-            await AdminWallet.trackVolume(amount);
-
-            // Create withdrawal transaction
+            // Create withdrawal request (pending approval)
             const transactionData = {
                 providerId: providerId,
-                type: autoApproved ? 'withdrawal_completed' : 'withdrawal_request',
+                type: 'withdrawal_request',
                 amount: amount,
                 balanceBefore: providerBalanceBefore,
-                balanceAfter: providerBalanceAfter,
+                balanceAfter: providerBalanceAfter, // Balance unchanged until approved
                 commissionAmount: commissionAmount,
                 commissionPercentage: commissionRate,
                 providerAmount: netAmount,
@@ -165,38 +156,27 @@ export async function POST(req) {
                         ifscCode: provider.documents.bankDetails.ifscCode,
                         bankName: provider.documents.bankDetails.bankName || 'Unknown'
                     },
-                    processedAt: autoApproved ? new Date() : null
+                    processedAt: null
                 },
-                description: autoApproved
-                    ? `Withdrawal of ₹${netAmount} processed (₹${commissionAmount} commission)`
-                    : `Withdrawal request for ₹${netAmount} (₹${commissionAmount} commission) - Pending approval`,
-                status: autoApproved ? 'completed' : 'pending',
+                description: `Withdrawal request for ₹${netAmount} (₹${commissionAmount} platform commission) - Pending admin approval`,
+                status: 'pending',
                 paymentMethod: 'bank_transfer',
                 currency: 'INR'
             };
 
             await Transaction.create([transactionData], { session });
 
-            // Create commission transaction for admin tracking
-            await Transaction.create([{
-                providerId: providerId,
-                type: 'commission',
-                amount: commissionAmount,
-                description: `Platform commission (${commissionRate}%) on ₹${amount} withdrawal`,
-                status: 'completed',
-                currency: 'INR'
-            }], { session });
-
             await session.commitTransaction();
 
-            console.log(`✅ Withdrawal ${autoApproved ? 'completed' : 'request created'}:`);
-            console.log(`   Net amount: ₹${netAmount}`);
+            console.log(`✅ Withdrawal request created (pending admin approval):`);
+            console.log(`   Requested amount: ₹${amount}`);
+            console.log(`   Net amount to partner: ₹${netAmount}`);
             console.log(`   Commission: ₹${commissionAmount}`);
 
         } catch (withdrawError) {
             await session.abortTransaction();
-            console.error('❌ Withdrawal failed, rolled back:', withdrawError.message);
-            throw new Error(`Withdrawal failed: ${withdrawError.message}`);
+            console.error('❌ Withdrawal request failed, rolled back:', withdrawError.message);
+            throw new Error(`Withdrawal request failed: ${withdrawError.message}`);
         } finally {
             session.endSession();
         }

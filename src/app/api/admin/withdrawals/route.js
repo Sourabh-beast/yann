@@ -2,25 +2,96 @@ import { NextResponse } from 'next/server';
 import connectDB from '@/lib/connectDB';
 import Transaction from '@/models/Transaction';
 import ServiceProvider from '@/models/ServiceProvider';
+import Booking from '@/models/Booking';
 import AdminWallet from '@/models/AdminWallet';
 import mongoose from 'mongoose';
 
-// GET - Fetch all withdrawal requests
+// GET - Fetch all withdrawal requests with provider details and booking history
 export async function GET(req) {
     try {
         await connectDB();
 
-        const withdrawals = await Transaction.find({
-            type: { $in: ['withdrawal_request', 'withdrawal_completed', 'withdrawal_rejected'] }
-        })
+        const { searchParams } = new URL(req.url);
+        const status = searchParams.get('status') || 'pending';
+
+        // Build query
+        let query = { type: { $in: ['withdrawal_request', 'withdrawal_completed', 'withdrawal_rejected'] } };
+        
+        if (status === 'pending') {
+          query.status = 'pending';
+          query.type = 'withdrawal_request';
+        } else if (status === 'completed') {
+          query.type = 'withdrawal_completed';
+        } else if (status === 'failed') {
+          query.type = 'withdrawal_rejected';
+        }
+
+        const withdrawals = await Transaction.find(query)
             .sort({ createdAt: -1 })
             .limit(100)
-            .populate('providerId', 'name email phone wallet')
             .lean();
+
+        // Enrich with provider details and booking stats
+        const enrichedWithdrawals = await Promise.all(
+          withdrawals.map(async (withdrawal) => {
+            // Get provider details
+            const provider = await ServiceProvider.findById(withdrawal.providerId)
+              .select('name phone email wallet services rating totalJobs documents')
+              .lean();
+
+            if (!provider) {
+              return { ...withdrawal, provider: null, bookingStats: null };
+            }
+
+            // Get provider's booking statistics
+            const [totalBookings, completedBookings, totalEarnings, recentBookings] = await Promise.all([
+              Booking.countDocuments({ providerId: withdrawal.providerId }),
+              Booking.countDocuments({ providerId: withdrawal.providerId, status: 'completed' }),
+              Booking.aggregate([
+                { $match: { providerId: withdrawal.providerId, status: 'completed' } },
+                { $group: { _id: null, total: { $sum: '$payment.amount' } } }
+              ]),
+              Booking.find({ providerId: withdrawal.providerId })
+                .sort({ createdAt: -1 })
+                .limit(5)
+                .select('serviceType status payment.amount createdAt completedAt')
+                .lean()
+            ]);
+
+            return {
+              ...withdrawal,
+              provider: {
+                _id: provider._id,
+                name: provider.name,
+                phone: provider.phone,
+                email: provider.email,
+                currentBalance: provider.wallet?.balance || 0,
+                rating: provider.rating,
+                totalJobs: provider.totalJobs,
+                services: provider.services,
+                bankDetails: provider.documents?.bankDetails
+                  ? {
+                      accountNumber: `****${provider.documents.bankDetails.accountNumber.slice(-4)}`,
+                      ifscCode: provider.documents.bankDetails.ifscCode,
+                      bankName: provider.documents.bankDetails.bankName,
+                      fullAccountNumber: provider.documents.bankDetails.accountNumber, // For admin
+                    }
+                  : null,
+              },
+              bookingStats: {
+                totalBookings,
+                completedBookings,
+                totalEarnings: totalEarnings[0]?.total || 0,
+                recentBookings,
+              },
+            };
+          })
+        );
 
         return NextResponse.json({
             success: true,
-            data: withdrawals || [],
+            data: enrichedWithdrawals || [],
+            count: enrichedWithdrawals.length
         });
     } catch (error) {
         console.error('Admin withdrawals GET error:', error);
