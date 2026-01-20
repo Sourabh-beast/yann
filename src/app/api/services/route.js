@@ -376,12 +376,29 @@ const STATIC_SERVICES = [
  * Fetch all services from MongoDB
  * Query params: category (optional)
  */
+// Simple in-memory cache
+let cache = {
+  data: null,
+  timestamp: 0
+};
+const CACHE_TTL = 30 * 60 * 1000; // 30 minutes (Services rarely change)
+
 export async function GET(request) {
   try {
-    await connectDB();
-
     const { searchParams } = new URL(request.url);
     const category = searchParams.get('category');
+
+    // Check cache (only for full list without filters, to keep it simple)
+    const now = Date.now();
+    if (!category && cache.data && (now - cache.timestamp < CACHE_TTL)) {
+      return NextResponse.json({
+        success: true,
+        data: cache.data,
+        cached: true
+      });
+    }
+
+    await connectDB();
 
     // Build query - only active services
     const query = { isActive: { $ne: false } };
@@ -392,7 +409,8 @@ export async function GET(request) {
     // Get services from database
     const services = await Service.find(query)
       .sort({ order: 1, popular: -1, createdAt: -1 })
-      .select('-__v');
+      .select('-__v')
+      .lean();
 
     // If no services in database, return static services as fallback
     if (services.length === 0) {
@@ -417,6 +435,14 @@ export async function GET(request) {
       icon: service.icon || '🏠',
       popular: service.popular || false,
     }));
+
+    // Update cache if no filter
+    if (!category) {
+      cache = {
+        data: mappedServices,
+        timestamp: Date.now()
+      };
+    }
 
     return NextResponse.json({
       success: true,

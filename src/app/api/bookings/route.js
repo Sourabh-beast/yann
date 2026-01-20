@@ -87,7 +87,8 @@ export async function GET(request) {
       .skip(skip)
       .limit(limit)
       .populate('assignedProvider', 'name email phone rating profileImage')
-      .populate('jobSession');
+      .populate('jobSession')
+      .lean();
 
     const mappedBookings = bookings.map((booking) => ({
       _id: booking._id.toString(),

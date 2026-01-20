@@ -2,12 +2,29 @@ import { NextResponse } from 'next/server';
 import connectDB from '@/lib/connectDB';
 import ServiceProvider from '@/models/ServiceProvider';
 
+// Simple in-memory cache
+let cache = {
+  data: null,
+  timestamp: 0
+};
+const CACHE_TTL = 5 * 60 * 1000; // 5 minutes
+
 /**
  * GET /api/provider/service-counts
  * Returns provider counts grouped by service using MongoDB aggregation
  */
 export async function GET() {
   try {
+    // Check cache
+    const now = Date.now();
+    if (cache.data && (now - cache.timestamp < CACHE_TTL)) {
+      return NextResponse.json({
+        success: true,
+        data: cache.data,
+        cached: true
+      });
+    }
+
     await connectDB();
 
     // Aggregate providers by service
@@ -79,6 +96,12 @@ export async function GET() {
         },
       },
     ]);
+
+    // Update cache
+    cache = {
+      data: serviceCounts,
+      timestamp: Date.now()
+    };
 
     return NextResponse.json({
       success: true,
