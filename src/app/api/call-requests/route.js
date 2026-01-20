@@ -51,3 +51,36 @@ export async function GET() {
         );
     }
 }
+
+export async function PATCH(request) {
+    try {
+        await connectDB();
+        const { id, status } = await request.json();
+
+        if (!id || !status) {
+            return NextResponse.json(
+                { success: false, message: 'ID and Status are required' },
+                { status: 400 }
+            );
+        }
+
+        const updatedRequest = await CallRequest.findByIdAndUpdate(
+            id,
+            { status },
+            { new: true }
+        );
+
+        return NextResponse.json({
+            success: true,
+            data: updatedRequest,
+            message: 'Status updated successfully'
+        });
+    } catch (error) {
+        console.error('Error updating call request:', error);
+        return NextResponse.json(
+            { success: false, message: 'Failed to update request' },
+            { status: 500 }
+        );
+    }
+}
+

@@ -51,6 +51,7 @@ export default function AdminPage() {
     { label: 'Service Providers', href: '/admin/providers', icon: Briefcase },
     { label: 'Service Requests', href: '/admin/service-requests', icon: AlertTriangle },
     { label: 'Homeowners', href: '/admin/homeowners', icon: Users },
+    { label: 'Call Requests', href: '/admin/call-requests', icon: PhoneCall },
     { label: 'Bookings', href: '/admin/requests', icon: ClipboardList },
     { label: 'Reviews', href: '/admin/reviews', icon: Star },
     { label: 'Financials', href: '/admin/financials', icon: DollarSign },
@@ -79,7 +80,7 @@ export default function AdminPage() {
           </h1>
           <p className="text-sm text-gray-500 mt-1">Management Panel</p>
         </div>
-        
+
         <nav className="p-4 overflow-y-auto" style={{ maxHeight: 'calc(100vh - 180px)' }}>
           <ul className="space-y-2">
             {sidebarItems.map((item) => {
@@ -169,7 +170,7 @@ export default function AdminPage() {
                       <span className="text-sm font-medium text-gray-700">{service._id}</span>
                       <div className="flex items-center gap-3">
                         <div className="w-32 h-2 bg-gray-200 rounded-full overflow-hidden">
-                          <div 
+                          <div
                             className="h-full bg-gradient-to-r from-blue-500 to-purple-500 rounded-full"
                             style={{ width: `${(service.count / stats?.overview?.totalProviders) * 100}%` }}
                           />
