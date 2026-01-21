@@ -12,7 +12,7 @@
 export function calculateGST(baseAmount, gstPercentage = 18) {
   const gstAmount = (baseAmount * gstPercentage) / 100;
   const totalWithGST = baseAmount + gstAmount;
-  
+
   return {
     baseAmount: Math.round(baseAmount * 100) / 100,
     gstAmount: Math.round(gstAmount * 100) / 100,
@@ -39,23 +39,25 @@ export function calculateHourlyServiceCost({ startTime, endTime, hourlyRate, gst
 
   const startMinutes = timeToMinutes(startTime);
   const endMinutes = timeToMinutes(endTime);
-  
+
   // Calculate duration in hours
   let durationMinutes = endMinutes - startMinutes;
   if (durationMinutes < 0) durationMinutes += 24 * 60; // Handle overnight bookings
-  
+
   const durationHours = durationMinutes / 60;
-  
+
   // Calculate base cost
   const baseCost = durationHours * hourlyRate;
-  
+
   // Calculate GST
   const gstDetails = calculateGST(baseCost, gstPercentage);
-  
+
   return {
+    success: true,
     startTime,
     endTime,
     durationMinutes,
+    duration: durationHours,
     durationHours: Math.round(durationHours * 100) / 100,
     hourlyRate,
     baseCost: gstDetails.baseAmount,
@@ -82,17 +84,17 @@ export function calculateFixedServiceCost(fixedPrice, gstPercentage = 18) {
  * @param {number} params.overtimeMultiplier - Overtime rate multiplier (default 2x)
  * @returns {object} - Overtime breakdown
  */
-export function calculateOvertimeCharges({ 
-  actualMinutes, 
-  bookedMinutes, 
-  hourlyRate, 
-  overtimeMultiplier = 2 
+export function calculateOvertimeCharges({
+  actualMinutes,
+  bookedMinutes,
+  hourlyRate,
+  overtimeMultiplier = 2
 }) {
   const overtimeMinutes = Math.max(0, actualMinutes - bookedMinutes);
   const overtimeHours = overtimeMinutes / 60;
   const overtimeRate = hourlyRate * overtimeMultiplier;
   const overtimeCost = overtimeHours * overtimeRate;
-  
+
   return {
     overtimeMinutes,
     overtimeHours: Math.round(overtimeHours * 100) / 100,
@@ -113,7 +115,7 @@ export function calculateBookingTotal({ baseCost, extras = [], gstPercentage = 1
   const extrasTotal = extras.reduce((sum, extra) => sum + (extra.price || 0), 0);
   const subtotal = baseCost + extrasTotal;
   const gstDetails = calculateGST(subtotal, gstPercentage);
-  
+
   return {
     baseCost: Math.round(baseCost * 100) / 100,
     extrasTotal: Math.round(extrasTotal * 100) / 100,

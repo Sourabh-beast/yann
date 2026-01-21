@@ -121,9 +121,9 @@ export async function POST(request) {
     }
 
     // Fetch service config to determine pricing model and GST
-    const serviceConfig = await Service.findOne({ 
+    const serviceConfig = await Service.findOne({
       title: bookingData.serviceName,
-      category: bookingData.serviceCategory 
+      category: bookingData.serviceCategory
     });
 
     const providerPrice = typeof provider.getPriceForService === 'function'
@@ -155,7 +155,7 @@ export async function POST(request) {
 
     if (pricingModel === 'hourly' && hasTimeRange) {
       // HOURLY PRICING: Calculate cost based on start/end times
-      
+
       // Validate hourly billing support
       const hourlySupport = checkHourlyBillingSupport(provider, bookingData.serviceName);
 
@@ -184,11 +184,12 @@ export async function POST(request) {
       }
 
       // Use pricing calculator for hourly service
-      const hourlyCost = calculateHourlyServiceCost(
-        bookingData.startTime,
-        bookingData.endTime,
-        hourlyRate
-      );
+      const hourlyCost = calculateHourlyServiceCost({
+        startTime: bookingData.startTime,
+        endTime: bookingData.endTime,
+        hourlyRate: hourlyRate,
+        gstPercentage: gstPercentage
+      });
 
       if (!hourlyCost.success) {
         return NextResponse.json(
@@ -255,7 +256,7 @@ export async function POST(request) {
 
     } else if (pricingModel === 'fixed' || !hasTimeRange) {
       // FIXED PRICING: One-time fixed cost with GST
-      
+
       const quantity = Number(bookingData.quantity) || 1;
       const billingType = bookingData.billingType || 'one-time';
       const billingMultiplier = billingType === 'monthly' ? 4 : 1;
