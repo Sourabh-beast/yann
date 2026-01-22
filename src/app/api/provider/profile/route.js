@@ -178,7 +178,8 @@ async function handleProfileUpdate(request) {
     const body = await request.json();
     console.log('📥 Received profile update request:', body);
 
-    const allowedUpdates = ['name', 'phone', 'profileImage', 'experience', 'workingHours', 'bio', 'serviceRates'];
+    // Added 'status' and 'services' to enable availability toggle from mobile app
+    const allowedUpdates = ['name', 'phone', 'profileImage', 'experience', 'workingHours', 'bio', 'serviceRates', 'status', 'services'];
 
     for (const field of allowedUpdates) {
       if (body[field] !== undefined) {
@@ -202,6 +203,7 @@ async function handleProfileUpdate(request) {
         experience: provider.experience,
         bio: provider.bio || '',
         serviceRates: provider.serviceRates || [],
+        services: provider.services || [],
         workingHours: provider.workingHours || null,
         status: provider.status
       }
