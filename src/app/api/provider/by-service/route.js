@@ -21,10 +21,11 @@ export async function GET(request) {
     const normalizedService = serviceName.trim();
     const serviceRegex = new RegExp(`^${escapeRegex(normalizedService)}$`, 'i');
 
+    // Fetch ALL providers for this service (including offline ones)
+    // Mobile app will handle displaying offline providers as grayed out
     const providers = await ServiceProvider.find({
-      services: { $regex: serviceRegex },
-      status: 'active'
-    }).select('name experience rating totalReviews serviceRates workingHours profileImage services');
+      services: { $regex: serviceRegex }
+    }).select('name experience rating totalReviews serviceRates workingHours profileImage services status');
 
     const mappedProviders = providers
       .map((provider) => {
@@ -43,11 +44,17 @@ export async function GET(request) {
           price,
           serviceRates: provider.serviceRates || [],
           workingHours: provider.workingHours || null,
-          profileImage: provider.profileImage || ''
+          profileImage: provider.profileImage || '',
+          status: provider.status || 'active' // Include status so mobile app can show offline state
         };
       })
       .filter(Boolean)
-      .sort((a, b) => a.price - b.price);
+      .sort((a, b) => {
+        // Sort active providers first, then by price
+        if (a.status === 'active' && b.status !== 'active') return -1;
+        if (a.status !== 'active' && b.status === 'active') return 1;
+        return a.price - b.price;
+      });
 
     return NextResponse.json(
       {
