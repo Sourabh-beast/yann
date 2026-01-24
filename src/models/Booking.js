@@ -294,8 +294,41 @@ const bookingSchema = new mongoose.Schema({
   // Booking Status
   status: {
     type: String,
-    enum: ['pending', 'accepted', 'in_progress', 'rejected', 'completed', 'cancelled'],
+    enum: ['pending', 'awaiting_response', 'accepted', 'in_progress', 'rejected', 'completed', 'cancelled', 'expired'],
     default: 'pending'
+  },
+
+  // Booking Request Timer (3-minute response window)
+  requestTimer: {
+    // When the request was sent to provider
+    sentAt: {
+      type: Date,
+      default: null
+    },
+    // Expiry time (sentAt + 3 minutes)
+    expiresAt: {
+      type: Date,
+      default: null
+    },
+    // Provider's response
+    respondedAt: {
+      type: Date,
+      default: null
+    },
+    // Whether the request timed out
+    timedOut: {
+      type: Boolean,
+      default: false
+    },
+    // Continuous notification tracking
+    lastBuzzerAt: {
+      type: Date,
+      default: null
+    },
+    buzzerCount: {
+      type: Number,
+      default: 0
+    }
   },
 
   // Job Session (for tracking job start/end with OTP)

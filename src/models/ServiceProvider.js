@@ -76,6 +76,32 @@ const serviceProviderSchema = new mongoose.Schema({
     }
   },
 
+  // Per-service experience (years)
+  serviceExperiences: {
+    type: [{
+      serviceName: {
+        type: String,
+        required: true,
+        trim: true
+      },
+      years: {
+        type: Number,
+        required: true,
+        min: [0, 'Experience cannot be negative'],
+        max: [50, 'Experience cannot exceed 50 years']
+      }
+    }],
+    default: [],
+    validate: {
+      validator: function (entries) {
+        if (!Array.isArray(entries)) return false;
+        const uniqueNames = new Set(entries.map(entry => entry.serviceName));
+        return uniqueNames.size === entries.length;
+      },
+      message: 'Duplicate service experience entries are not allowed'
+    }
+  },
+
   // Per-service pricing
   serviceRates: {
     type: [{
