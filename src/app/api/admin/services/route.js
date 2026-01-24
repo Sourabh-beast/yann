@@ -76,6 +76,7 @@ export async function POST(request) {
       basePrice,
       minPrice,
       maxPrice,
+      experiencePriceLimits,
       features,
       icon,
       image,
@@ -103,6 +104,16 @@ export async function POST(request) {
       );
     }
 
+    const normalizedExperienceLimits = Array.isArray(experiencePriceLimits)
+      ? experiencePriceLimits.map(limit => ({
+          minYears: Number(limit.minYears) || 0,
+          maxYears: limit.maxYears === null || limit.maxYears === undefined || limit.maxYears === ''
+            ? null
+            : Number(limit.maxYears),
+          maxPrice: Number(limit.maxPrice) || 0,
+        }))
+      : [];
+
     const service = await Service.create({
       title,
       description,
@@ -111,6 +122,7 @@ export async function POST(request) {
       basePrice: basePrice || 0,
       minPrice: minPrice || 0,
       maxPrice: maxPrice || 0,
+      experiencePriceLimits: normalizedExperienceLimits,
       features: features || [],
       icon: icon || '🏠',
       image: image || '',
@@ -153,6 +165,16 @@ export async function PUT(request) {
     // If category is being updated, normalize it
     if (updateData.category) {
       updateData.category = updateData.category.toLowerCase();
+    }
+
+    if (Array.isArray(updateData.experiencePriceLimits)) {
+      updateData.experiencePriceLimits = updateData.experiencePriceLimits.map(limit => ({
+        minYears: Number(limit.minYears) || 0,
+        maxYears: limit.maxYears === null || limit.maxYears === undefined || limit.maxYears === ''
+          ? null
+          : Number(limit.maxYears),
+        maxPrice: Number(limit.maxPrice) || 0,
+      }));
     }
 
     const service = await Service.findByIdAndUpdate(

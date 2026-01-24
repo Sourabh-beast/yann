@@ -2,6 +2,86 @@ import { NextResponse } from 'next/server';
 import connectDB from '@/lib/connectDB';
 import Service from '@/models/Service';
 
+const DEFAULT_MAX_BY_CATEGORY = {
+  driver: 2000,
+  pujari: 25000,
+  cleaning: 5000,
+  laundry: 2000,
+  other: 10000
+};
+
+const DEFAULT_MAX_BY_SERVICE = {
+  'Full-Day Personal Driver': 1800,
+  'Outstation Driving Service': 2200,
+
+  'Lakshmi Puja': 7000,
+  'Satyanarayan Katha': 6000,
+  'Ganesh Puja at Home': 6000,
+  'Griha Pravesh Puja': 9000,
+  'Vastu Shanti Puja': 8000,
+  'Havan Ceremony': 7000,
+  'Rudrabhishek Puja': 9000,
+  'Vivah (Wedding Ceremony)': 25000,
+  'Ring Ceremony': 12000,
+  'Ramayan Path': 8000,
+  'Mahamrityunjay Jaap': 12000,
+  'Gayatri Jaap': 8000,
+  'Pitra Shanti Puja': 10000,
+  'Nav Graha Shanti': 10000,
+  'Bhoomi Poojan': 6000,
+  'Vaahan Poojan': 4000,
+  'Shraadh Karm': 12000,
+  'Janmadin Poojan': 4000,
+  'Sundarkand Path': 7000,
+
+  'Deep House Cleaning': 6000,
+  'Regular House Cleaning': 3500,
+  'Bathroom Deep Clean': 1500,
+  'Kitchen Deep Clean': 2000,
+  'Carpet Cleaning': 2500,
+  'Sofa & Upholstery Clean': 2500,
+  'Window Cleaning': 1500,
+  'Move-in/Move-out Cleaning': 6000,
+  'Office Cleaning': 8000,
+  'Post-Construction Cleaning': 9000,
+  'Balcony Cleaning': 1500,
+  'Chimney & Exhaust Cleaning': 2000,
+  'Water Tank Cleaning': 3000,
+
+  'Laundry & Ironing': 1000,
+  'Dry Cleaning Service': 1500,
+
+  'Other': 5000,
+};
+
+const DEFAULT_EXPERIENCE_RANGES = [
+  { minYears: 0, maxYears: 5 },
+  { minYears: 5, maxYears: 10 },
+  { minYears: 10, maxYears: 15 },
+  { minYears: 15, maxYears: 20 },
+  { minYears: 20, maxYears: 25 },
+  { minYears: 25, maxYears: 30 },
+  { minYears: 30, maxYears: null },
+];
+
+const buildDefaultExperienceLimits = (category, title) => {
+  const defaultMax = DEFAULT_MAX_BY_SERVICE[title] || DEFAULT_MAX_BY_CATEGORY[category] || 0;
+  return DEFAULT_EXPERIENCE_RANGES.map(range => ({
+    ...range,
+    maxPrice: defaultMax,
+  }));
+};
+
+const applyDefaultLimits = (service) => ({
+  ...service,
+  basePrice: service.basePrice || 0,
+  minPrice: service.minPrice || 0,
+  maxPrice: service.maxPrice || DEFAULT_MAX_BY_SERVICE[service.title] || DEFAULT_MAX_BY_CATEGORY[service.category] || 0,
+  experiencePriceLimits: Array.isArray(service.experiencePriceLimits) && service.experiencePriceLimits.length > 0
+    ? service.experiencePriceLimits
+    : buildDefaultExperienceLimits(service.category, service.title)
+});
+
 // Static fallback services if database is empty - All 36 Yann services
 const STATIC_SERVICES = [
   // ===== DRIVER SERVICES (2) =====
@@ -421,7 +501,7 @@ export async function GET(request) {
       }
       return NextResponse.json({
         success: true,
-        data: staticData,
+        data: staticData.map(applyDefaultLimits),
       });
     }
 
@@ -431,6 +511,12 @@ export async function GET(request) {
       description: service.description,
       category: service.category,
       price: service.price,
+      basePrice: service.basePrice || 0,
+      minPrice: service.minPrice || 0,
+      maxPrice: service.maxPrice || DEFAULT_MAX_BY_SERVICE[service.title] || DEFAULT_MAX_BY_CATEGORY[service.category] || 0,
+      experiencePriceLimits: Array.isArray(service.experiencePriceLimits) && service.experiencePriceLimits.length > 0
+        ? service.experiencePriceLimits
+        : buildDefaultExperienceLimits(service.category, service.title),
       features: service.features || [],
       icon: service.icon || '🏠',
       popular: service.popular || false,
@@ -453,7 +539,7 @@ export async function GET(request) {
     // Return static services on error
     return NextResponse.json({
       success: true,
-      data: STATIC_SERVICES,
+      data: STATIC_SERVICES.map(applyDefaultLimits),
     });
   }
 }

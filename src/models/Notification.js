@@ -15,6 +15,9 @@ const notificationSchema = new mongoose.Schema({
       'booking_accepted',
       'booking_rejected',
       'booking_cancelled',
+      'booking_expired',
+      'booking_request',
+      'booking_request_reminder',
       // Job lifecycle
       'job_started',
       'job_completed',

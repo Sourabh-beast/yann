@@ -25,6 +25,33 @@ export default function ServicesManagementPage() {
   const [deleteConfirm, setDeleteConfirm] = useState(null);
   const [saving, setSaving] = useState(false);
 
+  const EXPERIENCE_RANGES = [
+    { label: '0-5', minYears: 0, maxYears: 5 },
+    { label: '5-10', minYears: 5, maxYears: 10 },
+    { label: '10-15', minYears: 10, maxYears: 15 },
+    { label: '15-20', minYears: 15, maxYears: 20 },
+    { label: '20-25', minYears: 20, maxYears: 25 },
+    { label: '25-30', minYears: 25, maxYears: 30 },
+    { label: '30+', minYears: 30, maxYears: null },
+  ];
+
+  const buildExperienceLimits = (existing = []) => {
+    return EXPERIENCE_RANGES.map(range => {
+      const match = existing.find(limit => {
+        const minMatches = Number(limit.minYears) === range.minYears;
+        const maxIsNull = limit.maxYears === null || limit.maxYears === undefined;
+        const maxMatches = maxIsNull ? range.maxYears === null : Number(limit.maxYears) === range.maxYears;
+        return minMatches && maxMatches;
+      });
+      return {
+        minYears: range.minYears,
+        maxYears: range.maxYears,
+        maxPrice: match ? Number(match.maxPrice) || 0 : 0,
+        label: range.label,
+      };
+    });
+  };
+
   // Form state
   const [formData, setFormData] = useState({
     title: '',
@@ -34,6 +61,7 @@ export default function ServicesManagementPage() {
     basePrice: 0,
     minPrice: 0,
     maxPrice: 0,
+    experiencePriceLimits: [],
     features: '',
     icon: '🏠',
     popular: false,
@@ -77,6 +105,7 @@ export default function ServicesManagementPage() {
       basePrice: 0,
       minPrice: 0,
       maxPrice: 0,
+      experiencePriceLimits: buildExperienceLimits(),
       features: '',
       icon: '🏠',
       popular: false,
@@ -97,6 +126,7 @@ export default function ServicesManagementPage() {
       basePrice: service.basePrice || 0,
       minPrice: service.minPrice || 0,
       maxPrice: service.maxPrice || 0,
+      experiencePriceLimits: buildExperienceLimits(service.experiencePriceLimits || []),
       features: service.features?.join('\n') || '',
       icon: service.icon || '🏠',
       popular: service.popular || false,
@@ -113,7 +143,12 @@ export default function ServicesManagementPage() {
       const payload = {
         ...formData,
         features: formData.features.split('\n').filter(f => f.trim()),
-        tags: formData.tags.split(',').map(t => t.trim()).filter(t => t)
+        tags: formData.tags.split(',').map(t => t.trim()).filter(t => t),
+        experiencePriceLimits: (formData.experiencePriceLimits || []).map(limit => ({
+          minYears: Number(limit.minYears) || 0,
+          maxYears: limit.maxYears === null || limit.maxYears === undefined ? null : Number(limit.maxYears),
+          maxPrice: Number(limit.maxPrice) || 0
+        }))
       };
 
       if (editingService) {
@@ -500,23 +535,35 @@ export default function ServicesManagementPage() {
                     className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500"
                   />
                 </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Min Price (₹)</label>
-                  <input
-                    type="number"
-                    value={formData.minPrice}
-                    onChange={(e) => setFormData({...formData, minPrice: parseInt(e.target.value) || 0})}
-                    className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Max Price (₹)</label>
-                  <input
-                    type="number"
-                    value={formData.maxPrice}
-                    onChange={(e) => setFormData({...formData, maxPrice: parseInt(e.target.value) || 0})}
-                    className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  />
+                <div className="md:col-span-2">
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Max Price by Experience (₹)</label>
+                  <div className="border border-gray-200 rounded-xl overflow-hidden">
+                    <div className="grid grid-cols-2 bg-gray-50 text-xs font-semibold text-gray-600">
+                      <div className="px-4 py-2">Experience Range (yrs)</div>
+                      <div className="px-4 py-2">Max Price (₹)</div>
+                    </div>
+                    {(formData.experiencePriceLimits || []).map((limit, idx) => (
+                      <div key={`${limit.minYears}-${limit.maxYears}-${idx}`} className="grid grid-cols-2 border-t border-gray-200">
+                        <div className="px-4 py-2 text-sm text-gray-700">
+                          {limit.label || `${limit.minYears}-${limit.maxYears ?? '+'}`}
+                        </div>
+                        <div className="px-4 py-2">
+                          <input
+                            type="number"
+                            value={limit.maxPrice}
+                            onChange={(e) => {
+                              const value = parseInt(e.target.value) || 0;
+                              const updated = [...(formData.experiencePriceLimits || [])];
+                              updated[idx] = { ...updated[idx], maxPrice: value };
+                              setFormData({ ...formData, experiencePriceLimits: updated });
+                            }}
+                            className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                          />
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                  <p className="text-xs text-gray-500 mt-2">Providers cannot set prices above these limits for their experience range.</p>
                 </div>
               </div>
 

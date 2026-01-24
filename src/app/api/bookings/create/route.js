@@ -137,7 +137,10 @@ export async function POST(request) {
       );
     }
 
-    bookingData.basePrice = providerPrice;
+    // Ensure basePrice is a valid number
+    bookingData.basePrice = Number(providerPrice) || 0;
+    
+    console.log('💰 Provider pricing:', { providerPrice, basePrice: bookingData.basePrice });
 
     const extras = Array.isArray(bookingData.extras) ? bookingData.extras : [];
     const extrasTotal = extras.reduce((sum, extra) => sum + (extra?.price || 0), 0);
@@ -236,12 +239,12 @@ export async function POST(request) {
       };
 
       pricingBreakdown = {
-        baseCost: hourlyCost.baseCost,
-        gst: gst.gstAmount,
+        baseCost: hourlyCost.baseCost || 0,
+        gst: gst.gstAmount || 0,
         gstPercentage: gstPercentage,
         extras: extrasTotal,
-        subtotal: hourlyCost.baseCost + extrasTotal,
-        total: hourlyCost.baseCost + gst.gstAmount + extrasTotal,
+        subtotal: (hourlyCost.baseCost || 0) + extrasTotal,
+        total: Number(((hourlyCost.baseCost || 0) + (gst.gstAmount || 0) + extrasTotal).toFixed(2)),
         breakdown: {
           startTime: bookingData.startTime,
           endTime: bookingData.endTime,
@@ -251,8 +254,8 @@ export async function POST(request) {
         }
       };
 
-      bookingData.basePrice = hourlyCost.baseCost;
-      bookingData.totalPrice = Number(pricingBreakdown.total.toFixed(2));
+      bookingData.basePrice = hourlyCost.baseCost || 0;
+      bookingData.totalPrice = pricingBreakdown.total;
 
     } else if (pricingModel === 'fixed' || !hasTimeRange) {
       // FIXED PRICING: One-time fixed cost with GST
@@ -261,35 +264,36 @@ export async function POST(request) {
       const billingType = bookingData.billingType || 'one-time';
       const billingMultiplier = billingType === 'monthly' ? 4 : 1;
 
+      // Ensure basePrice is a valid number
+      const safeBasePrice = Number(bookingData.basePrice) || 0;
+      const safeGstPercentage = Number(gstPercentage) || 18;
+
       // Use pricing calculator for fixed service
       const fixedCost = calculateFixedServiceCost(
-        bookingData.basePrice,
-        gstPercentage,
-        quantity
+        safeBasePrice,
+        safeGstPercentage
       );
 
-      const totalBooking = calculateBookingTotal(
-        fixedCost.totalWithGST,
-        extrasTotal
-      );
+      // Calculate total with extras (fixedCost already has totalWithGST)
+      const grandTotal = (fixedCost.totalWithGST || safeBasePrice) + extrasTotal;
 
       pricingBreakdown = {
-        baseCost: bookingData.basePrice,
-        gst: fixedCost.gstAmount,
-        gstPercentage: gstPercentage,
+        baseCost: safeBasePrice,
+        gst: fixedCost.gstAmount || 0,
+        gstPercentage: safeGstPercentage,
         extras: extrasTotal,
         quantity: quantity,
-        subtotal: fixedCost.subtotal,
-        total: totalBooking.grandTotal * billingMultiplier,
+        subtotal: fixedCost.baseAmount || safeBasePrice,
+        total: Number((grandTotal * billingMultiplier).toFixed(2)) || safeBasePrice,
         breakdown: {
-          basePrice: `₹${bookingData.basePrice}`,
+          basePrice: `₹${safeBasePrice}`,
           quantity: quantity > 1 ? `${quantity} unit${quantity > 1 ? 's' : ''}` : '1 service',
-          gstRate: `${gstPercentage}%`,
+          gstRate: `${safeGstPercentage}%`,
           billingType: billingType
         }
       };
 
-      bookingData.totalPrice = Number(pricingBreakdown.total.toFixed(2));
+      bookingData.totalPrice = pricingBreakdown.total;
 
     } else if (bookingData.serviceCategory === 'driver' && bookingData.driverDetails?.endTime) {
       // Legacy driver details (only if end time is explicitly provided)

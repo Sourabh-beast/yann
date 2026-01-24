@@ -72,6 +72,26 @@ const ServiceSchema = new mongoose.Schema({
     type: Number,
     default: 0,
   },
+  // Experience-based max price limits
+  experiencePriceLimits: {
+    type: [{
+      minYears: {
+        type: Number,
+        required: true,
+        min: 0,
+      },
+      maxYears: {
+        type: Number,
+        default: null,
+      },
+      maxPrice: {
+        type: Number,
+        required: true,
+        min: 0,
+      }
+    }],
+    default: [],
+  },
   // Duration in minutes
   estimatedDuration: {
     type: Number,

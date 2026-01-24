@@ -15,6 +15,7 @@ export default function ServiceProviderRegistration({ isOpen, onClose }) {
   const [loading, setLoading] = useState(false);
   const [submitted, setSubmitted] = useState(false);
   const [expandedCategories, setExpandedCategories] = useState([]);
+  const [serviceLimits, setServiceLimits] = useState({});
   const [formData, setFormData] = useState({
     name: '',
     email: '',
@@ -23,9 +24,18 @@ export default function ServiceProviderRegistration({ isOpen, onClose }) {
     selectedCategories: [],
     services: [],
     servicePricing: {},
+    serviceExperience: {},
     startTime: '09:00',
     endTime: '17:00'
   });
+
+  const DEFAULT_MAX_BY_CATEGORY = {
+    'Cleaning Services': 5000,
+    'Laundry Services': 2000,
+    'Pujari Services': 25000,
+    'Driver Services': 2000,
+    'Other Services': 10000
+  };
 
   const categorizedServices = {
     'Cleaning Services': [
@@ -102,6 +112,37 @@ export default function ServiceProviderRegistration({ isOpen, onClose }) {
     };
   }, [isOpen]);
 
+  // Load per-service max limits from admin-configured services
+  useEffect(() => {
+    if (!isOpen) return;
+
+    let cancelled = false;
+    const loadLimits = async () => {
+      try {
+        const res = await fetch('/api/services');
+        const data = await res.json();
+        if (!cancelled && data?.success && Array.isArray(data.data)) {
+          const limitMap = data.data.reduce((acc, service) => {
+            acc[service.title] = {
+              maxPrice: Number(service.maxPrice || 0),
+              experiencePriceLimits: service.experiencePriceLimits || []
+            };
+            return acc;
+          }, {});
+          setServiceLimits(limitMap);
+        }
+      } catch (error) {
+        console.error('Failed to load service limits', error);
+      }
+    };
+
+    loadLimits();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [isOpen]);
+
   const handleInputChange = (e) => {
     const { name, value } = e.target;
     setFormData(prev => ({
@@ -115,10 +156,12 @@ export default function ServiceProviderRegistration({ isOpen, onClose }) {
       const isSelected = prev.services.includes(service);
       if (isSelected) {
         const { [service]: _removed, ...restPricing } = prev.servicePricing;
+        const { [service]: _removedExp, ...restExperience } = prev.serviceExperience;
         return {
           ...prev,
           services: prev.services.filter(s => s !== service),
-          servicePricing: restPricing
+          servicePricing: restPricing,
+          serviceExperience: restExperience
         };
       }
 
@@ -137,6 +180,43 @@ export default function ServiceProviderRegistration({ isOpen, onClose }) {
         [service]: value === '' ? '' : Math.max(0, Number(value))
       }
     }));
+  };
+
+  const handleExperienceChange = (service, value) => {
+    setFormData(prev => ({
+      ...prev,
+      serviceExperience: {
+        ...prev.serviceExperience,
+        [service]: value === '' ? '' : Math.max(0, Number(value))
+      }
+    }));
+  };
+
+  const getMaxLimit = (serviceName, category) => {
+    const serviceData = serviceLimits[serviceName] || {};
+    const experienceLimits = serviceData.experiencePriceLimits || [];
+    const experienceYears = Number(formData.serviceExperience[serviceName] || 0);
+
+    if (Array.isArray(experienceLimits) && experienceLimits.length > 0) {
+      const matched = experienceLimits.find(limit => {
+        const min = Number(limit.minYears || 0);
+        const max = limit.maxYears === null || limit.maxYears === undefined ? null : Number(limit.maxYears);
+        return experienceYears >= min && (max === null || experienceYears < max);
+      });
+      if (matched && Number(matched.maxPrice) > 0) {
+        return Number(matched.maxPrice);
+      }
+    }
+
+    const configuredMax = Number(serviceData.maxPrice || 0);
+    if (configuredMax > 0) return configuredMax;
+    return DEFAULT_MAX_BY_CATEGORY[category] || 0;
+  };
+
+  const getCategoryForService = (serviceName) => {
+    return Object.keys(categorizedServices).find(category =>
+      categorizedServices[category].includes(serviceName)
+    ) || 'Other Services';
   };
 
   const toggleCategory = (category) => {
@@ -192,6 +272,31 @@ export default function ServiceProviderRegistration({ isOpen, onClose }) {
       return;
     }
 
+    const missingExperience = formData.services.find(service => {
+      const rawValue = formData.serviceExperience[service];
+      const expValue = Number(rawValue);
+      return rawValue === '' || rawValue === undefined || Number.isNaN(expValue) || expValue < 0;
+    });
+
+    if (missingExperience) {
+      alert(`Please enter experience for ${missingExperience}`);
+      return;
+    }
+
+    const priceOverLimit = formData.services.find(service => {
+      const priceValue = Number(formData.servicePricing[service]);
+      const category = getCategoryForService(service);
+      const maxLimit = getMaxLimit(service, category);
+      return maxLimit > 0 && priceValue > maxLimit;
+    });
+
+    if (priceOverLimit) {
+      const category = getCategoryForService(priceOverLimit);
+      const maxLimit = getMaxLimit(priceOverLimit, category);
+      alert(`Price for ${priceOverLimit} cannot exceed ₹${maxLimit}`);
+      return;
+    }
+
     try {
       setLoading(true);
       
@@ -205,6 +310,10 @@ export default function ServiceProviderRegistration({ isOpen, onClose }) {
         serviceRates: formData.services.map(serviceName => ({
           serviceName,
           price: Number(formData.servicePricing[serviceName])
+        })),
+        serviceExperiences: formData.services.map(serviceName => ({
+          serviceName,
+          years: Number(formData.serviceExperience[serviceName])
         })),
         selectedCategories: formData.selectedCategories,
         workingHours: {
@@ -236,6 +345,7 @@ export default function ServiceProviderRegistration({ isOpen, onClose }) {
             selectedCategories: [],
             services: [],
             servicePricing: {},
+            serviceExperience: {},
             startTime: '09:00',
             endTime: '17:00'
           });
@@ -475,6 +585,8 @@ export default function ServiceProviderRegistration({ isOpen, onClose }) {
                             {services.map((service) => {
                               const isServiceSelected = formData.services.includes(service);
                               const servicePrice = formData.servicePricing[service] ?? '';
+                              const serviceExperience = formData.serviceExperience[service] ?? '';
+                              const maxLimit = getMaxLimit(service, category);
                               return (
                                 <label 
                                   key={service} 
@@ -505,22 +617,41 @@ export default function ServiceProviderRegistration({ isOpen, onClose }) {
                                     )}
                                   </div>
                                   {isServiceSelected && (
-                                    <div className="flex items-center gap-2 pl-7">
-                                      <span className="text-xs font-semibold text-gray-500">
-                                        {category === 'Driver Services' ? 'Rate (₹/hr)' : 'Price (₹)'}
-                                      </span>
-                                      <input
-                                        type="number"
-                                        min="1"
-                                        value={servicePrice}
-                                        onClick={(e) => e.stopPropagation()}
-                                        onChange={(e) => handlePriceChange(service, e.target.value)}
-                                        className="flex-1 px-3 py-2 text-sm border-2 border-green-200 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 transition-all duration-300"
-                                        placeholder={category === 'Driver Services' ? 'Per hour rate' : 'Enter your fee'}
-                                      />
-                                      {category === 'Driver Services' && (
-                                        <span className="text-xs font-bold text-orange-600 bg-orange-50 px-2 py-1 rounded-full whitespace-nowrap">per hour</span>
-                                      )}
+                                    <div className="grid grid-cols-1 gap-2 pl-7">
+                                      <div className="flex items-center gap-2">
+                                        <span className="text-xs font-semibold text-gray-500">Experience (yrs)</span>
+                                        <input
+                                          type="number"
+                                          min="0"
+                                          max="50"
+                                          value={serviceExperience}
+                                          onClick={(e) => e.stopPropagation()}
+                                          onChange={(e) => handleExperienceChange(service, e.target.value)}
+                                          className="flex-1 px-3 py-2 text-sm border-2 border-green-200 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 transition-all duration-300"
+                                          placeholder="Years"
+                                        />
+                                      </div>
+                                      <div className="flex items-center gap-2">
+                                        <span className="text-xs font-semibold text-gray-500">
+                                          {category === 'Driver Services' ? 'Rate (₹/hr)' : 'Price (₹)'}
+                                        </span>
+                                        <input
+                                          type="number"
+                                          min="1"
+                                          max={maxLimit > 0 ? maxLimit : undefined}
+                                          value={servicePrice}
+                                          onClick={(e) => e.stopPropagation()}
+                                          onChange={(e) => handlePriceChange(service, e.target.value)}
+                                          className="flex-1 px-3 py-2 text-sm border-2 border-green-200 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 transition-all duration-300"
+                                          placeholder={category === 'Driver Services' ? 'Per hour rate' : 'Enter your fee'}
+                                        />
+                                        {maxLimit > 0 && (
+                                          <span className="text-xs font-bold text-blue-700 bg-blue-50 px-2 py-1 rounded-full whitespace-nowrap">max ₹{maxLimit}</span>
+                                        )}
+                                        {category === 'Driver Services' && (
+                                          <span className="text-xs font-bold text-orange-600 bg-orange-50 px-2 py-1 rounded-full whitespace-nowrap">per hour</span>
+                                        )}
+                                      </div>
                                     </div>
                                   )}
                                 </label>
