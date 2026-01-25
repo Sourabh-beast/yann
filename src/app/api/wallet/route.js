@@ -25,12 +25,14 @@ export async function GET(req) {
       userType = 'homeowner';
       // Members see their transactions (topup, debit, refund, escrow)
       transactionQuery = {
-        customerId: userId,
+        homeowner: userId,
         type: {
           $in: [
             'wallet_topup',
             'wallet_debit',
             'wallet_refund',
+            'booking_initial_payment', // 25% initial payment
+            'booking_completion_payment', // 75% completion payment
             'escrow_hold',      // 25% held for booking
             'escrow_refund',    // 25% refunded when rejected
             'completion_payment' // 75% paid after completion
@@ -44,9 +46,11 @@ export async function GET(req) {
         userType = 'provider';
         // Providers see earnings and withdrawal transactions
         transactionQuery = {
-          providerId: userId,
+          provider: userId,
           type: {
             $in: [
+              'booking_initial_payment', // 25% initial payment (held in escrow)
+              'booking_completion_payment', // 75% completion payment
               'wallet_credit',        // Earnings from bookings
               'escrow_release',       // 25% received on acceptance
               'withdrawal_request',   // Withdrawal requested

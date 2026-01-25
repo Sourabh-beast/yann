@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import connectDB from '@/lib/connectDB';
 import Notification from '@/models/Notification';
+import mongoose from 'mongoose';
 
 export async function POST(request) {
   try {
@@ -28,7 +29,18 @@ export async function POST(request) {
         );
     }
     
-    console.log(`📖 Marking ${notificationIds.length} notifications as read for user ${targetUserId}`);
+    // Filter out invalid ObjectIds (client-generated timestamps, etc.)
+    const validNotificationIds = notificationIds.filter(id => mongoose.Types.ObjectId.isValid(id));
+    
+    if (validNotificationIds.length === 0) {
+        // All IDs are invalid (probably client-generated), just return success
+        return NextResponse.json({
+            success: true,
+            message: 'No server notifications to mark as read'
+        });
+    }
+    
+    console.log(`📖 Marking ${validNotificationIds.length} notifications as read for user ${targetUserId}`);
 
     // Update notifications
     // Note: Since we are using a shared Notification model where recipients is an array,
@@ -39,7 +51,7 @@ export async function POST(request) {
     // Efficient bulk update using arrayFilters
     const result = await Notification.updateMany(
         { 
-            _id: { $in: notificationIds }, 
+            _id: { $in: validNotificationIds }, 
             'recipients.userId': targetUserId 
         },
         { 

@@ -111,6 +111,33 @@ export async function POST(req) {
 
             await customer.save();
 
+            // Find provider and add to their wallet
+            const provider = await ServiceProvider.findById(booking.assignedProvider);
+            if (!provider) {
+                return NextResponse.json(
+                    { success: false, message: 'Provider not found' },
+                    { status: 404 }
+                );
+            }
+
+            // Add to provider wallet (held in escrow)
+            provider.wallet.balance += initialAmount;
+
+            // Add transaction to provider's wallet history
+            if (!provider.wallet.transactions) {
+                provider.wallet.transactions = [];
+            }
+            provider.wallet.transactions.push({
+                type: 'credit',
+                amount: initialAmount,
+                description: `Initial payment (25%) for ${booking.serviceName} (held in escrow)`,
+                bookingId: booking._id,
+                date: new Date(),
+                status: 'held_in_escrow'
+            });
+
+            await provider.save();
+
             // Update booking with escrow details
             booking.escrowDetails = {
                 initialPayment: initialAmount,
@@ -136,7 +163,7 @@ export async function POST(req) {
                 type: 'booking_initial_payment',
                 amount: initialAmount,
                 homeowner: customer._id,
-                provider: booking.assignedProvider,
+                provider: provider._id,
                 booking: booking._id,
                 status: 'held_in_escrow',
                 description: `Initial payment (25%) for ${booking.serviceName}`,
@@ -149,7 +176,6 @@ export async function POST(req) {
             });
 
             // Notify provider that booking is confirmed
-            const provider = await ServiceProvider.findById(booking.assignedProvider);
             if (provider?.pushToken) {
                 await createAndSendNotification({
                     title: '💰 Payment Received!',
