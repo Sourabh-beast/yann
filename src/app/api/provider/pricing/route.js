@@ -14,6 +14,7 @@ export async function GET() {
 
     const providers = await ServiceProvider.find({
       status: 'active',
+      isOnline: true,
       serviceRates: { $exists: true, $ne: [] }
     }).select('serviceRates services');
 
@@ -90,6 +91,7 @@ export async function POST(request) {
 
     const providers = await ServiceProvider.find({
       status: 'active',
+      isOnline: true,
       serviceRates: { $exists: true, $ne: [] }
     }).select('serviceRates');
 

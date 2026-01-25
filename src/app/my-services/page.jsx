@@ -169,6 +169,7 @@ const BookingModal = ({ open, onClose, baseService, servicesList = [], onConfirm
   };
 
   const selectedProvider = selectedProviderId ? providerOptions.find(p => p.id === selectedProviderId) : null;
+  const hasOnlineProvider = providerOptions.some(p => p?.isOnline !== false);
   const providerPrice = selectedProvider?.price ?? baseService?.price ?? 0;
 
   // For driver services, provider's hourly rate comes directly from their serviceRates
@@ -239,7 +240,8 @@ const BookingModal = ({ open, onClose, baseService, servicesList = [], onConfirm
 
         const providers = data.providers || [];
         setProviderOptions(providers);
-        setSelectedProviderId(providers[0]?.id || null);
+        const firstOnlineProvider = providers.find(p => p?.isOnline !== false);
+        setSelectedProviderId(firstOnlineProvider?.id || null);
         setProviderStatus('loaded');
 
         if (!providers.length) {
@@ -266,6 +268,11 @@ const BookingModal = ({ open, onClose, baseService, servicesList = [], onConfirm
   };
 
   const handleSelectProvider = (id) => {
+    const partner = providerOptions.find(p => p.id === id);
+    if (partner?.isOnline === false) {
+      setErrorMsg('This partner is currently offline. Please choose an online partner.');
+      return;
+    }
     setSelectedProviderId(id);
     setErrorMsg('');
   };
@@ -325,6 +332,7 @@ const BookingModal = ({ open, onClose, baseService, servicesList = [], onConfirm
       if (providerStatus === 'error') return false;
       if (!providerOptions.length) return false;
       if (!selectedProviderId) return false;
+      if (selectedProvider?.isOnline === false) return false;
       return true;
     }
     return false;
@@ -520,6 +528,13 @@ const BookingModal = ({ open, onClose, baseService, servicesList = [], onConfirm
 
     if (!selectedProvider) {
       const message = 'Please choose a service partner to continue.';
+      setErrorMsg(message);
+      setStatus('idle');
+      return;
+    }
+
+    if (selectedProvider?.isOnline === false) {
+      const message = 'Selected partner is offline. Please choose an online partner.';
       setErrorMsg(message);
       setStatus('idle');
       return;
@@ -993,11 +1008,18 @@ const BookingModal = ({ open, onClose, baseService, servicesList = [], onConfirm
                   </div>
                 )}
 
+                {providerOptions.length > 0 && !hasOnlineProvider && (
+                  <div className="p-4 border-2 border-slate-200 rounded-2xl bg-slate-50 text-sm font-semibold text-slate-700">
+                    All partners are currently offline. You can check their profiles, but please choose an online partner to continue.
+                  </div>
+                )}
+
                 {providerOptions.length > 0 && (
                   <div className="space-y-3">
                     {providerOptions.map((partner, index) => {
                       const isSelected = selectedProviderId === partner.id;
                       const isBestValue = index === 0;
+                      const isOffline = partner?.isOnline === false;
                       const ratingDisplay = typeof partner.rating === 'number' ? partner.rating.toFixed(1) : partner.rating ?? '—';
 
                       return (
@@ -1005,11 +1027,12 @@ const BookingModal = ({ open, onClose, baseService, servicesList = [], onConfirm
                           type="button"
                           key={partner.id}
                           onClick={() => handleSelectProvider(partner.id)}
+                          disabled={isOffline}
                           className={`w-full text-left p-5 border-2 rounded-2xl transition-all ${
                             isSelected
                               ? 'border-blue-500 bg-blue-50 shadow-lg shadow-blue-500/10'
                               : 'border-gray-200 hover:border-blue-300 hover:bg-gray-50'
-                          }`}
+                          } ${isOffline ? 'opacity-60 cursor-not-allowed hover:border-gray-200 hover:bg-white' : ''}`}
                         >
                           <div className="flex items-start gap-4">
                             <div className={`w-14 h-14 rounded-2xl flex items-center justify-center text-white font-bold text-xl bg-gradient-to-br ${
@@ -1026,6 +1049,9 @@ const BookingModal = ({ open, onClose, baseService, servicesList = [], onConfirm
                                 <p className="font-semibold text-gray-900 text-lg">{partner.name}</p>
                                 {isBestValue && (
                                   <span className="px-2 py-0.5 text-xs font-semibold rounded-full bg-emerald-100 text-emerald-700">Best price</span>
+                                )}
+                                {isOffline && (
+                                  <span className="px-2 py-0.5 text-xs font-semibold rounded-full bg-red-100 text-red-700">Offline</span>
                                 )}
                                 {isSelected && (
                                   <span className="px-2 py-0.5 text-xs font-semibold rounded-full bg-blue-100 text-blue-700 flex items-center gap-1">

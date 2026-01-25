@@ -58,7 +58,7 @@ export async function GET(request) {
 
         // Execute search
         const providers = await ServiceProvider.find(searchQuery)
-            .select('name email phone services serviceRates rating totalReviews profileImage bio status')
+            .select('name email phone services serviceRates rating totalReviews profileImage bio status isOnline')
             .sort(sortObj)
             .skip(skip)
             .limit(limit)

@@ -37,6 +37,7 @@ const sanitizeProvider = (provider) => ({
   profileImage: provider.profileImage || "",
   isVerified: provider.isVerified || false,
   aadhaarVerified: provider.aadhaarVerified || false,
+  isOnline: provider.isOnline ?? true,
 });
 
 const sanitizeHomeowner = (homeowner) => ({
@@ -253,7 +254,8 @@ export async function POST(req) {
               workingHours: testUser.workingHours || { startTime: '09:00', endTime: '18:00' },
               experience: 5, // Default experience for test users
               isVerified: true,
-              status: 'active'
+              status: 'active',
+              isOnline: true
             });
           } catch (createError) {
             console.error("Test provider creation failed:", createError);

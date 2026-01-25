@@ -37,6 +37,7 @@ const sanitizeProvider = (provider) => ({
   workingHours: provider.workingHours || null,
   profileImage: provider.profileImage || '',
   pendingServiceRequest: provider.pendingServiceRequest || null,
+  isOnline: provider.isOnline ?? true,
 });
 
 export async function GET() {

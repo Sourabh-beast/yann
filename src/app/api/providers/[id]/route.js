@@ -77,7 +77,7 @@ export async function GET(request, { params }) {
     }
 
     const provider = await ServiceProvider.findById(id)
-      .select('name email phone experience rating totalReviews serviceRates workingHours profileImage services status bio isVerified aadhaarVerified');
+      .select('name email phone experience rating totalReviews serviceRates workingHours profileImage services status bio isVerified aadhaarVerified isOnline');
 
     if (!provider) {
       return NextResponse.json(
@@ -106,6 +106,7 @@ export async function GET(request, { params }) {
         status: provider.status,
         bio: provider.bio || '',
         isVerified: provider.isVerified || provider.aadhaarVerified || false,
+        isOnline: provider.isOnline ?? true,
         averageResponseTime: responseTimeData.time,
         responseCount: responseTimeData.count,
       },

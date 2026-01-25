@@ -426,7 +426,8 @@ export async function POST(request) {
     // Find providers whose services array contains this service name (exact match)
     const availableProviders = await ServiceProvider.find({
       services: { $in: [serviceName] },
-      status: 'active'
+      status: 'active',
+      isOnline: true
     }).select('_id name email phone services');
 
     console.log(`📢 Booking created! Found ${availableProviders.length} providers for "${serviceName}"`);

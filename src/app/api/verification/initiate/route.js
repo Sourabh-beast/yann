@@ -7,12 +7,13 @@ import connectDB from '@/lib/connectDB'; // Assuming there's a db connection hel
 const MEON_BASE_URL = 'https://digilocker.meon.co.in';
 const COMPANY_NAME = 'safe&care';
 const SECRET_TOKEN = 'rhJ8OqF5HytSI1CRGmRSgTrQcd4bWsVD';
+const DEFAULT_APP_URL = process.env.NEXT_PUBLIC_APP_URL || 'https://yann-care.vercel.app';
 
 // initiate verification
 export async function POST(req) {
   try {
     await connectDB();
-    const { userId, userType = 'homeowner' } = await req.json();
+    const { userId, userType = 'homeowner', returnUrl } = await req.json();
 
     // 1. Get Access Token (Client Token)
     const tokenResponse = await axios.post(`${MEON_BASE_URL}/get_access_token`, {
@@ -43,14 +44,21 @@ export async function POST(req) {
     
     // Construct a unique redirect URL or state
     // Meon API takes "redirect_url". 
-    const callbackUrl = `https://yann-care.vercel.app/api/verification/callback?userId=${userId}&userType=${userType}&clientToken=${clientToken}&state=${state}`; 
+        const callbackUrl = new URL('/api/verification/callback', DEFAULT_APP_URL);
+        callbackUrl.searchParams.set('userId', userId);
+        callbackUrl.searchParams.set('userType', userType);
+        callbackUrl.searchParams.set('clientToken', clientToken);
+        callbackUrl.searchParams.set('state', state);
+        if (returnUrl) {
+            callbackUrl.searchParams.set('returnUrl', returnUrl);
+        }
     // replacing with actual domain if known, or localhost for dev. 
     // The user didn't specify the deployed backend URL, but existing api.ts points to API_BASE_URL.
     // I will use a placeholder or try to find it.
 
     const linkResponse = await axios.post(`${MEON_BASE_URL}/digi_url`, {
         client_token: clientToken,
-        redirect_url: callbackUrl, // Return to our backend to process
+        redirect_url: callbackUrl.toString(), // Return to our backend to process
         company_name: COMPANY_NAME,
         documents: "aadhaar", // We only need aadhaar? User said "aadhaar verification". Prompt says "aadhaar,pan" in example. I will stick to aadhaar first.
         // pan_name/pan_no are optional filtering? The example provided them. 

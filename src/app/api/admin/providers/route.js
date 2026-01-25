@@ -94,6 +94,7 @@ export async function PATCH(request) {
       updateData.adminApproved = true;
       updateData.adminApprovedAt = new Date();
       updateData.adminApprovedBy = 'admin'; // You can pass admin ID from session
+      updateData.isOnline = true;
     }
 
     const provider = await ServiceProvider.findByIdAndUpdate(

@@ -54,7 +54,7 @@ export async function GET(request) {
 
     // Fetch ALL providers for this service (including offline ones)
     // Mobile app will handle displaying offline providers as grayed out
-    const providers = await ServiceProvider.find(query).select('name experience rating totalReviews serviceRates workingHours profileImage services status');
+    const providers = await ServiceProvider.find(query).select('name experience rating totalReviews serviceRates workingHours profileImage services status isOnline');
 
     const mappedProviders = providers
       .map((provider) => {
@@ -74,14 +74,20 @@ export async function GET(request) {
           serviceRates: provider.serviceRates || [],
           workingHours: provider.workingHours || null,
           profileImage: provider.profileImage || '',
-          status: provider.status || 'active' // Include status so mobile app can show offline state
+          status: provider.status || 'active',
+          isOnline: provider.isOnline ?? true // Include online state so apps can show offline status
         };
       })
       .filter(Boolean)
       .sort((a, b) => {
-        // Sort active providers first, then by price
-        if (a.status === 'active' && b.status !== 'active') return -1;
-        if (a.status !== 'active' && b.status === 'active') return 1;
+        // Sort active + online first, then active + offline, then others
+        const rank = (provider) => {
+          if (provider.status === 'active' && provider.isOnline) return 0;
+          if (provider.status === 'active' && !provider.isOnline) return 1;
+          return 2;
+        };
+        const rankDiff = rank(a) - rank(b);
+        if (rankDiff !== 0) return rankDiff;
         return a.price - b.price;
       });
 

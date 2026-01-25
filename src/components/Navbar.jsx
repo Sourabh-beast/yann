@@ -23,6 +23,9 @@ export default function Navbar() {
   const [userName, setUserName] = useState("");
   const [userEmail, setUserEmail] = useState("");
   const [userAvatar, setUserAvatar] = useState("");
+  const [userId, setUserId] = useState("");
+  const [isResidentVerified, setIsResidentVerified] = useState(false);
+  const [isVerificationLoading, setIsVerificationLoading] = useState(false);
   const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
   const [isLogoutConfirmOpen, setIsLogoutConfirmOpen] = useState(false);
   const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
@@ -50,6 +53,8 @@ export default function Navbar() {
     setUserName('');
     setUserEmail('');
     setUserAvatar('');
+    setUserId('');
+    setIsResidentVerified(false);
   }, []);
 
   const fetchSession = useCallback(async () => {
@@ -62,6 +67,8 @@ export default function Navbar() {
       setUserName(payload.provider?.name || 'Partner');
       setUserEmail(payload.provider?.email || '');
       setUserAvatar(payload.provider?.profileImage || '');
+      setUserId(payload.provider?.id || payload.provider?._id || '');
+      setIsResidentVerified(false);
       applied = true;
     };
 
@@ -71,6 +78,8 @@ export default function Navbar() {
       setUserName(payload.homeowner?.name || 'Resident');
       setUserEmail(payload.homeowner?.email || '');
       setUserAvatar(payload.homeowner?.avatar || '');
+      setUserId(payload.homeowner?.id || payload.homeowner?._id || '');
+      setIsResidentVerified(Boolean(payload.homeowner?.aadhaarVerified || payload.homeowner?.isVerified));
       applied = true;
     };
 
@@ -229,6 +238,40 @@ export default function Navbar() {
     setIsMenuOpen(false);
     router.push(path);
   }, [router]);
+
+  const handleResidentVerification = useCallback(async () => {
+    if (!userId || userRole !== 'resident') return;
+    if (isResidentVerified || isVerificationLoading) return;
+
+    setIsVerificationLoading(true);
+    try {
+      const returnUrl = typeof window !== 'undefined' ? window.location.href : '';
+      const res = await fetch('/api/verification/initiate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({
+          userId,
+          userType: 'homeowner',
+          returnUrl
+        })
+      });
+
+      const data = await res.json();
+      if (!res.ok || !data?.success || !data?.url) {
+        alert(data?.message || 'Unable to start verification');
+        return;
+      }
+
+      setIsUserMenuOpen(false);
+      window.location.href = data.url;
+    } catch (error) {
+      console.error('Verification initiation failed:', error);
+      alert('Unable to start verification. Please try again.');
+    } finally {
+      setIsVerificationLoading(false);
+    }
+  }, [userId, userRole, isResidentVerified, isVerificationLoading]);
 
   const partnerNavItems = [
     { label: 'Dashboard', href: '/dashboard', exactMatch: true },
@@ -389,6 +432,14 @@ export default function Navbar() {
                             {userRole === 'resident' ? 'Resident space' : 'Partner account'}
                           </p>
                           {userEmail ? <p className="text-xs text-gray-500">{userEmail}</p> : null}
+                          {userRole === 'resident' && isResidentVerified && (
+                            <div className="mt-2 inline-flex items-center gap-1 rounded-full bg-emerald-100 px-2.5 py-1 text-[11px] font-semibold uppercase tracking-wide text-emerald-700">
+                              <svg className="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                              </svg>
+                              Verified
+                            </div>
+                          )}
                         </div>
                         <div className="py-1">
                           {userRole === 'provider' ? (
@@ -449,6 +500,26 @@ export default function Navbar() {
                                 </svg>
                                 <span>Resident profile</span>
                               </button>
+                              {isResidentVerified ? (
+                                <div className="flex w-full items-center gap-3 px-4 py-3 text-sm font-semibold text-emerald-700">
+                                  <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                                  </svg>
+                                  <span>Verified</span>
+                                </div>
+                              ) : (
+                                <button
+                                  type="button"
+                                  onClick={handleResidentVerification}
+                                  disabled={isVerificationLoading}
+                                  className="flex w-full items-center gap-3 px-4 py-3 text-sm font-medium text-gray-600 transition hover:bg-blue-50 hover:text-blue-600 disabled:cursor-not-allowed disabled:opacity-60"
+                                >
+                                  <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 3l7 4v5c0 5-3.5 9-7 9s-7-4-7-9V7l7-4z" />
+                                  </svg>
+                                  <span>{isVerificationLoading ? 'Starting verification...' : 'Verify documents'}</span>
+                                </button>
+                              )}
                             </>
                           )}
                           <button
@@ -614,6 +685,25 @@ export default function Navbar() {
                       >
                         Saved experts
                       </button>
+                      {isResidentVerified ? (
+                        <div className="flex w-full items-center justify-center gap-2 rounded-full border border-emerald-200 bg-emerald-50 px-6 py-2.5 text-center text-sm font-semibold text-emerald-700">
+                          <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                          </svg>
+                          Verified
+                        </div>
+                      ) : (
+                        <button
+                          onClick={() => {
+                            setIsMenuOpen(false);
+                            handleResidentVerification();
+                          }}
+                          disabled={isVerificationLoading}
+                          className="block w-full rounded-full border border-blue-200 px-6 py-2.5 text-center text-sm font-semibold text-blue-600 transition hover:bg-blue-50 disabled:cursor-not-allowed disabled:opacity-60"
+                        >
+                          {isVerificationLoading ? 'Starting verification...' : 'Verify documents'}
+                        </button>
+                      )}
                     </>
                   )}
 

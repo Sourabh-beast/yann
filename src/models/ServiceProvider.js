@@ -188,6 +188,12 @@ const serviceProviderSchema = new mongoose.Schema({
     default: 'pending'
   },
 
+  // Provider availability (online/offline)
+  isOnline: {
+    type: Boolean,
+    default: true
+  },
+
   // Pending service request (for admin approval)
   pendingServiceRequest: {
     addedServices: {
