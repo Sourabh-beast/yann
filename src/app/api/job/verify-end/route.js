@@ -275,12 +275,19 @@ export async function POST(request) {
 
       const completionAmount = booking.escrowDetails?.completionAmount || Math.round(booking.totalPrice * 0.75 * 100) / 100;
 
-      console.log('🔔 Sending completion notification:');
-      console.log(`   Payment required: ${needsCompletionPayment}`);
-      console.log(`   Completion amount: ₹${completionAmount}`);
+      console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+      console.log('🔔 COMPLETION NOTIFICATION CHECK:');
       console.log(`   Booking ID: ${booking._id}`);
-      console.log(`   Homeowner ID: ${homeowner._id}`);
+      console.log(`   Payment method: ${booking.paymentMethod}`);
       console.log(`   Wallet stage: ${booking.walletPaymentStage}`);
+      console.log(`   Initial paid: ${booking.escrowDetails?.isInitialPaid}`);
+      console.log(`   Completion paid: ${booking.escrowDetails?.isCompletionPaid}`);
+      console.log(`   NEEDS COMPLETION PAYMENT: ${needsCompletionPayment}`);
+      console.log(`   Completion amount: ₹${completionAmount}`);
+      console.log(`   Homeowner ID: ${homeowner._id}`);
+      console.log(`   Homeowner name: ${homeowner.name}`);
+      console.log(`   Homeowner pushToken: ${homeowner.pushToken ? 'EXISTS' : 'MISSING'}`);
+      console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
 
       if (needsCompletionPayment) {
         // Send completion payment notification
@@ -310,6 +317,9 @@ export async function POST(request) {
         
         console.log('✅ Completion payment notification sent successfully');
       } else {
+        console.log('ℹ️ SKIPPING completion payment notification - not wallet payment or already paid');
+        console.log(`   Reason: paymentMethod=${booking.paymentMethod}, stage=${booking.walletPaymentStage}`);
+        
         // Regular completion notification
         await createAndSendNotification({
           title: '✅ Job Completed',
@@ -325,9 +335,13 @@ export async function POST(request) {
           },
           bookingId: booking._id.toString()
         });
+        
+        console.log('✅ Regular completion notification sent');
       }
 
-      console.log('✅ Completion notification sent');
+      console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+    } else {
+      console.log('❌ ERROR: Homeowner not found for customer ID:', jobSession.customer);
     }
 
 
