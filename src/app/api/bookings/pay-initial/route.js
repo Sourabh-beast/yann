@@ -96,19 +96,6 @@ export async function POST(req) {
             // Deduct from customer wallet
             customer.wallet.balance -= initialAmount;
 
-            // Add transaction to customer's wallet history
-            if (!customer.wallet.transactions) {
-                customer.wallet.transactions = [];
-            }
-            customer.wallet.transactions.push({
-                type: 'debit',
-                amount: initialAmount,
-                description: `Initial payment (25%) for ${booking.serviceName}`,
-                bookingId: booking._id,
-                date: new Date(),
-                status: 'completed'
-            });
-
             await customer.save();
 
             // Find provider and add to their wallet
@@ -123,18 +110,7 @@ export async function POST(req) {
             // Add to provider wallet (held in escrow)
             provider.wallet.balance += initialAmount;
 
-            // Add transaction to provider's wallet history
-            if (!provider.wallet.transactions) {
-                provider.wallet.transactions = [];
-            }
-            provider.wallet.transactions.push({
-                type: 'credit',
-                amount: initialAmount,
-                description: `Initial payment (25%) for ${booking.serviceName} (held in escrow)`,
-                bookingId: booking._id,
-                date: new Date(),
-                status: 'held_in_escrow'
-            });
+            console.log(`💼 Provider wallet updated: ${provider.name} balance: ₹${provider.wallet.balance}`);
 
             await provider.save();
 
@@ -156,10 +132,12 @@ export async function POST(req) {
             booking.status = 'accepted';
             booking.paymentTimer.paidAt = new Date();
 
+            console.log(`📦 Booking status updated: ${booking.status}, assignedProvider: ${booking.assignedProvider}`);
+
             await booking.save();
 
             // Record transaction
-            await Transaction.create({
+            const transaction = await Transaction.create({
                 type: 'booking_initial_payment',
                 amount: initialAmount,
                 homeowner: customer._id,
@@ -174,6 +152,8 @@ export async function POST(req) {
                     percentage: 25
                 }
             });
+
+            console.log(`💳 Transaction created: ${transaction._id} - ₹${initialAmount} held in escrow`);
 
             // Notify provider that booking is confirmed
             if (provider?.pushToken) {
