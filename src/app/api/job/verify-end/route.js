@@ -284,7 +284,7 @@ export async function POST(request) {
 
       if (needsCompletionPayment) {
         // Send completion payment notification
-        await createAndSendNotification({
+        const notificationData = {
           title: '💰 Complete Your Payment',
           message: `${booking.serviceName} is done! Pay the remaining ₹${completionAmount} (75%) now.`,
           recipientId: homeowner._id.toString(),
@@ -302,7 +302,13 @@ export async function POST(request) {
             priority: 'high'
           },
           bookingId: booking._id.toString()
-        });
+        };
+        
+        console.log('📤 Sending completion payment notification:', JSON.stringify(notificationData, null, 2));
+        
+        await createAndSendNotification(notificationData);
+        
+        console.log('✅ Completion payment notification sent successfully');
       } else {
         // Regular completion notification
         await createAndSendNotification({
