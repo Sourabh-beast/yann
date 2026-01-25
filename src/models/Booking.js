@@ -294,7 +294,7 @@ const bookingSchema = new mongoose.Schema({
   // Booking Status
   status: {
     type: String,
-    enum: ['pending', 'awaiting_response', 'accepted', 'in_progress', 'rejected', 'completed', 'cancelled', 'expired'],
+    enum: ['pending', 'awaiting_response', 'pending_payment', 'accepted', 'in_progress', 'rejected', 'completed', 'cancelled', 'expired'],
     default: 'pending'
   },
 
@@ -328,6 +328,30 @@ const bookingSchema = new mongoose.Schema({
     buzzerCount: {
       type: Number,
       default: 0
+    }
+  },
+
+  // Payment Timer (3-minute payment window after acceptance)
+  paymentTimer: {
+    // When payment was requested (provider accepted)
+    sentAt: {
+      type: Date,
+      default: null
+    },
+    // Expiry time (sentAt + 3 minutes)
+    expiresAt: {
+      type: Date,
+      default: null
+    },
+    // When customer paid
+    paidAt: {
+      type: Date,
+      default: null
+    },
+    // Whether the payment timed out
+    timedOut: {
+      type: Boolean,
+      default: false
     }
   },
 

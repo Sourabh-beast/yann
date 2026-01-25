@@ -80,6 +80,10 @@ export async function GET(request) {
           profileImage: booking.assignedProvider.profileImage
         } : null,
         serviceName: booking.serviceName,
+        customerName: booking.customerName,
+        customerAddress: booking.customerAddress,
+        bookingDate: booking.bookingDate,
+        bookingTime: booking.bookingTime,
         totalPrice: booking.totalPrice,
         requestTimer: booking.requestTimer,
         rejectedProviderIds: booking.providerResponses
@@ -123,10 +127,11 @@ export async function POST(request) {
       );
     }
 
-    // Verify booking is in valid state
-    if (!['pending'].includes(booking.status)) {
+    // Verify booking is in valid state for sending/resending request
+    // Allow 'pending' for initial requests and 'awaiting_response' for reassigned bookings
+    if (!['pending', 'awaiting_response'].includes(booking.status)) {
       return NextResponse.json(
-        { success: false, message: `Booking is already ${booking.status}` },
+        { success: false, message: `Cannot send request for booking with status: ${booking.status}` },
         { status: 400 }
       );
     }
@@ -175,6 +180,7 @@ export async function POST(request) {
         `${booking.customerName} needs ${booking.serviceName}. Respond within 3 minutes!`,
         {
           type: 'booking_request',
+          recipientId: providerId, // CRITICAL: Filter notification by assigned provider only
           bookingId: booking._id.toString(),
           serviceName: booking.serviceName,
           customerName: booking.customerName,
@@ -196,6 +202,7 @@ export async function POST(request) {
         pushToken: null, // Already sent above with custom sound
         type: 'booking_request',
         data: {
+          recipientId: providerId, // Ensure frontend filters correctly
           bookingId: booking._id.toString(),
           expiresAt: expiresAt.toISOString()
         },

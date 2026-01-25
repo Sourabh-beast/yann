@@ -2,6 +2,9 @@ import { NextResponse } from 'next/server';
 import connectDB from '@/lib/connectDB';
 import Booking from '@/models/Booking';
 import Homeowner from '@/models/Homeowner';
+import ServiceProvider from '@/models/ServiceProvider';
+import Transaction from '@/models/Transaction';
+import { createAndSendNotification } from '@/lib/notificationHelper';
 
 /**
  * POST /api/bookings/pay-initial
@@ -37,9 +40,23 @@ export async function POST(req) {
         }
 
         // Verify booking is in correct state for payment
-        if (booking.status !== 'pending_payment' && booking.status !== 'accepted') {
+        if (booking.status !== 'pending_payment') {
             return NextResponse.json(
                 { success: false, message: `Cannot process payment for booking with status: ${booking.status}` },
+                { status: 400 }
+            );
+        }
+
+        // Check if payment timer expired
+        const now = new Date();
+        if (booking.paymentTimer?.expiresAt && new Date(booking.paymentTimer.expiresAt) < now) {
+            // Auto-cancel expired booking
+            booking.status = 'cancelled';
+            booking.paymentTimer.timedOut = true;
+            await booking.save();
+
+            return NextResponse.json(
+                { success: false, message: 'Payment window expired. Booking has been cancelled.' },
                 { status: 400 }
             );
         }
@@ -92,11 +109,13 @@ export async function POST(req) {
 
             // Update booking with escrow details
             booking.escrowDetails = {
-                initialAmount,
-                completionAmount,
+                initialPayment: initialAmount,
+                completionAmount: completionAmount,
+                isInitialPaid: true,
+                isCompletionPaid: false,
+                totalHeldInEscrow: initialAmount,
                 initialPaidAt: new Date(),
                 initialReleasedAt: null,
-                initialRefundedAt: null,
                 completionPaidAt: null
             };
 
@@ -104,8 +123,47 @@ export async function POST(req) {
             booking.paymentStatus = 'partial';
             booking.paymentMethod = 'wallet';
             booking.status = 'accepted';
+            booking.paymentTimer.paidAt = new Date();
 
             await booking.save();
+
+            // Record transaction
+            await Transaction.create({
+                type: 'booking_initial_payment',
+                amount: initialAmount,
+                homeowner: customer._id,
+                provider: booking.assignedProvider,
+                booking: booking._id,
+                status: 'held_in_escrow',
+                description: `Initial payment (25%) for ${booking.serviceName}`,
+                metadata: {
+                    bookingId: booking._id.toString(),
+                    serviceName: booking.serviceName,
+                    paymentPhase: 'initial',
+                    percentage: 25
+                }
+            });
+
+            // Notify provider that booking is confirmed
+            const provider = await ServiceProvider.findById(booking.assignedProvider);
+            if (provider?.pushToken) {
+                await createAndSendNotification({
+                    title: '💰 Payment Received!',
+                    message: `${customer.name} paid ₹${initialAmount}. ${booking.serviceName} booking confirmed.`,
+                    recipientId: provider._id.toString(),
+                    recipientType: 'provider',
+                    pushToken: provider.pushToken,
+                    type: 'booking_confirmed',
+                    data: {
+                        recipientId: provider._id.toString(),
+                        bookingId: booking._id.toString(),
+                        amount: initialAmount
+                    },
+                    bookingId: booking._id.toString()
+                });
+            }
+
+            console.log(`✅ Initial payment completed: ₹${initialAmount} for booking ${bookingId}`);
 
             return NextResponse.json({
                 success: true,

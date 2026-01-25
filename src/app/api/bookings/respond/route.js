@@ -83,10 +83,19 @@ export async function POST(request) {
     const customer = await Homeowner.findById(booking.customerId);
 
     if (action === 'accept') {
-      // ACCEPT FLOW - Updated for staged payment
+      // ACCEPT FLOW - Staged payment with 3-minute timer
       // Set status to 'pending_payment' to wait for customer's 25% initial payment
       booking.status = 'pending_payment';
       booking.requestTimer.respondedAt = now;
+
+      // Set 3-minute payment timer
+      const paymentExpiresAt = new Date(now.getTime() + 3 * 60 * 1000); // 3 minutes
+      booking.paymentTimer = {
+        sentAt: now,
+        expiresAt: paymentExpiresAt,
+        paidAt: null,
+        timedOut: false
+      };
 
       // Add to provider responses
       booking.providerResponses.push({
@@ -97,35 +106,41 @@ export async function POST(request) {
 
       await booking.save();
 
-      // NOTE: Wallet escrow is NOT released here anymore
-      // It will be released after the customer pays the 25% initial payment
-      // via the /api/bookings/pay-initial endpoint
+      // Calculate 25% initial payment amount
+      const initialPaymentAmount = Math.round(booking.totalPrice * 0.25);
 
-      // Notify customer to pay 25% initial payment
+      // Notify customer to pay 25% initial payment with BUZZER
       if (customer?.pushToken) {
         await createAndSendNotification({
-          title: '✅ Booking Accepted!',
-          message: `${provider.name} has accepted your ${booking.serviceName} booking. Please complete the initial payment to confirm.`,
+          title: '🎉 Booking Accepted!',
+          message: `${provider.name} accepted! Pay ₹${initialPaymentAmount} within 3 minutes to confirm.`,
           recipientId: customer._id.toString(),
           recipientType: 'homeowner',
           pushToken: customer.pushToken,
-          type: 'booking_accepted',
+          type: 'payment_required',
           data: {
+            recipientId: customer._id.toString(),
+            type: 'payment_required',
             bookingId: booking._id.toString(),
             providerName: provider.name,
             providerId: provider._id.toString(),
+            serviceName: booking.serviceName,
             requiresPayment: true,
-            initialPaymentAmount: booking.totalPrice * 0.25
+            initialPaymentAmount: initialPaymentAmount,
+            totalPrice: booking.totalPrice,
+            expiresAt: paymentExpiresAt.toISOString(),
+            sound: 'default',
+            priority: 'high'
           },
           bookingId: booking._id.toString()
         });
       }
 
-      console.log(`✅ Provider ${provider.name} accepted booking ${bookingId}, awaiting customer payment`);
+      console.log(`✅ Provider ${provider.name} accepted booking ${bookingId}, payment timer set (3 min)`);
 
       return NextResponse.json({
         success: true,
-        message: 'Booking accepted successfully. Customer will be notified to complete payment.',
+        message: 'Booking accepted successfully. Customer has 3 minutes to complete payment.',
         data: {
           bookingId: booking._id,
           status: 'pending_payment',
@@ -134,7 +149,9 @@ export async function POST(request) {
             name: provider.name
           },
           requiresPayment: true,
-          initialPaymentAmount: booking.totalPrice * 0.25
+          initialPaymentAmount: initialPaymentAmount,
+          paymentExpiresAt: paymentExpiresAt.toISOString(),
+          remainingSeconds: 180
         }
       });
 
