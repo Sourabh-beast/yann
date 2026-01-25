@@ -269,32 +269,57 @@ export async function POST(request) {
       // Check if completion payment is needed (wallet payment with 75% remaining)
       const needsCompletionPayment = 
         booking.paymentMethod === 'wallet' && 
-        booking.walletPaymentStage === 'initial_25_released';
+        booking.walletPaymentStage === 'initial_25_held' &&
+        booking.escrowDetails?.isInitialPaid &&
+        !booking.escrowDetails?.isCompletionPaid;
 
-      const completionAmount = booking.escrowDetails?.completionAmount || (booking.totalPrice * 0.75);
+      const completionAmount = booking.escrowDetails?.completionAmount || Math.round(booking.totalPrice * 0.75 * 100) / 100;
 
       console.log('🔔 Sending completion notification:');
       console.log(`   Payment required: ${needsCompletionPayment}`);
       console.log(`   Completion amount: ₹${completionAmount}`);
       console.log(`   Booking ID: ${booking._id}`);
       console.log(`   Homeowner ID: ${homeowner._id}`);
+      console.log(`   Wallet stage: ${booking.walletPaymentStage}`);
 
-      await createAndSendNotification({
-        title: needsCompletionPayment ? '💰 Payment Required' : '✅ Job Completed',
-        message: needsCompletionPayment 
-          ? `Job completed! Please pay ₹${completionAmount} (75%) to settle the booking for ${booking.serviceName}.`
-          : `The job ${booking.serviceName} is completed. Total: ₹${jobSession.totalCharge}`,
-        recipientId: homeowner._id.toString(),
-        recipientType: 'homeowner',
-        pushToken: homeowner.pushToken,
-        type: needsCompletionPayment ? 'payment_required' : 'job_completed',
-        data: { 
-          bookingId: booking._id.toString(),
-          action: needsCompletionPayment ? 'pay_completion' : 'view_booking',
-          completionAmount: needsCompletionPayment ? completionAmount : undefined
-        },
-        bookingId: booking._id.toString()
-      });
+      if (needsCompletionPayment) {
+        // Send completion payment notification
+        await createAndSendNotification({
+          title: '💰 Complete Your Payment',
+          message: `${booking.serviceName} is done! Pay the remaining ₹${completionAmount} (75%) now.`,
+          recipientId: homeowner._id.toString(),
+          recipientType: 'homeowner',
+          pushToken: homeowner.pushToken,
+          type: 'completion_payment_required',
+          data: { 
+            recipientId: homeowner._id.toString(),
+            type: 'completion_payment_required',
+            bookingId: booking._id.toString(),
+            serviceName: booking.serviceName,
+            completionAmount: completionAmount,
+            totalPrice: booking.totalPrice,
+            sound: 'default',
+            priority: 'high'
+          },
+          bookingId: booking._id.toString()
+        });
+      } else {
+        // Regular completion notification
+        await createAndSendNotification({
+          title: '✅ Job Completed',
+          message: `The job ${booking.serviceName} is completed. Total: ₹${jobSession.totalCharge}`,
+          recipientId: homeowner._id.toString(),
+          recipientType: 'homeowner',
+          pushToken: homeowner.pushToken,
+          type: 'job_completed',
+          data: { 
+            recipientId: homeowner._id.toString(),
+            bookingId: booking._id.toString(),
+            action: 'view_booking'
+          },
+          bookingId: booking._id.toString()
+        });
+      }
 
       console.log('✅ Completion notification sent');
     }

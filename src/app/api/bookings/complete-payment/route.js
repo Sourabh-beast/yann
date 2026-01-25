@@ -76,7 +76,7 @@ export async function POST(req) {
         }
 
         // Validate payment stage
-        if (booking.walletPaymentStage !== 'initial_25_released') {
+        if (booking.walletPaymentStage !== 'initial_25_held') {
             if (booking.walletPaymentStage === 'completed') {
                 return NextResponse.json(
                     { success: false, message: 'Payment already completed for this booking' },
@@ -84,7 +84,7 @@ export async function POST(req) {
                 );
             }
             return NextResponse.json(
-                { success: false, message: 'Invalid payment stage. Initial payment must be released first.' },
+                { success: false, message: `Invalid payment stage: ${booking.walletPaymentStage}. Initial payment must be completed first.` },
                 { status: 400 }
             );
         }
@@ -203,25 +203,25 @@ export async function POST(req) {
             session.endSession();
         }
 
-        // Delete payment_required notification (prevents modal from reappearing)
+        // Delete payment_required notifications (prevents modal from reappearing)
         try {
             const deletedCount = await Notification.deleteMany({
-                type: 'payment_required',
+                type: { $in: ['payment_required', 'completion_payment_required'] },
                 'recipients.userId': user._id,
                 'metadata.bookingId': { $in: [booking._id.toString(), booking._id] }
             });
-            console.log(`🗑️ Deleted ${deletedCount.deletedCount} payment_required notifications for booking ${booking._id}`);
+            console.log(`🗑️ Deleted ${deletedCount.deletedCount} payment notifications for booking ${booking._id}`);
             
             if (deletedCount.deletedCount === 0) {
                 console.warn('⚠️ No notifications were deleted. Checking what exists...');
                 const existingNotifs = await Notification.find({
-                    type: 'payment_required',
+                    type: { $in: ['payment_required', 'completion_payment_required'] },
                     'recipients.userId': user._id
-                }).select('metadata');
-                console.warn('   Existing payment notifications:', existingNotifs.map(n => n.metadata?.bookingId));
+                }).select('metadata type');
+                console.warn('   Existing payment notifications:', existingNotifs.map(n => ({ type: n.type, bookingId: n.metadata?.bookingId })));
             }
         } catch (deleteError) {
-            console.error('Failed to delete payment_required notification:', deleteError);
+            console.error('Failed to delete payment notifications:', deleteError);
         }
 
         // Send notifications (outside transaction)
