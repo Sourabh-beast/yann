@@ -40,8 +40,8 @@ export async function GET(request) {
     }
 
     // Security: Verify ownership
-    if (customerId && booking.customerId && 
-        String(booking.customerId) !== String(customerId)) {
+    if (customerId && booking.customerId &&
+      String(booking.customerId) !== String(customerId)) {
       return NextResponse.json(
         { success: false, message: 'Unauthorized' },
         { status: 403 }
@@ -184,7 +184,12 @@ export async function POST(request) {
           bookingId: booking._id.toString(),
           serviceName: booking.serviceName,
           customerName: booking.customerName,
+          customerAddress: booking.customerAddress,
+          customerPhone: booking.customerPhone,
+          bookingDate: booking.bookingDate,
+          bookingTime: booking.bookingTime,
           totalPrice: booking.totalPrice,
+          notes: booking.notes || '',
           expiresAt: expiresAt.toISOString(),
           sound: 'buzzer', // Custom sound identifier
           priority: 'high',
@@ -204,6 +209,14 @@ export async function POST(request) {
         data: {
           recipientId: providerId, // Ensure frontend filters correctly
           bookingId: booking._id.toString(),
+          serviceName: booking.serviceName,
+          customerName: booking.customerName,
+          customerAddress: booking.customerAddress,
+          customerPhone: booking.customerPhone,
+          bookingDate: booking.bookingDate,
+          bookingTime: booking.bookingTime,
+          totalPrice: booking.totalPrice,
+          notes: booking.notes || '',
           expiresAt: expiresAt.toISOString()
         },
         bookingId: booking._id.toString()
