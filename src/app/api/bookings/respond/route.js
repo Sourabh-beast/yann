@@ -83,8 +83,9 @@ export async function POST(request) {
     const customer = await Homeowner.findById(booking.customerId);
 
     if (action === 'accept') {
-      // ACCEPT FLOW
-      booking.status = 'accepted';
+      // ACCEPT FLOW - Updated for staged payment
+      // Set status to 'pending_payment' to wait for customer's 25% initial payment
+      booking.status = 'pending_payment';
       booking.requestTimer.respondedAt = now;
 
       // Add to provider responses
@@ -96,41 +97,15 @@ export async function POST(request) {
 
       await booking.save();
 
-      // Handle wallet escrow release (same as existing accept logic)
-      if (booking.paymentMethod === 'wallet' && booking.walletPaymentStage === 'initial_25_held') {
-        if (!provider.wallet) {
-          provider.wallet = { balance: 0, currency: 'INR' };
-        }
+      // NOTE: Wallet escrow is NOT released here anymore
+      // It will be released after the customer pays the 25% initial payment
+      // via the /api/bookings/pay-initial endpoint
 
-        const releaseAmount = booking.escrowDetails?.initialAmount || booking.totalPrice * 0.25;
-        provider.wallet.balance = (provider.wallet.balance || 0) + releaseAmount;
-        await provider.save();
-
-        booking.walletPaymentStage = 'initial_25_released';
-        booking.escrowDetails.initialReleasedAt = now;
-        await booking.save();
-
-        // Create transaction record
-        await Transaction.create({
-          bookingId: bookingId,
-          providerId: providerId,
-          type: 'escrow_release',
-          amount: releaseAmount,
-          balanceBefore: provider.wallet.balance - releaseAmount,
-          balanceAfter: provider.wallet.balance,
-          description: `25% booking deposit released (₹${releaseAmount})`,
-          status: 'completed',
-          paymentMethod: 'wallet',
-          currency: 'INR',
-          serviceName: booking.serviceName
-        });
-      }
-
-      // Notify customer
+      // Notify customer to pay 25% initial payment
       if (customer?.pushToken) {
         await createAndSendNotification({
           title: '✅ Booking Accepted!',
-          message: `${provider.name} has accepted your ${booking.serviceName} booking. They will arrive at the scheduled time.`,
+          message: `${provider.name} has accepted your ${booking.serviceName} booking. Please complete the initial payment to confirm.`,
           recipientId: customer._id.toString(),
           recipientType: 'homeowner',
           pushToken: customer.pushToken,
@@ -138,24 +113,28 @@ export async function POST(request) {
           data: {
             bookingId: booking._id.toString(),
             providerName: provider.name,
-            providerId: provider._id.toString()
+            providerId: provider._id.toString(),
+            requiresPayment: true,
+            initialPaymentAmount: booking.totalPrice * 0.25
           },
           bookingId: booking._id.toString()
         });
       }
 
-      console.log(`✅ Provider ${provider.name} accepted booking ${bookingId}`);
+      console.log(`✅ Provider ${provider.name} accepted booking ${bookingId}, awaiting customer payment`);
 
       return NextResponse.json({
         success: true,
-        message: 'Booking accepted successfully',
+        message: 'Booking accepted successfully. Customer will be notified to complete payment.',
         data: {
           bookingId: booking._id,
-          status: 'accepted',
+          status: 'pending_payment',
           provider: {
             id: provider._id,
             name: provider.name
-          }
+          },
+          requiresPayment: true,
+          initialPaymentAmount: booking.totalPrice * 0.25
         }
       });
 

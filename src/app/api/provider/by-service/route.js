@@ -10,6 +10,9 @@ export async function GET(request) {
 
     const { searchParams } = new URL(request.url);
     const serviceName = searchParams.get('service');
+    const experienceMin = searchParams.get('experienceMin');
+    const experienceMax = searchParams.get('experienceMax');
+    const excludeProviderId = searchParams.get('excludeProviderId');
 
     if (!serviceName) {
       return NextResponse.json(
@@ -21,11 +24,31 @@ export async function GET(request) {
     const normalizedService = serviceName.trim();
     const serviceRegex = new RegExp(`^${escapeRegex(normalizedService)}$`, 'i');
 
+    // Build query with experience range filtering
+    const query = {
+      services: { $regex: serviceRegex }
+    };
+
+    // Add experience range filter if provided
+    if (experienceMin !== null && experienceMin !== undefined) {
+      query.experience = { $gte: parseInt(experienceMin) };
+    }
+    if (experienceMax !== null && experienceMax !== undefined) {
+      if (query.experience) {
+        query.experience.$lt = parseInt(experienceMax);
+      } else {
+        query.experience = { $lt: parseInt(experienceMax) };
+      }
+    }
+
+    // Exclude specific provider if requested (for fallback scenarios)
+    if (excludeProviderId) {
+      query._id = { $ne: excludeProviderId };
+    }
+
     // Fetch ALL providers for this service (including offline ones)
     // Mobile app will handle displaying offline providers as grayed out
-    const providers = await ServiceProvider.find({
-      services: { $regex: serviceRegex }
-    }).select('name experience rating totalReviews serviceRates workingHours profileImage services status');
+    const providers = await ServiceProvider.find(query).select('name experience rating totalReviews serviceRates workingHours profileImage services status');
 
     const mappedProviders = providers
       .map((provider) => {

@@ -88,9 +88,17 @@ export async function PATCH(request) {
       );
     }
 
+    // When approving (setting to active), also mark as admin approved
+    const updateData = { status };
+    if (status === 'active') {
+      updateData.adminApproved = true;
+      updateData.adminApprovedAt = new Date();
+      updateData.adminApprovedBy = 'admin'; // You can pass admin ID from session
+    }
+
     const provider = await ServiceProvider.findByIdAndUpdate(
       id,
-      { status },
+      updateData,
       { new: true, runValidators: true }
     );
 
@@ -98,6 +106,23 @@ export async function PATCH(request) {
       return NextResponse.json(
         { success: false, message: 'Provider not found' },
         { status: 404 }
+      );
+    }
+
+    // Log the approval for audit trail
+    console.log(`✅ Provider ${provider.name} (${provider._id}) approved:`, {
+      status: provider.status,
+      experience: provider.experience,
+      services: provider.services,
+      serviceRates: provider.serviceRates?.map(r => ({ service: r.serviceName, price: r.price })),
+      serviceExperiences: provider.serviceExperiences?.map(e => ({ service: e.serviceName, years: e.years }))
+    });
+
+    return NextResponse.json({
+      success: true,
+      data: provider,
+      message: `Provider ${status === 'active' ? 'approved and activated' : 'status updated'} successfully`
+    });
       );
     }
 
