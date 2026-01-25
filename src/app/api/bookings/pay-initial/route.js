@@ -20,7 +20,9 @@ export async function POST(req) {
     try {
         await connectDB();
 
-        const { bookingId, paymentMethod } = await req.json();
+        const body = await req.json();
+        const bookingId = body.bookingId;
+        const paymentMethod = body.paymentMethod || 'wallet'; // Default to wallet
 
         // Validate required fields
         if (!bookingId) {
@@ -29,6 +31,8 @@ export async function POST(req) {
                 { status: 400 }
             );
         }
+
+        console.log(`💰 Processing initial payment for booking ${bookingId} via ${paymentMethod}`);
 
         // Find the booking
         const booking = await Booking.findById(bookingId);
