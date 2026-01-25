@@ -116,7 +116,7 @@ export async function POST(req) {
 
             // Update booking with escrow details
             booking.escrowDetails = {
-                initialPayment: initialAmount,
+                initialAmount: initialAmount,        // Fixed: was "initialPayment"
                 completionAmount: completionAmount,
                 isInitialPaid: true,
                 isCompletionPaid: false,
