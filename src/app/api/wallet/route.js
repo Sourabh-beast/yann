@@ -23,41 +23,18 @@ export async function GET(req) {
     user = await Homeowner.findById(userId).select('wallet');
     if (user) {
       userType = 'homeowner';
-      // Members see their transactions (topup, debit, refund, escrow)
+      // Members see all their transactions (where they are the customer)
       transactionQuery = {
-        customerId: userId,
-        type: {
-          $in: [
-            'wallet_topup',
-            'wallet_debit',
-            'wallet_refund',
-            'booking_initial_payment', // 25% initial payment
-            'booking_completion_payment', // 75% completion payment
-            'escrow_hold',      // 25% held for booking
-            'escrow_refund',    // 25% refunded when rejected
-            'completion_payment' // 75% paid after completion
-          ]
-        }
+        customerId: userId
       };
     } else {
       // If not found, try ServiceProvider
       user = await ServiceProvider.findById(userId).select('wallet');
       if (user) {
         userType = 'provider';
-        // Providers see earnings and withdrawal transactions
+        // Providers see all their transactions (where they are the provider)
         transactionQuery = {
-          providerId: userId,
-          type: {
-            $in: [
-              'booking_initial_payment', // 25% initial payment (held in escrow)
-              'booking_completion_payment', // 75% completion payment
-              'wallet_credit',        // Earnings from bookings
-              'escrow_release',       // 25% received on acceptance
-              'withdrawal_request',   // Withdrawal requested
-              'withdrawal_completed', // Withdrawal processed
-              'withdrawal_rejected'   // Withdrawal rejected
-            ]
-          }
+          providerId: userId
         };
       }
     }
