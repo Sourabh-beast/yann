@@ -93,8 +93,14 @@ export async function POST(request) {
         respondedAt: now
       });
 
+      console.log(`📊 Booking payment method: "${booking.paymentMethod}"`);
+      console.log(`📊 Total price: ${booking.totalPrice}`);
+
       // WALLET PAYMENT: Staged payment with 3-minute timer
-      if (booking.paymentMethod === 'wallet') {
+      // Default to wallet if paymentMethod is not set or is 'wallet'
+      if (!booking.paymentMethod || booking.paymentMethod === 'wallet') {
+        console.log('💰 Processing as WALLET payment - requiring 25% initial payment');
+        
         // Set status to 'pending_payment' to wait for customer's 25% initial payment
         booking.status = 'pending_payment';
 
@@ -160,6 +166,8 @@ export async function POST(request) {
 
       } else {
         // COD PAYMENT: Directly accept booking (no initial payment required)
+        console.log('💵 Processing as COD payment - directly accepting');
+        
         booking.status = 'accepted';
         booking.acceptedAt = now;
         await booking.save();
