@@ -82,8 +82,10 @@ export async function GET(request) {
         serviceName: booking.serviceName,
         customerName: booking.customerName,
         customerAddress: booking.customerAddress,
+        customerPhone: booking.customerPhone,
         bookingDate: booking.bookingDate,
         bookingTime: booking.bookingTime,
+        notes: booking.notes,
         totalPrice: booking.totalPrice,
         requestTimer: booking.requestTimer,
         rejectedProviderIds: booking.providerResponses
