@@ -31,15 +31,21 @@ export async function GET(request) {
 
     // Add experience range filter if provided
     if (experienceMin !== null && experienceMin !== undefined) {
-      query.experience = { $gte: parseInt(experienceMin) };
+      const min = parseInt(experienceMin);
+      query.experience = { $gte: min };
+      console.log(`🔍 Adding experience filter: >= ${min}`);
     }
     if (experienceMax !== null && experienceMax !== undefined) {
+      const max = parseInt(experienceMax);
       if (query.experience) {
-        query.experience.$lt = parseInt(experienceMax);
+        query.experience.$lte = max; // Changed from $lt to $lte (inclusive)
       } else {
-        query.experience = { $lt: parseInt(experienceMax) };
+        query.experience = { $lte: max };
       }
+      console.log(`🔍 Adding experience filter: <= ${max}`);
     }
+
+    console.log('📊 Final MongoDB query:', JSON.stringify(query));
 
     // Exclude specific provider if requested (for fallback scenarios)
     if (excludeProviderId) {

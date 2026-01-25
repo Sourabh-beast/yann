@@ -81,7 +81,10 @@ export async function GET(request) {
         } : null,
         serviceName: booking.serviceName,
         totalPrice: booking.totalPrice,
-        requestTimer: booking.requestTimer
+        requestTimer: booking.requestTimer,
+        rejectedProviderIds: booking.providerResponses
+          ?.filter(r => r.response === 'rejected')
+          .map(r => String(r.providerId)) || []
       }
     });
 
