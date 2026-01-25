@@ -89,8 +89,25 @@ export async function POST(request) {
 
     // Update booking
     const booking = await Booking.findById(jobSession.booking);
-    booking.status = 'completed';
+
+    // Check if this is a wallet payment that needs 75% completion payment
+    const needsCompletionPayment =
+      booking.paymentMethod === 'wallet' &&
+      booking.walletPaymentStage === 'initial_25_held' &&
+      booking.escrowDetails?.isInitialPaid &&
+      !booking.escrowDetails?.isCompletionPaid;
+
+    if (needsCompletionPayment) {
+      // Keep booking in intermediate status until 75% is paid
+      booking.status = 'awaiting_completion_payment';
+      booking.walletPaymentStage = 'awaiting_completion_payment';
+      console.log('📊 Booking set to awaiting_completion_payment - waiting for 75% payment');
+    } else {
+      // For non-wallet payments or fully paid bookings, mark as completed
+      booking.status = 'completed';
+    }
     booking.completedAt = jobSession.endTime;
+
 
     // NEW: Calculate overtime for hourly bookings
     if (booking.hourlyBookingDetails && booking.hourlyBookingDetails.bookedHours) {
@@ -267,8 +284,8 @@ export async function POST(request) {
     const homeowner = await Homeowner.findById(jobSession.customer);
     if (homeowner) {
       // Check if completion payment is needed (wallet payment with 75% remaining)
-      const needsCompletionPayment = 
-        booking.paymentMethod === 'wallet' && 
+      const needsCompletionPayment =
+        booking.paymentMethod === 'wallet' &&
         booking.walletPaymentStage === 'initial_25_held' &&
         booking.escrowDetails?.isInitialPaid &&
         !booking.escrowDetails?.isCompletionPaid;
@@ -298,7 +315,7 @@ export async function POST(request) {
           recipientType: 'homeowner',
           pushToken: homeowner.pushToken,
           type: 'completion_payment_required',
-          data: { 
+          data: {
             recipientId: homeowner._id.toString(),
             type: 'completion_payment_required',
             bookingId: booking._id.toString(),
@@ -310,16 +327,16 @@ export async function POST(request) {
           },
           bookingId: booking._id.toString()
         };
-        
+
         console.log('📤 Sending completion payment notification:', JSON.stringify(notificationData, null, 2));
-        
+
         await createAndSendNotification(notificationData);
-        
+
         console.log('✅ Completion payment notification sent successfully');
       } else {
         console.log('ℹ️ SKIPPING completion payment notification - not wallet payment or already paid');
         console.log(`   Reason: paymentMethod=${booking.paymentMethod}, stage=${booking.walletPaymentStage}`);
-        
+
         // Regular completion notification
         await createAndSendNotification({
           title: '✅ Job Completed',
@@ -328,14 +345,14 @@ export async function POST(request) {
           recipientType: 'homeowner',
           pushToken: homeowner.pushToken,
           type: 'job_completed',
-          data: { 
+          data: {
             recipientId: homeowner._id.toString(),
             bookingId: booking._id.toString(),
             action: 'view_booking'
           },
           bookingId: booking._id.toString()
         });
-        
+
         console.log('✅ Regular completion notification sent');
       }
 

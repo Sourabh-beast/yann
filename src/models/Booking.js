@@ -127,7 +127,7 @@ const bookingSchema = new mongoose.Schema({
   // Wallet Payment Staging (for escrow-based wallet payments)
   walletPaymentStage: {
     type: String,
-    enum: ['none', 'initial_25_held', 'initial_25_released', 'completion_75_pending', 'completed'],
+    enum: ['none', 'initial_25_held', 'initial_25_released', 'completion_75_pending', 'awaiting_completion_payment', 'completed'],
     default: 'none'
   },
 
@@ -138,7 +138,9 @@ const bookingSchema = new mongoose.Schema({
     initialPaidAt: { type: Date, default: null },       // When 25% was paid
     initialReleasedAt: { type: Date, default: null },   // When 25% was released to partner
     initialRefundedAt: { type: Date, default: null },   // When 25% was refunded (if rejected)
-    completionPaidAt: { type: Date, default: null }     // When 75% was paid
+    completionPaidAt: { type: Date, default: null },    // When 75% was paid
+    isInitialPaid: { type: Boolean, default: false },   // Flag for initial 25% payment
+    isCompletionPaid: { type: Boolean, default: false } // Flag for completion 75% payment
   },
 
   // Billing Type (for non-pujari services)
@@ -294,7 +296,7 @@ const bookingSchema = new mongoose.Schema({
   // Booking Status
   status: {
     type: String,
-    enum: ['pending', 'awaiting_response', 'pending_payment', 'accepted', 'in_progress', 'rejected', 'completed', 'cancelled', 'expired'],
+    enum: ['pending', 'awaiting_response', 'pending_payment', 'accepted', 'in_progress', 'rejected', 'awaiting_completion_payment', 'completed', 'cancelled', 'expired'],
     default: 'pending'
   },
 

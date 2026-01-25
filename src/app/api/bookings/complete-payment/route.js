@@ -67,16 +67,16 @@ export async function POST(req) {
             );
         }
 
-        // Validate booking status
-        if (booking.status !== 'completed') {
+        // Validate booking status - accept either awaiting_completion_payment or completed (for legacy bookings)
+        if (booking.status !== 'completed' && booking.status !== 'awaiting_completion_payment') {
             return NextResponse.json(
-                { success: false, message: 'Job must be completed before final payment' },
+                { success: false, message: 'Invalid booking status for completion payment' },
                 { status: 400 }
             );
         }
 
-        // Validate payment stage
-        if (booking.walletPaymentStage !== 'initial_25_held') {
+        // Validate payment stage - accept initial_25_held or awaiting_completion_payment
+        if (booking.walletPaymentStage !== 'initial_25_held' && booking.walletPaymentStage !== 'awaiting_completion_payment') {
             if (booking.walletPaymentStage === 'completed') {
                 return NextResponse.json(
                     { success: false, message: 'Payment already completed for this booking' },
@@ -149,10 +149,12 @@ export async function POST(req) {
             provider.wallet.balance = providerBalanceAfter;
             await provider.save({ session });
 
-            // Update booking payment stage
+            // Update booking payment stage - NOW mark as fully completed
+            booking.status = 'completed';  // Mark booking as completed after payment
             booking.walletPaymentStage = 'completed';
             booking.paymentStatus = 'paid';
             booking.escrowDetails.completionPaidAt = new Date();
+            booking.escrowDetails.isCompletionPaid = true;  // Mark completion payment as done
             await booking.save({ session });
 
             // Create user debit transaction
@@ -211,7 +213,7 @@ export async function POST(req) {
                 'metadata.bookingId': { $in: [booking._id.toString(), booking._id] }
             });
             console.log(`🗑️ Deleted ${deletedCount.deletedCount} payment notifications for booking ${booking._id}`);
-            
+
             if (deletedCount.deletedCount === 0) {
                 console.warn('⚠️ No notifications were deleted. Checking what exists...');
                 const existingNotifs = await Notification.find({
