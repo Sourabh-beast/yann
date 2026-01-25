@@ -90,12 +90,24 @@ export async function POST(request) {
     // Update booking
     const booking = await Booking.findById(jobSession.booking);
 
+    // DEBUG: Log all values for 75% payment condition
+    console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+    console.log('🔍 VERIFY-END: Checking 75% payment condition');
+    console.log('   paymentMethod:', booking.paymentMethod);
+    console.log('   walletPaymentStage:', booking.walletPaymentStage);
+    console.log('   escrowDetails:', JSON.stringify(booking.escrowDetails, null, 2));
+    console.log('   isInitialPaid:', booking.escrowDetails?.isInitialPaid);
+    console.log('   isCompletionPaid:', booking.escrowDetails?.isCompletionPaid);
+    console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+
     // Check if this is a wallet payment that needs 75% completion payment
     const needsCompletionPayment =
       booking.paymentMethod === 'wallet' &&
       booking.walletPaymentStage === 'initial_25_held' &&
       booking.escrowDetails?.isInitialPaid &&
       !booking.escrowDetails?.isCompletionPaid;
+
+    console.log('🔍 needsCompletionPayment:', needsCompletionPayment);
 
     if (needsCompletionPayment) {
       // Keep booking in intermediate status until 75% is paid
@@ -105,6 +117,7 @@ export async function POST(request) {
     } else {
       // For non-wallet payments or fully paid bookings, mark as completed
       booking.status = 'completed';
+      console.log('📊 Booking marked as completed (no 75% payment needed)');
     }
     booking.completedAt = jobSession.endTime;
 
