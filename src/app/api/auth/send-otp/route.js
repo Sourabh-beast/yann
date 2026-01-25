@@ -446,6 +446,52 @@ export async function POST(req) {
       });
     } else {
       // Send OTP via Email
+      if (isTestMode() && isTestUser(rawIdentifier)) {
+        const testOTP = getTestOTP(rawIdentifier);
+
+        if (!testOTP) {
+          return NextResponse.json({
+            success: false,
+            message: "Test user OTP not configured"
+          }, { status: 500 });
+        }
+
+        console.log(`🧪 Test mode: Using predefined OTP for ${email}`);
+
+        const otpHash = crypto.createHash("sha256").update(testOTP).digest("hex");
+
+        await Otp.findOneAndUpdate(
+          { email: email, audience: audienceName },
+          {
+            $set: {
+              email,
+              phone: null,
+              identifierType: 'email',
+              audience: audienceName,
+              intent,
+              metadata,
+              otpHash,
+              msg91RequestId: 'TEST_MODE',
+              expiresAt,
+              attempts: 0,
+              sendCount: sendCount + 1,
+              windowStartedAt,
+              lastSentAt: now,
+              lastRequestIp: requesterIp,
+            },
+            $unset: { blockedUntil: "" },
+          },
+          { upsert: true, new: true, setDefaultsOnInsert: true }
+        );
+
+        return NextResponse.json({
+          success: true,
+          message: "OTP sent successfully (Test Mode)",
+          identifierType: 'email',
+          testMode: true
+        });
+      }
+
       const otpCode = crypto.randomInt(100000, 1000000).toString();
       const otpHash = crypto.createHash("sha256").update(otpCode).digest("hex");
 

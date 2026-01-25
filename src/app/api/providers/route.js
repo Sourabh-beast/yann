@@ -32,7 +32,7 @@ export async function GET(request) {
     // Get providers
     const [providers, total] = await Promise.all([
       ServiceProvider.find(query)
-        .select('name email phone experience rating totalReviews serviceRates workingHours profileImage services status')
+        .select('name email phone experience rating totalReviews serviceRates workingHours profileImage services status isOnline')
         .sort({ rating: -1, totalReviews: -1 })
         .skip(skip)
         .limit(limit),
@@ -52,6 +52,7 @@ export async function GET(request) {
       workingHours: provider.workingHours || null,
       profileImage: provider.profileImage || '',
       status: provider.status,
+      isOnline: provider.isOnline ?? true,
     }));
 
     return NextResponse.json({

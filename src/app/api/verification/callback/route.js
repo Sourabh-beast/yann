@@ -5,6 +5,30 @@ import ServiceProvider from '@/models/ServiceProvider';
 import connectDB from '@/lib/connectDB';
 
 const MEON_BASE_URL = 'https://digilocker.meon.co.in';
+const DEFAULT_APP_URL = process.env.NEXT_PUBLIC_APP_URL || 'https://yann-care.vercel.app';
+
+const buildSafeReturnUrl = (returnUrl, reqUrl) => {
+    if (!returnUrl) return null;
+    try {
+        const parsed = new URL(returnUrl);
+        const currentOrigin = new URL(reqUrl).origin;
+        const allowedOrigins = [DEFAULT_APP_URL, currentOrigin].filter(Boolean);
+        const isAllowed = allowedOrigins.some(origin => parsed.origin === origin);
+        return isAllowed ? parsed.toString() : null;
+    } catch (error) {
+        return null;
+    }
+};
+
+const appendVerificationStatus = (returnUrl, status) => {
+    try {
+        const url = new URL(returnUrl);
+        url.searchParams.set('verification', status);
+        return url.toString();
+    } catch (error) {
+        return returnUrl;
+    }
+};
 
 // Callback handler - Meon redirects here with `state` and maybe other params?
 // Actually Step 3 implies we call "send_entire_data" with "client_token" and "state".
@@ -24,6 +48,8 @@ export async function GET(req) {
     const userId = searchParams.get('userId');
     const userType = searchParams.get('userType') || 'homeowner';
     const clientToken = searchParams.get('clientToken'); 
+    const returnUrl = searchParams.get('returnUrl');
+    const safeReturnUrl = buildSafeReturnUrl(returnUrl, req.url);
 
     console.log('Parsed params:', { state, userId, userType, clientToken: clientToken ? 'present' : 'missing' });
 
@@ -74,7 +100,11 @@ export async function GET(req) {
         console.log('User updated successfully');
 
         // Return success page with proper encoding and auto-redirect attempt
-        return new NextResponse(`
+                const successRedirect = safeReturnUrl
+                    ? appendVerificationStatus(safeReturnUrl, 'success')
+                    : appendVerificationStatus(DEFAULT_APP_URL, 'success');
+
+                return new NextResponse(`
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -145,14 +175,15 @@ export async function GET(req) {
         <div class="icon">&#10004;</div>
         <h1>Verification Successful!</h1>
         <p>Your Aadhaar has been verified successfully. Your account is now verified.</p>
-        <a href="yann://verification-success" class="btn" id="openApp">Return to App</a>
-        <p class="note">If the button doesn't work, please close this window and refresh the app.</p>
+        <a href="${successRedirect}" class="btn" id="openWebsite">Return to Website</a>
+        <a href="yann://verification-success" class="btn" id="openApp" style="margin-top: 12px; background: rgba(255,255,255,0.2); color: #fff;">Return to App</a>
+        <p class="note">If the button doesn't work, please close this window and refresh the website or app.</p>
     </div>
     <script>
-        // Try to open the app automatically after a short delay
+        // Redirect back to website automatically
         setTimeout(function() {
-            window.location.href = 'yann://verification-success';
-        }, 1500);
+            window.location.href = '${successRedirect}';
+        }, 1200);
     </script>
 </body>
 </html>
@@ -162,7 +193,11 @@ export async function GET(req) {
             } 
         });
     } else {
-        return new NextResponse(`
+                const failureRedirect = safeReturnUrl
+                    ? appendVerificationStatus(safeReturnUrl, 'failed')
+                    : appendVerificationStatus(DEFAULT_APP_URL, 'failed');
+
+                return new NextResponse(`
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -222,8 +257,9 @@ export async function GET(req) {
     <div class="container">
         <div class="icon">&#10060;</div>
         <h1>Verification Failed</h1>
-        <p>We couldn't verify your Aadhaar. Please try again from the app.</p>
-        <a href="yann://verification-failed" class="btn">Return to App</a>
+        <p>We couldn't verify your Aadhaar. Please try again.</p>
+        <a href="${failureRedirect}" class="btn">Return to Website</a>
+        <a href="yann://verification-failed" class="btn" style="margin-top: 12px; background: rgba(255,255,255,0.2); color: #fff;">Return to App</a>
         <p class="note">If the button doesn't work, please close this window and try again.</p>
     </div>
 </body>

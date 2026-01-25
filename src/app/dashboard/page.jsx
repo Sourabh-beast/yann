@@ -10,6 +10,7 @@ export default function Dashboard() {
   const [mousePosition, setMousePosition] = useState({ x: 0, y: 0 });
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [isAddServiceModalOpen, setIsAddServiceModalOpen] = useState(false);
+  const [updatingAvailability, setUpdatingAvailability] = useState(false);
 
   const fetchProvider = useCallback(async () => {
     try {
@@ -107,6 +108,38 @@ export default function Dashboard() {
 
   const handleAddService = () => {
     setIsAddServiceModalOpen(true);
+  };
+
+  const toggleAvailability = async () => {
+    if (!provider || provider.status !== 'active') return;
+
+    const nextValue = !(provider.isOnline ?? true);
+    setUpdatingAvailability(true);
+
+    try {
+      const res = await fetch('/api/provider/availability', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ isOnline: nextValue })
+      });
+
+      const data = await res.json();
+      if (!res.ok || !data.success) {
+        alert(data.message || 'Unable to update status');
+        return;
+      }
+
+      setProvider((prev) => ({
+        ...prev,
+        isOnline: data.isOnline
+      }));
+    } catch (error) {
+      console.error('Error updating availability:', error);
+      alert('Network error. Please try again.');
+    } finally {
+      setUpdatingAvailability(false);
+    }
   };
 
   if (!provider) {
@@ -213,6 +246,8 @@ export default function Dashboard() {
     },
   ];
 
+  const isProviderOnline = provider?.isOnline ?? true;
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 via-purple-50 to-pink-50 relative overflow-hidden pt-20">
       {/* Animated Background Shapes - Reduced opacity */}
@@ -274,19 +309,48 @@ export default function Dashboard() {
             </div>
 
             {/* Status Badge - Simplified */}
-            <div className="hidden md:flex items-center space-x-3 bg-white px-6 py-4 rounded-2xl shadow-md border border-gray-100">
+            <div className="hidden md:flex items-center space-x-4 bg-white px-6 py-4 rounded-2xl shadow-md border border-gray-100">
               <div className="flex flex-col items-center">
                 <div className={`w-3 h-3 rounded-full mb-2 ${
-                  provider.status === 'active' ? 'bg-green-500 animate-pulse' : 'bg-yellow-500'
+                  provider.status === 'active'
+                    ? (isProviderOnline ? 'bg-green-500 animate-pulse' : 'bg-gray-400')
+                    : 'bg-yellow-500'
                 }`}></div>
                 <span className="text-xs font-bold text-gray-500 uppercase tracking-wider">Status</span>
               </div>
               <div className="h-12 w-px bg-gray-200"></div>
-              <span className={`text-lg font-bold capitalize ${
-                provider.status === 'active' ? 'text-green-600' : 'text-yellow-600'
-              }`}>
-                {provider.status}
-              </span>
+              <div className="flex flex-col">
+                <span className={`text-lg font-bold capitalize ${
+                  provider.status === 'active'
+                    ? (isProviderOnline ? 'text-green-600' : 'text-gray-600')
+                    : 'text-yellow-600'
+                }`}>
+                  {provider.status === 'active' ? (isProviderOnline ? 'online' : 'offline') : provider.status}
+                </span>
+                {provider.status === 'pending' && (
+                  <span className="text-xs text-gray-400">Awaiting admin approval</span>
+                )}
+              </div>
+              <div className="h-12 w-px bg-gray-200"></div>
+              <button
+                type="button"
+                onClick={toggleAvailability}
+                disabled={provider.status !== 'active' || updatingAvailability}
+                className={`relative inline-flex h-8 w-16 items-center rounded-full transition ${
+                  provider.status !== 'active' || updatingAvailability
+                    ? 'bg-gray-200 cursor-not-allowed'
+                    : isProviderOnline
+                      ? 'bg-green-500'
+                      : 'bg-slate-400'
+                }`}
+                aria-label="Toggle availability"
+              >
+                <span
+                  className={`inline-block h-6 w-6 transform rounded-full bg-white shadow transition ${
+                    isProviderOnline ? 'translate-x-8' : 'translate-x-2'
+                  }`}
+                />
+              </button>
             </div>
           </div>
         </div>

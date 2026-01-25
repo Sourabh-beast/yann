@@ -36,7 +36,7 @@ export async function GET(request, { params }) {
     const providers = await ServiceProvider.find({
       status: 'active',
       services: { $regex: new RegExp(`^${serviceTitle}$`, 'i') },
-    }).select('name email phone experience rating totalReviews serviceRates workingHours profileImage services');
+    }).select('name email phone experience rating totalReviews serviceRates workingHours profileImage services isOnline');
 
     // Map providers with their pricing for this specific service
     const mappedProviders = providers.map((provider) => {
@@ -58,6 +58,7 @@ export async function GET(request, { params }) {
         workingHours: provider.workingHours || null,
         profileImage: provider.profileImage || '',
         services: provider.services || [],
+        isOnline: provider.isOnline ?? true,
       };
     }).filter(p => p.price !== null) // Only include providers with valid pricing
       .sort((a, b) => a.price - b.price); // Sort by price ascending

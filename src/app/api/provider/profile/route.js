@@ -87,6 +87,7 @@ export async function GET(request) {
         selectedCategories: provider.selectedCategories || [],
         workingHours: provider.workingHours || null,
         status: provider.status,
+        isOnline: provider.isOnline ?? true,
         rating: provider.rating || 0,
         totalReviews: provider.totalReviews || 0,
         bio: provider.bio || '',
@@ -205,7 +206,8 @@ async function handleProfileUpdate(request) {
         serviceRates: provider.serviceRates || [],
         services: provider.services || [],
         workingHours: provider.workingHours || null,
-        status: provider.status
+        status: provider.status,
+        isOnline: provider.isOnline ?? true
       }
     });
 
