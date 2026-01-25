@@ -29,8 +29,8 @@ export async function GET() {
 
     // Aggregate providers by service
     const serviceCounts = await ServiceProvider.aggregate([
-      // Only count active providers
-      { $match: { status: 'active', isOnline: true } },
+      // Only count active providers (don't filter by isOnline)
+      { $match: { status: 'active' } },
       // Unwind the services array to count each service separately
       { $unwind: '$services' },
       // Group by service name and count providers
