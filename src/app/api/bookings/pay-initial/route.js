@@ -140,9 +140,9 @@ export async function POST(req) {
             const transaction = await Transaction.create({
                 type: 'booking_initial_payment',
                 amount: initialAmount,
-                homeowner: customer._id,
-                provider: provider._id,
-                booking: booking._id,
+                customerId: customer._id,
+                providerId: provider._id,
+                bookingId: booking._id,
                 status: 'held_in_escrow',
                 description: `Initial payment (25%) for ${booking.serviceName}`,
                 metadata: {

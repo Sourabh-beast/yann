@@ -25,7 +25,7 @@ export async function GET(req) {
       userType = 'homeowner';
       // Members see their transactions (topup, debit, refund, escrow)
       transactionQuery = {
-        homeowner: userId,
+        customerId: userId,
         type: {
           $in: [
             'wallet_topup',
@@ -46,7 +46,7 @@ export async function GET(req) {
         userType = 'provider';
         // Providers see earnings and withdrawal transactions
         transactionQuery = {
-          provider: userId,
+          providerId: userId,
           type: {
             $in: [
               'booking_initial_payment', // 25% initial payment (held in escrow)
