@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { NextResponse } from 'next/server';
 import connectDB from '@/lib/connectDB';
 import Booking from '@/models/Booking';
 import Homeowner from '@/models/Homeowner';
@@ -13,7 +13,7 @@ import Homeowner from '@/models/Homeowner';
  *   paymentMethod: 'wallet' | 'razorpay'
  * }
  */
-export async function POST(req: NextRequest) {
+export async function POST(req) {
     try {
         await connectDB();
 
@@ -141,7 +141,7 @@ export async function POST(req: NextRequest) {
             { status: 400 }
         );
 
-    } catch (error: any) {
+    } catch (error) {
         console.error('❌ Pay initial error:', error);
         return NextResponse.json(
             { success: false, message: error.message || 'Failed to process payment' },
