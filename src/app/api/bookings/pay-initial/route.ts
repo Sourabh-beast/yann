@@ -28,7 +28,7 @@ export async function POST(req: NextRequest) {
         }
 
         // Find the booking
-        const booking = await Booking.findById(bookingId);
+        const booking: any = await Booking.findById(bookingId);
         if (!booking) {
             return NextResponse.json(
                 { success: false, message: 'Booking not found' },

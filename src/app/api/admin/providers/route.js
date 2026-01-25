@@ -123,14 +123,6 @@ export async function PATCH(request) {
       data: provider,
       message: `Provider ${status === 'active' ? 'approved and activated' : 'status updated'} successfully`
     });
-      );
-    }
-
-    return NextResponse.json({
-      success: true,
-      data: provider,
-      message: 'Provider status updated successfully'
-    });
   } catch (error) {
     console.error('Error updating provider:', error);
     return NextResponse.json(
