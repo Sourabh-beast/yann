@@ -90,34 +90,25 @@ export async function POST(request) {
     // Update booking
     const booking = await Booking.findById(jobSession.booking);
 
-    // DEBUG: Log all values for 75% payment condition
+    // SIMPLIFIED: Check if this is a wallet payment that needs 75% completion payment
+    // Just check payment method - if it's wallet, they need to pay 75%
+    const needsCompletionPayment = booking.paymentMethod === 'wallet';
+
     console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
-    console.log('🔍 VERIFY-END: Checking 75% payment condition');
+    console.log('🔍 VERIFY-END: 75% Payment Check (SIMPLIFIED)');
     console.log('   paymentMethod:', booking.paymentMethod);
-    console.log('   walletPaymentStage:', booking.walletPaymentStage);
-    console.log('   escrowDetails:', JSON.stringify(booking.escrowDetails, null, 2));
-    console.log('   isInitialPaid:', booking.escrowDetails?.isInitialPaid);
-    console.log('   isCompletionPaid:', booking.escrowDetails?.isCompletionPaid);
+    console.log('   needsCompletionPayment:', needsCompletionPayment);
     console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
-
-    // Check if this is a wallet payment that needs 75% completion payment
-    const needsCompletionPayment =
-      booking.paymentMethod === 'wallet' &&
-      booking.walletPaymentStage === 'initial_25_held' &&
-      booking.escrowDetails?.isInitialPaid &&
-      !booking.escrowDetails?.isCompletionPaid;
-
-    console.log('🔍 needsCompletionPayment:', needsCompletionPayment);
 
     if (needsCompletionPayment) {
       // Keep booking in intermediate status until 75% is paid
       booking.status = 'awaiting_completion_payment';
       booking.walletPaymentStage = 'awaiting_completion_payment';
-      console.log('📊 Booking set to awaiting_completion_payment - waiting for 75% payment');
+      console.log('✅ Booking set to awaiting_completion_payment - waiting for 75% payment');
     } else {
-      // For non-wallet payments or fully paid bookings, mark as completed
+      // For non-wallet payments, mark as completed immediately
       booking.status = 'completed';
-      console.log('📊 Booking marked as completed (no 75% payment needed)');
+      console.log('✅ Booking marked as completed (non-wallet payment)');
     }
     booking.completedAt = jobSession.endTime;
 
