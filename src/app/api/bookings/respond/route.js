@@ -83,7 +83,7 @@ export async function POST(request) {
     const customer = await Homeowner.findById(booking.customerId);
 
     if (action === 'accept') {
-      // ACCEPT FLOW - Check payment method
+      // ACCEPT FLOW - All bookings require 25% wallet payment
       booking.requestTimer.respondedAt = now;
 
       // Add to provider responses
@@ -93,122 +93,71 @@ export async function POST(request) {
         respondedAt: now
       });
 
-      console.log(`📊 Booking payment method: "${booking.paymentMethod}"`);
-      console.log(`📊 Total price: ${booking.totalPrice}`);
+      console.log(`✅ Provider ${provider.name} accepting booking ${bookingId}`);
+      console.log(`📊 Total price: ₹${booking.totalPrice}`);
 
-      // WALLET PAYMENT: Staged payment with 3-minute timer
-      // Default to wallet if paymentMethod is not set or is 'wallet'
-      if (!booking.paymentMethod || booking.paymentMethod === 'wallet') {
-        console.log('💰 Processing as WALLET payment - requiring 25% initial payment');
-        
-        // Set status to 'pending_payment' to wait for customer's 25% initial payment
-        booking.status = 'pending_payment';
+      // Set status to 'pending_payment' to wait for customer's 25% initial payment
+      booking.status = 'pending_payment';
 
-        // Set 3-minute payment timer
-        const paymentExpiresAt = new Date(now.getTime() + 3 * 60 * 1000); // 3 minutes
-        booking.paymentTimer = {
-          sentAt: now,
-          expiresAt: paymentExpiresAt,
-          paidAt: null,
-          timedOut: false
-        };
+      // Set 3-minute payment timer
+      const paymentExpiresAt = new Date(now.getTime() + 3 * 60 * 1000); // 3 minutes
+      booking.paymentTimer = {
+        sentAt: now,
+        expiresAt: paymentExpiresAt,
+        paidAt: null,
+        timedOut: false
+      };
 
-        await booking.save();
+      await booking.save();
 
-        // Calculate 25% initial payment amount
-        const initialPaymentAmount = Math.round(booking.totalPrice * 0.25);
+      // Calculate 25% initial payment amount
+      const initialPaymentAmount = Math.round(booking.totalPrice * 0.25);
 
-        // Notify customer to pay 25% initial payment with BUZZER
-        if (customer?.pushToken) {
-          await createAndSendNotification({
-            title: '🎉 Booking Accepted!',
-            message: `${provider.name} accepted! Pay ₹${initialPaymentAmount} within 3 minutes to confirm.`,
-            recipientId: customer._id.toString(),
-            recipientType: 'homeowner',
-            pushToken: customer.pushToken,
-            type: 'payment_required',
-            data: {
-              recipientId: customer._id.toString(),
-              type: 'payment_required',
-              bookingId: booking._id.toString(),
-              providerName: provider.name,
-              providerId: provider._id.toString(),
-              serviceName: booking.serviceName,
-              requiresPayment: true,
-              initialPaymentAmount: initialPaymentAmount,
-              totalPrice: booking.totalPrice,
-              expiresAt: paymentExpiresAt.toISOString(),
-              sound: 'default',
-              priority: 'high'
-            },
-            bookingId: booking._id.toString()
-          });
-        }
-
-        console.log(`✅ Provider ${provider.name} accepted booking ${bookingId}, payment timer set (3 min)`);
-
-        return NextResponse.json({
-          success: true,
-          message: 'Booking accepted successfully. Customer has 3 minutes to complete payment.',
+      // Notify customer to pay 25% initial payment with BUZZER
+      if (customer?.pushToken) {
+        await createAndSendNotification({
+          title: '🎉 Booking Accepted!',
+          message: `${provider.name} accepted! Pay ₹${initialPaymentAmount} within 3 minutes to confirm.`,
+          recipientId: customer._id.toString(),
+          recipientType: 'homeowner',
+          pushToken: customer.pushToken,
+          type: 'payment_required',
           data: {
-            bookingId: booking._id,
-            status: 'pending_payment',
-            provider: {
-              id: provider._id,
-              name: provider.name
-            },
+            recipientId: customer._id.toString(),
+            type: 'payment_required',
+            bookingId: booking._id.toString(),
+            providerName: provider.name,
+            providerId: provider._id.toString(),
+            serviceName: booking.serviceName,
             requiresPayment: true,
             initialPaymentAmount: initialPaymentAmount,
-            paymentExpiresAt: paymentExpiresAt.toISOString(),
-            remainingSeconds: 180
-          }
-        });
-
-      } else {
-        // COD PAYMENT: Directly accept booking (no initial payment required)
-        console.log('💵 Processing as COD payment - directly accepting');
-        
-        booking.status = 'accepted';
-        booking.acceptedAt = now;
-        await booking.save();
-
-        // Notify customer about acceptance (COD)
-        if (customer?.pushToken) {
-          await createAndSendNotification({
-            title: '🎉 Booking Confirmed!',
-            message: `${provider.name} accepted your ${booking.serviceName} booking! They will arrive on ${new Date(booking.bookingDate).toLocaleDateString()}.`,
-            recipientId: customer._id.toString(),
-            recipientType: 'homeowner',
-            pushToken: customer.pushToken,
-            type: 'booking_accepted',
-            data: {
-              recipientId: customer._id.toString(),
-              type: 'booking_accepted',
-              bookingId: booking._id.toString(),
-              providerName: provider.name,
-              serviceName: booking.serviceName,
-              sound: 'default'
-            },
-            bookingId: booking._id.toString()
-          });
-        }
-
-        console.log(`✅ Provider ${provider.name} accepted booking ${bookingId} (COD, no payment required)`);
-
-        return NextResponse.json({
-          success: true,
-          message: 'Booking accepted successfully.',
-          data: {
-            bookingId: booking._id,
-            status: 'accepted',
-            provider: {
-              id: provider._id,
-              name: provider.name
-            },
-            requiresPayment: false
-          }
+            totalPrice: booking.totalPrice,
+            expiresAt: paymentExpiresAt.toISOString(),
+            sound: 'default',
+            priority: 'high'
+          },
+          bookingId: booking._id.toString()
         });
       }
+
+      console.log(`💰 Payment timer set: ₹${initialPaymentAmount} (25%) due in 3 minutes`);
+
+      return NextResponse.json({
+        success: true,
+        message: 'Booking accepted successfully. Customer has 3 minutes to complete payment.',
+        data: {
+          bookingId: booking._id,
+          status: 'pending_payment',
+          provider: {
+            id: provider._id,
+            name: provider.name
+          },
+          requiresPayment: true,
+          initialPaymentAmount: initialPaymentAmount,
+          paymentExpiresAt: paymentExpiresAt.toISOString(),
+          remainingSeconds: 180
+        }
+      });
 
     } else {
       // REJECT FLOW
