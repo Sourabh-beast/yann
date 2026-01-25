@@ -40,8 +40,8 @@ export async function POST(request) {
       );
     }
 
-    // Verify job is in progress
-    if (jobSession.status !== 'in_progress') {
+    // Verify job is in progress or pending end (retry)
+    if (jobSession.status !== 'in_progress' && jobSession.status !== 'pending_end') {
       return NextResponse.json(
         { success: false, message: 'Job is not in progress' },
         { status: 400 }
@@ -59,36 +59,47 @@ export async function POST(request) {
     // Calculate current duration
     const currentDuration = Math.floor((Date.now() - jobSession.startTime) / (1000 * 60));
 
-    // Generate end OTP
-    const { otp, hash } = jobSession.generateOTP();
-    jobSession.endOTP = hash;
-    jobSession.endOTPPlain = otp; // Store plain for customer display
-    jobSession.endOTPExpiry = new Date(Date.now() + 5 * 60 * 1000); // 5 minutes
-    jobSession.endOTPVerified = false;
-    jobSession.status = 'pending_end';
+    let otp, hash;
 
-    await jobSession.save();
+    // Reuse existing OTP if valid and status is pending_end
+    if (jobSession.status === 'pending_end' && jobSession.endOTPPlain && jobSession.endOTPExpiry > new Date()) {
+      otp = jobSession.endOTPPlain;
+      // hash is already stored in jobSession.endOTP
+    } else {
+      // Generate NEW end OTP
+      const generated = jobSession.generateOTP();
+      otp = generated.otp;
+      hash = generated.hash;
+
+      jobSession.endOTP = hash;
+      jobSession.endOTPPlain = otp; // Store plain for customer display
+      jobSession.endOTPExpiry = new Date(Date.now() + 5 * 60 * 1000); // 5 minutes
+      jobSession.endOTPVerified = false;
+      jobSession.status = 'pending_end';
+
+      await jobSession.save();
+    }
 
     // Send persistent notification to member with end OTP
     const booking = await Booking.findById(jobSession.booking);
     const homeowner = await Homeowner.findById(jobSession.customer);
-    
+
     if (homeowner) {
-        await createAndSendNotification({
-            title: '🔐 Job Completion OTP',
-            message: `${booking.providerName || 'Provider'} has finished the job. Share OTP to complete: ${otp}`,
-            recipientId: jobSession.customer.toString(),
-            recipientType: 'homeowner',
-            pushToken: homeowner.pushToken,
-            type: 'otp_end',
-            data: {
-                type: 'job_end_otp',
-                otp: otp,
-                bookingId: booking._id.toString(),
-                otpType: 'end'
-            },
-            bookingId: booking._id.toString()
-        });
+      await createAndSendNotification({
+        title: '🔐 Job Completion OTP',
+        message: `${booking.providerName || 'Provider'} has finished the job. Share OTP to complete: ${otp}`,
+        recipientId: jobSession.customer.toString(),
+        recipientType: 'homeowner',
+        pushToken: homeowner.pushToken,
+        type: 'otp_end',
+        data: {
+          type: 'job_end_otp',
+          otp: otp,
+          bookingId: booking._id.toString(),
+          otpType: 'end'
+        },
+        bookingId: booking._id.toString()
+      });
     }
 
     return NextResponse.json({
