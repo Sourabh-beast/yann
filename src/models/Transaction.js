@@ -18,6 +18,7 @@ const transactionSchema = new mongoose.Schema({
       'escrow_release',      // 25% released to partner on accept
       'escrow_refund',       // 25% refunded on rejection
       'completion_payment',  // 75% completion payment
+      'booking_initial_payment', // 25% initial payment after provider accepts
       // Withdrawal types
       'withdrawal_request',  // Partner withdrawal request
       'withdrawal_completed',// Partner withdrawal completed
@@ -92,7 +93,7 @@ const transactionSchema = new mongoose.Schema({
   // Status
   status: {
     type: String,
-    enum: ['pending', 'completed', 'failed', 'refunded', 'disputed'],
+    enum: ['pending', 'completed', 'failed', 'refunded', 'disputed', 'held_in_escrow'],
     default: 'pending'
   },
 
