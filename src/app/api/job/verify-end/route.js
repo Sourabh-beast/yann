@@ -298,8 +298,6 @@ export async function POST(request) {
       // Check if completion payment is needed (wallet payment with 75% remaining)
       const needsCompletionPayment =
         booking.paymentMethod === 'wallet' &&
-        booking.walletPaymentStage === 'initial_25_held' &&
-        booking.escrowDetails?.isInitialPaid &&
         !booking.escrowDetails?.isCompletionPaid;
 
       const completionAmount = booking.escrowDetails?.completionAmount || Math.round(booking.totalPrice * 0.75 * 100) / 100;
