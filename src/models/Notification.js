@@ -5,10 +5,10 @@ const notificationSchema = new mongoose.Schema({
   type: {
     type: String,
     enum: [
-      'push', 
-      'email', 
-      'sms', 
-      'announcement', 
+      'push',
+      'email',
+      'sms',
+      'announcement',
       'in-app',
       // Booking lifecycle
       'new_booking',
@@ -25,6 +25,7 @@ const notificationSchema = new mongoose.Schema({
       'otp_end',
       // Payment
       'payment_required',
+      'completion_payment_required', // Added missing enum
       'payment_received',
       'payment_completed',
       'refund_processed',
@@ -36,14 +37,14 @@ const notificationSchema = new mongoose.Schema({
     ],
     required: true
   },
-  
+
   // Target audience
   targetAudience: {
     type: String,
     enum: ['all', 'providers', 'homeowners', 'specific'],
     default: 'all'
   },
-  
+
   // Specific recipients (if targetAudience is 'specific')
   recipients: [{
     userId: mongoose.Schema.Types.ObjectId,
@@ -55,7 +56,7 @@ const notificationSchema = new mongoose.Schema({
     email: String,
     name: String
   }],
-  
+
   // Content
   title: {
     type: String,
@@ -65,27 +66,27 @@ const notificationSchema = new mongoose.Schema({
     type: String,
     required: true
   },
-  
+
   // Rich content (for emails/announcements)
   htmlContent: String,
   imageUrl: String,
   actionUrl: String,
   actionText: String,
-  
+
   // Scheduling
   scheduledFor: Date,
   isScheduled: {
     type: Boolean,
     default: false
   },
-  
+
   // Status
   status: {
     type: String,
     enum: ['draft', 'scheduled', 'sending', 'sent', 'failed', 'cancelled'],
     default: 'draft'
   },
-  
+
   // Delivery stats
   stats: {
     totalRecipients: { type: Number, default: 0 },
@@ -95,18 +96,18 @@ const notificationSchema = new mongoose.Schema({
     clicked: { type: Number, default: 0 },
     failed: { type: Number, default: 0 }
   },
-  
+
   // Sent info
   sentAt: Date,
   sentBy: String,
-  
+
   // Priority
   priority: {
     type: String,
     enum: ['low', 'normal', 'high', 'urgent'],
     default: 'normal'
   },
-  
+
   // Category/Tags
   category: {
     type: String,
@@ -114,20 +115,20 @@ const notificationSchema = new mongoose.Schema({
     default: 'announcement'
   },
   tags: [String],
-  
+
   // Expiry (for announcements)
   expiresAt: Date,
   isActive: {
     type: Boolean,
     default: true
   },
-  
+
   // Additional metadata for notifications (bookingId, completionAmount, etc.)
   metadata: {
     type: mongoose.Schema.Types.Mixed,
     default: {}
   },
-  
+
   // Created by
   createdBy: String
 }, {

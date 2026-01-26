@@ -134,6 +134,7 @@ export async function POST(req) {
 
             console.log(`📦 Booking status updated: ${booking.status}, assignedProvider: ${booking.assignedProvider}`);
 
+            booking.markModified('escrowDetails'); // Ensure nested object updates are saved
             await booking.save();
 
             // Record transaction

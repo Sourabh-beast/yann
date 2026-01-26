@@ -2,16 +2,15 @@ import { NextResponse } from 'next/server';
 import connectDB from '@/lib/connectDB';
 import Booking from '@/models/Booking';
 import ServiceProvider from '@/models/ServiceProvider';
-import ResidentRequest from '@/models/ResidentRequest';
 import Homeowner from '@/models/Homeowner';
-import Transaction from '@/models/Transaction';
 import { createAndSendNotification } from '@/lib/notificationHelper';
 
 export async function POST(request) {
   try {
     await connectDB();
 
-    const { bookingId, providerId, providerName } = await request.json();
+    // providerName is optional, we'll fetch from DB to be safe
+    const { bookingId, providerId } = await request.json();
 
     if (!bookingId || !providerId) {
       return NextResponse.json(
@@ -30,15 +29,15 @@ export async function POST(request) {
       );
     }
 
-    // Check if already accepted by someone
-    if (booking.status === 'accepted') {
+    // Check if already actively processed (accepted or pending_payment)
+    if (['accepted', 'pending_payment'].includes(booking.status)) {
       return NextResponse.json(
-        { success: false, message: 'This booking has already been accepted by another provider' },
+        { success: false, message: `Booking is already ${booking.status}` },
         { status: 400 }
       );
     }
 
-    // Verify provider exists and offers this service
+    // Verify provider exists
     const provider = await ServiceProvider.findById(providerId);
 
     if (!provider) {
@@ -48,161 +47,108 @@ export async function POST(request) {
       );
     }
 
-    if (!provider.services.includes(booking.serviceName)) {
-      return NextResponse.json(
-        { success: false, message: 'Provider does not offer this service' },
-        { status: 400 }
-      );
+    // Verify provider offers this service (safety check)
+    if (provider.services && !provider.services.includes(booking.serviceName)) {
+      // Warn but don't block for admin overrides
+      console.warn(`Provider ${provider.name} may not offer ${booking.serviceName}`);
     }
 
-    // Update booking
-    booking.status = 'accepted';
+    const now = new Date();
+
+    // ---------------------------------------------------------
+    // ACCEPT FLOW (Aligned with respond/route.js)
+    // ---------------------------------------------------------
+
+    // Assign provider
     booking.assignedProvider = providerId;
-    booking.providerName = providerName || provider.name;
+    booking.providerName = provider.name; // Use DB name
 
-    if (booking.negotiation && booking.negotiation.isActive) {
-      booking.negotiation.isActive = false;
-      booking.negotiation.status = 'accepted';
-      booking.negotiation.respondedAt = new Date();
-    }
+    // Update response timer/tracking
+    booking.requestTimer = booking.requestTimer || {};
+    booking.requestTimer.respondedAt = now;
 
     // Add to provider responses
     booking.providerResponses.push({
       providerId: providerId,
       response: 'accepted',
-      respondedAt: new Date()
+      respondedAt: now
     });
+
+    console.log(`✅ Provider ${provider.name} accepting booking ${bookingId} (via Web/Admin)`);
+    console.log(`📊 Total price: ₹${booking.totalPrice}`);
+
+    // Set status to 'pending_payment' to wait for customer's 25% initial payment
+    booking.status = 'pending_payment';
+
+    // Set 3-minute payment timer
+    const paymentExpiresAt = new Date(now.getTime() + 3 * 60 * 1000); // 3 minutes
+    booking.paymentTimer = {
+      sentAt: now,
+      expiresAt: paymentExpiresAt,
+      paidAt: null,
+      timedOut: false
+    };
+
+    // Close any negotiation
+    if (booking.negotiation && booking.negotiation.isActive) {
+      booking.negotiation.isActive = false;
+      booking.negotiation.status = 'accepted'; // Technically accepted by provider, but payment pending
+      booking.negotiation.respondedAt = now;
+    }
 
     await booking.save();
 
-    // 💰 ESCROW TRANSFER: Handle wallet payments based on staging
-    if (booking.paymentMethod === 'wallet') {
-      // Initialize provider wallet if not exists
-      if (!provider.wallet) {
-        provider.wallet = { balance: 0, currency: 'INR' };
-      }
+    // Calculate 25% initial payment amount
+    const initialPaymentAmount = Number((booking.totalPrice * 0.25).toFixed(2));
 
-      const providerBalanceBefore = provider.wallet.balance || 0;
+    // Notify customer to pay 25% initial payment with BUZZER
+    const customer = await Homeowner.findById(booking.customerId);
 
-      // NEW: Check for staged payment (25% escrow)
-      if (booking.walletPaymentStage === 'initial_25_held') {
-        // Release 25% escrow to provider
-        const releaseAmount = booking.escrowDetails?.initialAmount || booking.totalPrice * 0.25;
-
-        // Add to provider's wallet
-        provider.wallet.balance = providerBalanceBefore + releaseAmount;
-        await provider.save();
-
-        // Update booking escrow status
-        booking.walletPaymentStage = 'initial_25_released';
-        booking.escrowDetails.initialReleasedAt = new Date();
-        await booking.save();
-
-        // Create escrow_release transaction for provider
-        await Transaction.create({
-          bookingId: bookingId,
-          providerId: providerId,
-          type: 'escrow_release',
-          amount: releaseAmount,
-          balanceBefore: providerBalanceBefore,
-          balanceAfter: provider.wallet.balance,
-          escrowStatus: 'released',
-          paymentStage: 'initial_25',
-          description: `25% booking deposit released (₹${releaseAmount}) - ${booking.serviceName}`,
-          status: 'completed',
-          paymentMethod: 'wallet',
-          currency: 'INR',
-          serviceName: booking.serviceName,
-          serviceCategory: booking.serviceCategory
-        });
-
-        console.log(`💰 ESCROW RELEASED (25%): Transferred ₹${releaseAmount} to provider ${provider.name}'s wallet`);
-        console.log(`💡 Remaining 75% (₹${booking.escrowDetails?.completionAmount}) will be paid after job completion`);
-      }
-      // LEGACY: Handle old full-amount escrow bookings (backward compatibility)
-      else if (booking.paymentStatus === 'paid' && !booking.walletPaymentStage) {
-        const transferAmount = booking.totalPrice;
-
-        // Add to provider's wallet
-        provider.wallet.balance = providerBalanceBefore + transferAmount;
-        await provider.save();
-
-        // Create wallet_credit transaction for provider
-        await Transaction.create({
-          bookingId: bookingId,
-          providerId: providerId,
-          type: 'wallet_credit',
-          amount: transferAmount,
-          balanceBefore: providerBalanceBefore,
-          balanceAfter: provider.wallet.balance,
-          description: `Earnings from booking #${bookingId}: ${booking.serviceName}`,
-          status: 'completed',
-          paymentMethod: 'wallet',
-          currency: 'INR',
-          serviceName: booking.serviceName,
-          serviceCategory: booking.serviceCategory
-        });
-
-        console.log(`💰 ESCROW RELEASED (LEGACY): Transferred ₹${transferAmount} to provider ${provider.name}'s wallet`);
-      }
-    }
-
-    if (booking.residentRequest) {
-      const requestUpdate = {
-        status: 'accepted',
-        scheduledFor: booking.bookingDate
-      };
-
-      if (booking.negotiation) {
-        requestUpdate.negotiation = {
-          ...booking.negotiation,
-          providerId: booking.negotiation.providerId,
-          providerName: booking.negotiation.providerName,
-          proposedAmount: booking.negotiation.proposedAmount,
-          isActive: false,
-          status: booking.negotiation.status,
-          updatedAt: new Date()
-        };
-      }
-
-      await ResidentRequest.findByIdAndUpdate(booking.residentRequest, { $set: requestUpdate });
-    }
-
-    // Send persistent notification to member
-    const homeowner = await Homeowner.findById(booking.customerId);
-    if (homeowner) {
+    if (customer?.pushToken) {
       await createAndSendNotification({
-        title: '✅ Booking Accepted!',
-        message: `${providerName} has accepted your ${booking.serviceName} booking. They will contact you soon.`,
-        recipientId: booking.customerId.toString(),
+        title: '🎉 Booking Accepted!',
+        message: `${provider.name} accepted! Pay ₹${initialPaymentAmount} within 3 minutes to confirm.`,
+        recipientId: customer._id.toString(),
         recipientType: 'homeowner',
-        pushToken: homeowner.pushToken,
-        type: 'booking_accepted',
+        pushToken: customer.pushToken,
+        type: 'payment_required',
         data: {
-          type: 'booking_accepted',
-          bookingId: booking._id.toString()
+          recipientId: customer._id.toString(),
+          type: 'payment_required',
+          bookingId: booking._id.toString(),
+          providerName: provider.name,
+          providerId: provider._id.toString(),
+          serviceName: booking.serviceName,
+          requiresPayment: true,
+          initialPaymentAmount: initialPaymentAmount,
+          totalPrice: booking.totalPrice,
+          expiresAt: paymentExpiresAt.toISOString(),
+          sound: 'default',
+          priority: 'high'
         },
         bookingId: booking._id.toString()
       });
     }
 
-    console.log(`✅ Booking ${bookingId} accepted by ${providerName}`);
+    console.log(`💰 Payment timer set: ₹${initialPaymentAmount} (25%) due in 3 minutes`);
 
+    // Return response indicating payment is required
     return NextResponse.json({
       success: true,
-      message: 'Booking accepted successfully!',
-      booking: {
-        id: booking._id,
-        serviceName: booking.serviceName,
-        customerName: booking.customerName,
-        customerPhone: booking.customerPhone,
-        customerAddress: booking.customerAddress,
-        bookingDate: booking.formattedDate,
-        bookingTime: booking.bookingTime,
-        totalPrice: booking.totalPrice,
-        status: booking.status
+      message: 'Booking accepted successfully. Customer has 3 minutes to complete payment.',
+      data: {
+        bookingId: booking._id,
+        status: 'pending_payment',
+        provider: {
+          id: provider._id,
+          name: provider.name
+        },
+        requiresPayment: true, // Frontend should check this
+        initialPaymentAmount: initialPaymentAmount,
+        paymentExpiresAt: paymentExpiresAt.toISOString(),
+        remainingSeconds: 180
       }
-    }, { status: 200 });
+    });
 
   } catch (error) {
     console.error('Booking acceptance error:', error);
@@ -216,10 +162,3 @@ export async function POST(request) {
     );
   }
 }
-
-
-
-
-
-
-// Gitaidahdjand

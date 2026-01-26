@@ -40,6 +40,18 @@ export async function POST(request) {
       );
     }
 
+    // BLOCKER FIX: Prevent starting job if initial payment is pending
+    if (jobSession.booking.status === 'pending_payment') {
+      return NextResponse.json(
+        {
+          success: false,
+          message: 'Cannot start job. Customer has not completed the initial payment yet.',
+          requiresPayment: true
+        },
+        { status: 400 }
+      );
+    }
+
     // Check if already verified
     if (jobSession.startOTPVerified) {
       return NextResponse.json(

@@ -63,7 +63,7 @@ export async function POST(request) {
 
     // Get provider's working hours for expected duration
     const provider = await ServiceProvider.findById(providerId);
-    const expectedDuration = provider.workingHours 
+    const expectedDuration = provider.workingHours
       ? calculateExpectedDuration(provider.workingHours)
       : 480; // Default 8 hours
 
@@ -98,12 +98,12 @@ export async function POST(request) {
     await booking.save();
 
     // Send persistent notification to member with OTP
-    const homeowner = await Homeowner.findById(booking.customerId);
+    const homeowner = await Homeowner.findById(booking.customerId._id);
     if (homeowner) {
       await createAndSendNotification({
         title: '🔐 Job Starting Soon',
         message: `${booking.providerName || 'Provider'} is ready to start your ${booking.serviceName} service. Your OTP is: ${otp}`,
-        recipientId: booking.customerId.toString(),
+        recipientId: booking.customerId._id.toString(),
         recipientType: 'homeowner',
         pushToken: homeowner.pushToken,
         type: 'otp_start',
