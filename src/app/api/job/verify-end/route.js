@@ -167,12 +167,14 @@ export async function POST(request) {
               // Create transaction record
               await Transaction.create([{
                 user: customer._id,
+                customerId: customer._id, // Add customerId references
                 userType: 'homeowner',
-                type: 'debit',
+                type: 'wallet_debit', // FIXED: Use correct enum value
                 amount: totalOvertimeCost,
                 description: `Overtime charges for ${booking.serviceName} (${overtimeResult.overtimeType})`,
                 status: 'completed',
-                relatedBooking: booking._id
+                relatedBooking: booking._id,
+                bookingId: booking._id // Add bookingId reference
               }], { session });
 
               // Credit provider wallet
@@ -184,12 +186,14 @@ export async function POST(request) {
                 // Create transaction record
                 await Transaction.create([{
                   user: provider._id,
+                  providerId: provider._id, // Add providerId reference
                   userType: 'provider',
-                  type: 'credit',
+                  type: 'wallet_credit', // FIXED: Use correct enum value
                   amount: totalOvertimeCost,
                   description: `Overtime payment for ${booking.serviceName} (${overtimeResult.overtimeType})`,
                   status: 'completed',
-                  relatedBooking: booking._id
+                  relatedBooking: booking._id,
+                  bookingId: booking._id // Add bookingId reference
                 }], { session });
               }
 
@@ -235,12 +239,14 @@ export async function POST(request) {
             // Create transaction record
             await Transaction.create([{
               user: customer._id,
+              customerId: customer._id, // Add customerId references
               userType: 'homeowner',
-              type: 'debit',
+              type: 'wallet_debit', // FIXED: Use correct enum value
               amount: overtimeData.overtimeCharge,
               description: `Overtime charges for ${booking.serviceName}`,
               status: 'completed',
-              relatedBooking: booking._id
+              relatedBooking: booking._id,
+              bookingId: booking._id // Add bookingId reference
             }], { session });
 
             // Credit provider wallet
@@ -252,12 +258,14 @@ export async function POST(request) {
               // Create transaction record
               await Transaction.create([{
                 user: provider._id,
+                providerId: provider._id, // Add providerId reference
                 userType: 'provider',
-                type: 'credit',
+                type: 'wallet_credit', // FIXED: Use correct enum value
                 amount: overtimeData.overtimeCharge,
                 description: `Overtime payment for ${booking.serviceName}`,
                 status: 'completed',
-                relatedBooking: booking._id
+                relatedBooking: booking._id,
+                bookingId: booking._id // Add bookingId reference
               }], { session });
             }
 
