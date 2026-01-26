@@ -111,7 +111,7 @@ export async function POST(request) {
       await booking.save();
 
       // Calculate 25% initial payment amount
-      const initialPaymentAmount = Math.round(booking.totalPrice * 0.25);
+      const initialPaymentAmount = Number((booking.totalPrice * 0.25).toFixed(2));
 
       // Notify customer to pay 25% initial payment with BUZZER
       if (customer?.pushToken) {

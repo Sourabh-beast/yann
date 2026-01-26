@@ -300,7 +300,7 @@ export async function POST(request) {
         booking.paymentMethod === 'wallet' &&
         !booking.escrowDetails?.isCompletionPaid;
 
-      const completionAmount = booking.escrowDetails?.completionAmount || Math.round(booking.totalPrice * 0.75 * 100) / 100;
+      const completionAmount = booking.escrowDetails?.completionAmount || Number((booking.totalPrice * 0.75).toFixed(2));
 
       console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
       console.log('🔔 COMPLETION NOTIFICATION CHECK:');
