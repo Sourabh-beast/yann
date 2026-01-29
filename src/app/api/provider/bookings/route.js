@@ -163,7 +163,9 @@ export async function GET(request) {
       paymentMethod: booking.paymentMethod,
       notes: booking.notes || '',
       driverDetails: booking.driverDetails || null,
+      driverDetails: booking.driverDetails || null,
       createdAt: booking.createdAt,
+      requestTimer: booking.requestTimer, // Include timer details for sync
     }));
 
     return NextResponse.json({

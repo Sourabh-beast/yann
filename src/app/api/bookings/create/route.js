@@ -139,7 +139,7 @@ export async function POST(request) {
 
     // Ensure basePrice is a valid number
     bookingData.basePrice = Number(providerPrice) || 0;
-    
+
     console.log('💰 Provider pricing:', { providerPrice, basePrice: bookingData.basePrice });
 
     const extras = Array.isArray(bookingData.extras) ? bookingData.extras : [];
@@ -156,7 +156,7 @@ export async function POST(request) {
     // Check if this is an hourly service booking with start/end times
     const hasTimeRange = bookingData.startTime && bookingData.endTime;
 
-    if (pricingModel === 'hourly' && hasTimeRange) {
+    if ((pricingModel === 'hourly' || bookingData.serviceCategory.toLowerCase() === 'driver') && hasTimeRange) {
       // HOURLY PRICING: Calculate cost based on start/end times
 
       // Validate hourly billing support
