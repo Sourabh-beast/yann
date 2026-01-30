@@ -172,7 +172,26 @@ const serviceProviderSchema = new mongoose.Schema({
     }
   },
 
-  // Driver-specific profile
+  // Driver-specific profile (Enhanced)
+  driverServiceDetails: {
+    vehicleTypes: {
+      type: [String],
+      enum: ['hatchback', 'sedan', 'suv', 'luxury', 'van'],
+      default: []
+    },
+    transmissionTypes: {
+      type: [String],
+      enum: ['manual', 'automatic'],
+      default: []
+    },
+    tripPreference: {
+      type: String,
+      enum: ['incity', 'outstation', 'both'],
+      default: 'both'
+    }
+  },
+
+  // Legacy field support (can be deprecated later)
   driverProfile: {
     carTypeSupported: {
       type: String,

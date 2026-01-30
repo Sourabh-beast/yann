@@ -83,6 +83,7 @@ export async function GET(request) {
         profileImage: profileImageUrl,
         experience: provider.experience,
         services: provider.services || [],
+        driverServiceDetails: provider.driverServiceDetails || null,
         serviceRates: provider.serviceRates || [],
         selectedCategories: provider.selectedCategories || [],
         workingHours: provider.workingHours || null,
@@ -180,7 +181,7 @@ async function handleProfileUpdate(request) {
     console.log('📥 Received profile update request:', body);
 
     // Added 'status' and 'services' to enable availability toggle from mobile app
-    const allowedUpdates = ['name', 'phone', 'profileImage', 'experience', 'workingHours', 'bio', 'serviceRates', 'status', 'services'];
+    const allowedUpdates = ['name', 'phone', 'profileImage', 'experience', 'workingHours', 'bio', 'serviceRates', 'status', 'services', 'driverServiceDetails'];
 
     for (const field of allowedUpdates) {
       if (body[field] !== undefined) {
@@ -205,6 +206,7 @@ async function handleProfileUpdate(request) {
         bio: provider.bio || '',
         serviceRates: provider.serviceRates || [],
         services: provider.services || [],
+        driverServiceDetails: provider.driverServiceDetails || null,
         workingHours: provider.workingHours || null,
         status: provider.status,
         isOnline: provider.isOnline ?? true

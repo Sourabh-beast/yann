@@ -121,7 +121,7 @@ export async function POST(req) {
     // Connect to database with timeout
     await Promise.race([
       connectDB(),
-      new Promise((_, reject) => 
+      new Promise((_, reject) =>
         setTimeout(() => reject(new Error('Database connection timeout')), 8000)
       )
     ]);
@@ -250,7 +250,17 @@ export async function POST(req) {
       );
     }
 
-    const newProvider = new ServiceProvider(body);
+    // Explicitly destructure driver details if present
+    const providerData = {
+      ...body,
+      driverServiceDetails: body.driverServiceDetails || {
+        vehicleTypes: [],
+        transmissionTypes: [],
+        tripPreference: 'both'
+      }
+    };
+
+    const newProvider = new ServiceProvider(providerData);
     await newProvider.save();
 
     console.log("✅ Provider registered successfully:", newProvider._id);
@@ -261,7 +271,7 @@ export async function POST(req) {
     );
   } catch (error) {
     console.error("❌ Error in POST /register:", error);
-    
+
     // Handle specific MongoDB errors
     if (error.name === 'ValidationError') {
       return NextResponse.json(
@@ -269,7 +279,7 @@ export async function POST(req) {
         { status: 400 }
       );
     }
-    
+
     if (error.code === 11000) {
       return NextResponse.json(
         { success: false, message: "Email already registered" },

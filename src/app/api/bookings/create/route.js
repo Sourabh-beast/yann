@@ -156,146 +156,140 @@ export async function POST(request) {
     // Check if this is an hourly service booking with start/end times
     const hasTimeRange = bookingData.startTime && bookingData.endTime;
 
-    if ((pricingModel === 'hourly' || bookingData.serviceCategory.toLowerCase() === 'driver') && hasTimeRange) {
-      // HOURLY PRICING: Calculate cost based on start/end times
+    // Helper: Calculate distance between two coords in km
+    const calculateDistance = (lat1, lon1, lat2, lon2) => {
+      if (!lat1 || !lon1 || !lat2 || !lon2) return 0;
+      const R = 6371; // Radius of earth in km
+      const dLat = (lat2 - lat1) * (Math.PI / 180);
+      const dLon = (lon2 - lon1) * (Math.PI / 180);
+      const a =
+        Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+        Math.cos(lat1 * (Math.PI / 180)) * Math.cos(lat2 * (Math.PI / 180)) *
+        Math.sin(dLon / 2) * Math.sin(dLon / 2);
+      const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+      return R * c; // Distance in km
+    };
 
-      // Validate hourly billing support
-      const hourlySupport = checkHourlyBillingSupport(provider, bookingData.serviceName);
+    if (bookingData.serviceCategory === 'driver') {
+      // --- PREMIUM DRIVER FLOW ---
 
-      if (!hourlySupport.supported) {
+      const tripDetails = bookingData.driverTripDetails || {};
+      const {
+        tripType,
+        serviceType, // oneway | roundtrip
+        pickupLocation,
+        dropLocation,
+        vehicleType,
+        transmission
+      } = tripDetails;
+
+      const durationHours = bookingData.quantity || 3; // Use quantity as hours
+
+      // 1. Validate Minimum Duration
+      if (durationHours < 3) {
         return NextResponse.json(
-          { success: false, message: hourlySupport.message },
+          { success: false, message: 'Minimum booking duration for driver is 3 hours' },
           { status: 400 }
         );
       }
 
-      const hourlyRate = hourlySupport.hourlyRate;
-
-      // Driver car type validation
-      if (bookingData.serviceCategory === 'driver' && bookingData.driverRequirements?.carType) {
-        const carTypeValidation = validateDriverCarType(
-          bookingData.driverRequirements.carType,
-          provider.driverProfile?.carTypeSupported
-        );
-
-        if (!carTypeValidation.valid) {
+      // 2. Validate Incity Logic
+      if (tripType === 'incity') {
+        // Simple check: if city names are provided and different -> error
+        // Normalized comparison
+        if (pickupLocation?.city && dropLocation?.city &&
+          pickupLocation.city.toLowerCase().trim() !== dropLocation.city.toLowerCase().trim()) {
           return NextResponse.json(
-            { success: false, message: carTypeValidation.message },
+            { success: false, message: 'For Incity rides, pickup and drop location must be in the same city.' },
             { status: 400 }
           );
         }
       }
 
-      // Use pricing calculator for hourly service
-      const hourlyCost = calculateHourlyServiceCost({
-        startTime: bookingData.startTime,
-        endTime: bookingData.endTime,
-        hourlyRate: hourlyRate,
-        gstPercentage: gstPercentage
-      });
+      // 3. Calculate Distance & Return Fare
+      let estimatedDistance = tripDetails.distanceKm || 0;
 
-      if (!hourlyCost.success) {
-        return NextResponse.json(
-          { success: false, message: hourlyCost.error },
-          { status: 400 }
-        );
+      // If distance not provided but coords are, calculate it
+      if (!estimatedDistance && pickupLocation?.latitude && dropLocation?.latitude) {
+        estimatedDistance = calculateDistance(
+          pickupLocation.latitude, pickupLocation.longitude,
+          dropLocation.latitude, dropLocation.longitude
+        ) * 1.3; // 1.3 Factor for road curvature approximation
       }
 
-      // Calculate GST
-      const gst = calculateGST(hourlyCost.baseCost, gstPercentage);
-
-      // Calculate booking date/time
-      const bookingDateTime = new Date(bookingData.bookingDate);
-      let hours = 0, minutes = 0;
-      if (bookingData.startTime && typeof bookingData.startTime === 'string') {
-        [hours, minutes] = bookingData.startTime.split(':').map(Number);
-      }
-      bookingDateTime.setHours(hours, minutes, 0, 0);
-
-      const scheduledStartTime = bookingDateTime;
-      const expectedEndTime = new Date(scheduledStartTime);
-      expectedEndTime.setMinutes(expectedEndTime.getMinutes() + hourlyCost.durationMinutes);
-
-      // Check shift overlap
-      let partnerShiftStart = null;
-      let partnerShiftEnd = null;
-
-      if (provider.workingShifts && provider.workingShifts.enabled) {
-        partnerShiftStart = provider.workingShifts.startTime;
-        partnerShiftEnd = provider.workingShifts.endTime;
+      let returnFare = 0;
+      if (serviceType === 'oneway' && estimatedDistance > 0) {
+        // Charge 2rs/km for the return journey distance
+        // Logic: "Driver needs money to go back home... calculated 2rs/km"
+        // Interpretation: 2 * Distance
+        returnFare = Math.ceil(2 * estimatedDistance);
       }
 
-      hourlyBookingDetails = {
-        bookedHours: hourlyCost.duration,
+      // 4. Calculate Final Price
+      const hourlyRate = bookingData.basePrice; // Assumed passed as hourly rate from frontend/provider config
+      const baseCost = hourlyRate * durationHours;
+      const totalCost = baseCost + returnFare + extrasTotal;
+
+      // Update booking data
+      driverDetails = {
+        tripType,
+        serviceType,
+
+        // Store locations
+        pickupLocation: pickupLocation?.address || bookingData.customerAddress,
+        dropLocation: dropLocation?.address || '',
+
+        vehicleType,
+        transmission,
+
+        // Costs
         hourlyRate,
-        scheduledStartTime,
-        expectedEndTime,
-        partnerShiftStart,
-        partnerShiftEnd,
-        baseCost: hourlyCost.baseCost,
-        overtimeRate: hourlyRate,
-        shiftOvertimeRate: hourlyRate * 2,
-        totalHourlyCharge: hourlyCost.baseCost
+        totalHours: durationHours,
+        baseCost: Number(baseCost.toFixed(2)),
+
+        distanceKm: Number(estimatedDistance.toFixed(1)),
+        returnFare: Number(returnFare.toFixed(2)),
+
+        overtimeRate: hourlyRate * 2, // Standard 2x overtime
       };
 
-      pricingBreakdown = {
-        baseCost: hourlyCost.baseCost || 0,
-        gst: gst.gstAmount || 0,
-        gstPercentage: gstPercentage,
-        extras: extrasTotal,
-        subtotal: (hourlyCost.baseCost || 0) + extrasTotal,
-        total: Number(((hourlyCost.baseCost || 0) + (gst.gstAmount || 0) + extrasTotal).toFixed(2)),
-        breakdown: {
-          startTime: bookingData.startTime,
-          endTime: bookingData.endTime,
-          duration: `${hourlyCost.duration} ${hourlyCost.duration === 1 ? 'hour' : 'hours'}`,
-          hourlyRate: `₹${hourlyRate}/hr`,
-          gstRate: `${gstPercentage}%`
-        }
+      // Map to schema-compliant struct
+      bookingData.driverTripDetails = {
+        ...tripDetails,
+        distanceKm: Number(estimatedDistance.toFixed(1)),
+        returnFare: Number(returnFare.toFixed(2))
       };
 
-      bookingData.basePrice = hourlyCost.baseCost || 0;
-      bookingData.totalPrice = pricingBreakdown.total;
-
-    } else if (pricingModel === 'fixed' || !hasTimeRange) {
-      // FIXED PRICING: One-time fixed cost with GST
-
-      const quantity = Number(bookingData.quantity) || 1;
-      const billingType = bookingData.billingType || 'one-time';
-      const billingMultiplier = billingType === 'monthly' ? 4 : 1;
-
-      // Ensure basePrice is a valid number
-      const safeBasePrice = Number(bookingData.basePrice) || 0;
-      const safeGstPercentage = Number(gstPercentage) || 18;
-
-      // Use pricing calculator for fixed service
-      const fixedCost = calculateFixedServiceCost(
-        safeBasePrice,
-        safeGstPercentage
-      );
-
-      // Calculate total with extras (fixedCost already has totalWithGST)
-      const grandTotal = (fixedCost.totalWithGST || safeBasePrice) + extrasTotal;
+      // GST Calculation (18% for drivers)
+      const gstRate = 0.18;
+      const gstAmount = totalCost * gstRate;
+      const grandTotal = totalCost + gstAmount;
 
       pricingBreakdown = {
-        baseCost: safeBasePrice,
-        gst: fixedCost.gstAmount || 0,
-        gstPercentage: safeGstPercentage,
-        extras: extrasTotal,
-        quantity: quantity,
-        subtotal: fixedCost.baseAmount || safeBasePrice,
-        total: Number((grandTotal * billingMultiplier).toFixed(2)) || safeBasePrice,
+        hourlyRate: `₹${hourlyRate}/hr`,
+        duration: `${durationHours} hours`,
+        baseCost: baseCost,
+        returnFare: returnFare > 0 ? returnFare : 0,
+        gst: Number(gstAmount.toFixed(2)),
+        gstPercentage: 18,
+        total: Number(grandTotal.toFixed(2)),
         breakdown: {
-          basePrice: `₹${safeBasePrice}`,
-          quantity: quantity > 1 ? `${quantity} unit${quantity > 1 ? 's' : ''}` : '1 service',
-          gstRate: `${safeGstPercentage}%`,
-          billingType: billingType
+          tripType: tripType === 'incity' ? 'In-City' : 'Outstation',
+          serviceType: serviceType === 'oneway' ? 'One Way' : 'Round Trip',
+          vehicle: `${vehicleType} (${transmission})`,
+          distance: `${estimatedDistance.toFixed(1)} km est.`,
+          returnFareNote: serviceType === 'oneway' ? `₹${returnFare} return surcharge` : 'Included'
         }
       };
 
       bookingData.totalPrice = pricingBreakdown.total;
+      bookingData.billingType = 'hourly';
+      bookingData.quantity = durationHours;
+    }
 
-    } else if (bookingData.serviceCategory === 'driver' && bookingData.driverDetails?.endTime) {
+
+
+    else if (bookingData.serviceCategory === 'driver' && bookingData.driverDetails?.endTime) {
       // Legacy driver details (only if end time is explicitly provided)
       const driverPayload = bookingData.driverDetails || {};
       const parseToMinutes = (value) => {

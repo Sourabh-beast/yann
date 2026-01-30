@@ -265,7 +265,51 @@ const bookingSchema = new mongoose.Schema({
     }
   },
 
-  // Driver-specific requirements
+  // Driver-specific requirements (Enhanced)
+  driverTripDetails: {
+    tripType: {
+      type: String,
+      enum: ['incity', 'outstation'],
+      default: null
+    },
+    serviceType: {
+      type: String,
+      enum: ['oneway', 'roundtrip'],
+      default: null
+    },
+    pickupLocation: {
+      address: String,
+      city: String,
+      latitude: Number,
+      longitude: Number
+    },
+    dropLocation: {
+      address: String,
+      city: String, // Used to validate incity constraint
+      latitude: Number,
+      longitude: Number
+    },
+    vehicleType: {
+      type: String,
+      enum: ['hatchback', 'sedan', 'suv', 'luxury', 'van'],
+      default: null
+    },
+    transmission: {
+      type: String,
+      enum: ['manual', 'automatic'],
+      default: null
+    },
+    distanceKm: {
+      type: Number,
+      default: 0
+    },
+    returnFare: {
+      type: Number, // Calculated return surcharge (e.g. 2rs/km)
+      default: 0
+    }
+  },
+
+  // Legacy driver requirements
   driverRequirements: {
     carType: {
       type: String,

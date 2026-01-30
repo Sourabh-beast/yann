@@ -6,7 +6,7 @@ export async function POST(request) {
   try {
     await connectDB();
 
-    const { providerId, services, serviceRates } = await request.json();
+    const { providerId, services, serviceRates, driverServiceDetails } = await request.json();
 
     // Validate input
     if (!providerId) {
@@ -89,7 +89,7 @@ export async function POST(request) {
         'Nav Graha Shanti', 'Bhoomi Poojan', 'Vaahan Poojan', 'Shraadh Karm',
         'Janmadin Poojan', 'Sundarkand Path',
       ],
-      'Driver Services': ['Full-Day Personal Driver', 'Outstation Driving Service'],
+      'Driver Services': ['Full-Day Personal Driver', 'Outstation Driving Service', 'Personal Driver'],
       'Other Services': ['Other']
     };
 
@@ -104,19 +104,30 @@ export async function POST(request) {
       }
     });
 
+    // Prepare update data
+    const updateData = {
+      services: updatedServices,
+      serviceRates: updatedRates,
+      selectedCategories: Array.from(newCategories),
+      status: 'pending', // Change status to pending for admin review
+    };
+
+    // Add driver details if present
+    if (driverServiceDetails) {
+      updateData.driverServiceDetails = driverServiceDetails;
+    }
+
     // Update provider with new services and set status to pending
     const updatedProvider = await ServiceProvider.findByIdAndUpdate(
       providerId,
       {
-        services: updatedServices,
-        serviceRates: updatedRates,
-        selectedCategories: Array.from(newCategories),
-        status: 'pending', // Change status to pending for admin review
+        ...updateData,
         // Store pending service info for admin to see what was added
         $set: {
           pendingServiceRequest: {
             addedServices: services,
             addedRates: serviceRates,
+            driverServiceDetails: driverServiceDetails,
             previousStatus: previousStatus,
             requestedAt: new Date()
           }
