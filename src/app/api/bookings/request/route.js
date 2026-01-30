@@ -120,7 +120,7 @@ export async function POST(request) {
       );
     }
 
-    // Find booking and populate customer to get profile image
+    // Find booking and populate customer
     const booking = await Booking.findById(bookingId).populate('customerId', 'profileImage avatar');
     if (!booking) {
       return NextResponse.json(
@@ -129,8 +129,24 @@ export async function POST(request) {
       );
     }
 
-    // Get customer profile image (handle different field names)
-    // Ensure customerId is populated and has data
+    // Verify booking status
+    if (!['pending', 'awaiting_response'].includes(booking.status)) {
+      return NextResponse.json(
+        { success: false, message: `Booking status '${booking.status}' is not valid for request` },
+        { status: 400 }
+      );
+    }
+
+    // Find provider
+    const provider = await ServiceProvider.findById(providerId);
+    if (!provider) {
+      return NextResponse.json(
+        { success: false, message: 'Provider not found' },
+        { status: 404 }
+      );
+    }
+
+    // Get customer profile image
     const customer = booking.customerId;
     const customerProfileImage = (customer && (customer.profileImage || customer.avatar))
       ? (customer.profileImage || customer.avatar)
@@ -138,88 +154,107 @@ export async function POST(request) {
 
     console.log(`👤 Customer Image for Notification: ${customerProfileImage ? 'Found' : 'Missing'} (ID: ${customer?._id})`);
 
-    // ... (validation checks remain same)
+    // Calculate expiration time (3 minutes from now)
+    const now = new Date();
+    const expiresAt = new Date(now.getTime() + REQUEST_TIMEOUT_MS);
 
-    // Verify booking is in valid state for sending/resending request
-    // Allow 'pending' for initial requests and 'awaiting_response' for reassigned bookings
-    if (!['pending', 'awaiting_response'].includes(booking.status)) {
-      // ...
-      // Send push notification to provider (with buzzer sound)
-      if (provider.pushToken) {
-        await sendPushNotification(
-          provider.pushToken,
-          '🔔 New Booking Request!',
-          `${booking.customerName} needs ${booking.serviceName}. Respond within 3 minutes!`,
-          {
-            type: 'booking_request',
-            recipientId: providerId,
-            bookingId: booking._id.toString(),
-            serviceName: booking.serviceName,
-            customerName: booking.customerName,
-            customerProfileImage: customerProfileImage || '', // Pass image URL
-            customerAddress: booking.customerAddress,
-            customerPhone: booking.customerPhone,
-            bookingDate: booking.bookingDate,
-            bookingTime: booking.bookingTime,
-            totalPrice: booking.totalPrice,
-            notes: booking.notes || '',
-            expiresAt: expiresAt.toISOString(),
-            sound: 'buzzer',
-            priority: 'high',
-            channelId: 'booking_requests',
-            vibrate: [0, 500, 200, 500, 200, 500]
-          }
-        );
+    // Update booking with provider assignment and timer
+    booking.assignedProvider = providerId;
+    booking.providerId = providerId;
+    booking.providerName = provider.name;
+    booking.status = 'awaiting_response';
+    booking.requestTimer = {
+      startedAt: now,
+      expiresAt: expiresAt,
+      timedOut: false
+    };
 
-        // Also create persistent notification record
-        await createAndSendNotification({
-          title: '🔔 New Booking Request!',
-          message: `${booking.customerName} needs ${booking.serviceName}. Respond within 3 minutes!`,
-          recipientId: providerId,
-          recipientType: 'provider',
-          pushToken: null,
-          type: 'booking_request',
-          data: {
-            recipientId: providerId,
-            bookingId: booking._id.toString(),
-            serviceName: booking.serviceName,
-            customerName: booking.customerName,
-            customerProfileImage: customerProfileImage || '', // Pass image URL
-            customerAddress: booking.customerAddress,
-            customerPhone: booking.customerPhone,
-            bookingDate: booking.bookingDate,
-            bookingTime: booking.bookingTime,
-            totalPrice: booking.totalPrice,
-            notes: booking.notes || '',
-            expiresAt: expiresAt.toISOString()
-          },
-          bookingId: booking._id.toString()
-        });
-      }
-
-      console.log(`✅ Booking request sent to provider ${provider.name}, expires at ${expiresAt}`);
-
-      return NextResponse.json({
-        success: true,
-        message: 'Booking request sent to provider',
-        data: {
-          bookingId: booking._id,
-          status: 'awaiting_response',
-          expiresAt: expiresAt.toISOString(),
-          remainingSeconds: Math.floor(REQUEST_TIMEOUT_MS / 1000),
-          provider: {
-            id: provider._id,
-            name: provider.name,
-            profileImage: provider.profileImage
-          }
-        }
+    // Create/update provider response entry
+    const existingResponseIndex = booking.providerResponses?.findIndex(r => String(r.providerId) === String(providerId));
+    if (existingResponseIndex >= 0) {
+      booking.providerResponses[existingResponseIndex] = {
+        providerId,
+        providerName: provider.name,
+        response: 'pending', // Reset response
+        respondedAt: null
+      };
+    } else {
+      booking.providerResponses.push({
+        providerId,
+        providerName: provider.name,
+        response: 'pending'
       });
-
-    } catch (error) {
-      console.error('❌ Error sending booking request:', error);
-      return NextResponse.json(
-        { success: false, message: 'Failed to send booking request' },
-        { status: 500 }
-      );
     }
+
+    await booking.save();
+
+    // Send push notification to provider
+    if (provider.pushToken) {
+      await sendPushNotification(
+        provider.pushToken,
+        '🔔 New Booking Request!',
+        `${booking.customerName} needs ${booking.serviceName}. Respond within 3 minutes!`,
+        {
+          type: 'booking_request',
+          recipientId: providerId, // Crucial for filtering on device
+          bookingId: booking._id.toString(),
+          serviceName: booking.serviceName,
+          customerName: booking.customerName,
+          customerProfileImage: customerProfileImage || '',
+          customerAddress: booking.customerAddress,
+          customerPhone: booking.customerPhone,
+          bookingDate: booking.bookingDate,
+          bookingTime: booking.bookingTime,
+          totalPrice: booking.totalPrice,
+          notes: booking.notes || '',
+          expiresAt: expiresAt.toISOString(),
+          sound: 'buzzer',
+          priority: 'high',
+          channelId: 'booking_requests',
+          vibrate: [0, 500, 200, 500, 200, 500]
+        }
+      );
+
+      // Create persistent notification record
+      await createAndSendNotification({
+        title: '🔔 New Booking Request!',
+        message: `${booking.customerName} needs ${booking.serviceName}. Respond within 3 minutes!`,
+        recipientId: providerId,
+        recipientType: 'provider',
+        pushToken: null, // Already sent above
+        type: 'booking_request',
+        data: {
+          recipientId: providerId,
+          bookingId: booking._id.toString(),
+          expiresAt: expiresAt.toISOString()
+        },
+        bookingId: booking._id.toString()
+      });
+    }
+
+    console.log(`✅ Booking request sent to provider ${provider.name}, expires at ${expiresAt}`);
+
+    return NextResponse.json({
+      success: true,
+      message: 'Booking request sent to provider',
+      data: {
+        bookingId: booking._id,
+        status: 'awaiting_response',
+        expiresAt: expiresAt.toISOString(),
+        remainingSeconds: Math.floor(REQUEST_TIMEOUT_MS / 1000),
+        provider: {
+          id: provider._id,
+          name: provider.name,
+          profileImage: provider.profileImage
+        }
+      }
+    });
+
+  } catch (error) {
+    console.error('❌ Error sending booking request:', error);
+    return NextResponse.json(
+      { success: false, message: 'Failed to send booking request' },
+      { status: 500 }
+    );
   }
+}

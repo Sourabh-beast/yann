@@ -1,7 +1,38 @@
-import { NextResponse } from 'next/server';
-import connectDB from '@/lib/connectDB';
-import Homeowner from '@/models/Homeowner';
-import ServiceProvider from '@/models/ServiceProvider';
+import jwt from 'jsonwebtoken';
+import { cookies, headers } from 'next/headers';
+
+// Helper to get authenticated user (same as in profile/avatar/route.js)
+const getAuthenticatedUser = async () => {
+  // Try to get token from cookie first (for web)
+  const cookieStore = await cookies();
+  let token = cookieStore.get('yann_session')?.value || cookieStore.get('yann_home_session')?.value;
+
+  // If no cookie, try Authorization header (for mobile)
+  if (!token) {
+    const headersList = await headers();
+    const authHeader = headersList.get('authorization');
+    if (authHeader && authHeader.startsWith('Bearer ')) {
+      token = authHeader.substring(7);
+    }
+  }
+
+  if (!token) {
+    return { userId: null, decoded: null };
+  }
+
+  if (!process.env.JWT_SECRET) {
+    console.error("JWT secret is not configured");
+    return { userId: null, decoded: null };
+  }
+
+  try {
+    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    return { userId: decoded.id || decoded._id, decoded };
+  } catch (error) {
+    console.error("Token verification failed:", error.message);
+    return { userId: null, decoded: null };
+  }
+};
 
 /**
  * POST /api/user/push-token
@@ -28,8 +59,8 @@ export async function POST(request) {
       );
     }
 
-    // Get user ID from headers (set by auth middleware)
-    const userId = request.headers.get('x-user-id');
+    // Get user ID from token
+    const { userId } = await getAuthenticatedUser();
 
     if (!userId) {
       return NextResponse.json(
@@ -38,9 +69,11 @@ export async function POST(request) {
       );
     }
 
+    console.log(`📱 Saving push token for ${userType} ${userId}`);
+
     // Update the appropriate model
     const Model = userType === 'homeowner' ? Homeowner : ServiceProvider;
-    
+
     const user = await Model.findByIdAndUpdate(
       userId,
       { pushToken },
