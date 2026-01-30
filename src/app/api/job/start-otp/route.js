@@ -54,11 +54,31 @@ export async function POST(request) {
     // Check if job session already exists
     let jobSession = await JobSession.findOne({ booking: bookingId });
 
-    if (jobSession && jobSession.status !== 'pending_start') {
-      return NextResponse.json(
-        { success: false, message: 'Job has already been started' },
-        { status: 400 }
-      );
+    if (jobSession) {
+      // If job is already running/completed
+      if (jobSession.status !== 'pending_start') {
+        return NextResponse.json(
+          { success: false, message: 'Job has already been started' },
+          { status: 400 }
+        );
+      }
+
+      // CKECK FOR EXISTING VALID OTP (Reuse Logic)
+      // If we have a plain OTP and it hasn't expired, return it!
+      if (jobSession.startOTPPlain && jobSession.startOTPExpiry && new Date(jobSession.startOTPExpiry) > new Date()) {
+        console.log(`♻️ Reusing existing active OTP for Booking ${bookingId}`);
+        return NextResponse.json({
+          success: true,
+          message: 'Existing valid OTP retrieved',
+          data: {
+            jobSessionId: jobSession._id,
+            otp: jobSession.startOTPPlain, // Reuse existing
+            expiresIn: Math.floor((new Date(jobSession.startOTPExpiry) - new Date()) / 1000), // Remaining seconds
+            customerName: booking.customerName,
+            customerPhone: booking.customerPhone
+          }
+        });
+      }
     }
 
     // Get provider's working hours for expected duration
@@ -98,6 +118,7 @@ export async function POST(request) {
     await booking.save();
 
     // Send persistent notification to member with OTP
+    // ONLY send newly generated OTP
     const homeowner = await Homeowner.findById(booking.customerId._id);
     if (homeowner) {
       await createAndSendNotification({

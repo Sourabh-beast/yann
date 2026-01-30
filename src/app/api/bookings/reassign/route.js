@@ -46,12 +46,61 @@ export async function POST(request) {
       );
     }
 
+    // Recalculate Price based on new provider's rates
+    const serviceName = booking.serviceName;
+
+    // 1. Get new rate
+    let newRate = 0;
+    if (provider.serviceRates && Array.isArray(provider.serviceRates)) {
+      const rateEntry = provider.serviceRates.find(r =>
+        r.serviceName?.trim().toLowerCase() === serviceName?.trim().toLowerCase()
+      );
+      if (rateEntry) newRate = Number(rateEntry.price) || 0;
+    }
+
+    // Fallback logic if specific service rate not found
+    if (!newRate && provider.serviceRates?.length > 0) {
+      newRate = Number(provider.serviceRates[0].price) || 0;
+    }
+
+    // If still 0, try to maintain old price or use a default? 
+    // Ideally we should have a price. If 0, it might mean free or error.
+    // For now, if we found a new rate, we update. If not, we keep the old one (fallback safe).
+
+    if (newRate > 0) {
+      // Calculate GST and Total
+      // Use existing GST percentage from booking breakdown if available, else default to 18%
+      const gstPercentage = booking.pricingBreakdown?.gstPercentage || 18;
+      const gstRate = gstPercentage / 100;
+
+      const newBasePrice = newRate;
+      const newGstAmount = newBasePrice * gstRate;
+      const newTotalPrice = newBasePrice + newGstAmount;
+
+      // Update Booking Fields
+      booking.basePrice = newBasePrice;
+      booking.totalPrice = Math.round(newTotalPrice * 100) / 100; // Round to 2 decimals
+
+      // Update Breakdown
+      booking.pricingBreakdown = {
+        ...booking.pricingBreakdown,
+        baseCost: newBasePrice,
+        gst: Math.round(newGstAmount * 100) / 100,
+        subtotal: newBasePrice,
+        total: Math.round(newTotalPrice * 100) / 100
+      };
+
+      console.log(`💰 Price updated for provider ${provider.name}: ${newBasePrice} + GST = ${booking.totalPrice}`);
+    } else {
+      console.log(`⚠️ No specific rate found for ${serviceName} with provider ${provider.name}. Keeping original price: ${booking.totalPrice}`);
+    }
+
     // Update booking with new provider and reset status
     booking.assignedProvider = newProviderId;
     booking.providerId = newProviderId;
     booking.providerName = provider.name;
     booking.status = 'awaiting_response';
-    
+
     // Clear the request timer to allow a fresh request
     booking.requestTimer = {
       sentAt: null,

@@ -109,18 +109,25 @@ export async function POST(req) {
 
     // Update avatar based on user type
     console.log(`🚀 AVATAR DEBUG: Updating user ${user._id} (${userType})`);
+
+    // Explicitly mark modified to ensure mongoose saves it
     if (userType === 'provider') {
       user.profileImage = imageData;
       user.avatar = imageData; // Also set avatar for consistency
+      user.markModified('profileImage');
+      user.markModified('avatar');
       console.log('🚀 AVATAR DEBUG: Set provider profileImage/avatar');
     } else {
       user.avatar = imageData;
       user.profileImage = imageData; // Also set profileImage for consistency
+      user.markModified('avatar');
+      user.markModified('profileImage');
       console.log('🚀 AVATAR DEBUG: Set homeowner avatar/profileImage');
     }
 
-    await user.save();
-    console.log('🚀 AVATAR DEBUG: Save completed');
+    const savedUser = await user.save();
+    console.log('🚀 AVATAR DEBUG: Save completed. Saved ID:', savedUser._id);
+    console.log('🚀 AVATAR DEBUG: Saved Avatar Length:', savedUser.avatar?.length);
 
     console.log(`✅ Avatar updated for ${userType}:`, user.email);
 
@@ -128,12 +135,16 @@ export async function POST(req) {
       success: true,
       message: "Profile picture updated successfully",
       data: {
-        avatar: user.avatar || user.profileImage,
-        profileImage: user.profileImage || user.avatar,
+        avatar: savedUser.avatar || savedUser.profileImage,
+        profileImage: savedUser.profileImage || savedUser.avatar,
       }
     });
   } catch (error) {
     console.error("Avatar upload error:", error);
+    // Log validation errors specifically
+    if (error.name === 'ValidationError') {
+      console.error("Validation Error Details:", JSON.stringify(error.errors, null, 2));
+    }
     return NextResponse.json(
       { success: false, message: "Unable to update profile picture" },
       { status: 500 }

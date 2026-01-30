@@ -130,7 +130,13 @@ export async function POST(request) {
     }
 
     // Get customer profile image (handle different field names)
-    const customerProfileImage = booking.customerId?.profileImage || booking.customerId?.avatar;
+    // Ensure customerId is populated and has data
+    const customer = booking.customerId;
+    const customerProfileImage = (customer && (customer.profileImage || customer.avatar))
+      ? (customer.profileImage || customer.avatar)
+      : '';
+
+    console.log(`👤 Customer Image for Notification: ${customerProfileImage ? 'Found' : 'Missing'} (ID: ${customer?._id})`);
 
     // ... (validation checks remain same)
 
