@@ -43,6 +43,23 @@ export async function GET(request) {
             searchQuery.rating = { $gte: minRating };
         }
 
+        // Driver Filters
+        const vehicleType = searchParams.get('vehicleType');
+        const transmission = searchParams.get('transmission');
+        const tripType = searchParams.get('tripType');
+
+        if (vehicleType) {
+            searchQuery['driverServiceDetails.vehicleTypes'] = vehicleType;
+        }
+        if (transmission) {
+            searchQuery['driverServiceDetails.transmissionTypes'] = transmission;
+        }
+        if (tripType) {
+            // If user wants 'incity', provider can be 'incity' or 'both'
+            // If user wants 'outstation', provider can be 'outstation' or 'both'
+            searchQuery['driverServiceDetails.tripPreference'] = { $in: [tripType, 'both'] };
+        }
+
         // Get total count
         const total = await ServiceProvider.countDocuments(searchQuery);
 
