@@ -20,7 +20,9 @@ export async function GET(request) {
     // Find all providers with pending service requests
     const providersWithRequests = await ServiceProvider.find({
       'pendingServiceRequest.requestedAt': { $ne: null }
-    }).select('name email phone pendingServiceRequest services serviceRates status');
+    }).select(
+      'name email phone pendingServiceRequest services serviceRates status driverServiceDetails'
+    );
 
     // Format the response
     const formattedRequests = providersWithRequests.map(provider => ({
@@ -30,6 +32,7 @@ export async function GET(request) {
       providerPhone: provider.phone,
       currentServices: provider.services || [],
       currentRates: provider.serviceRates || [],
+      driverServiceDetails: provider.driverServiceDetails || {},
       addedServices: provider.pendingServiceRequest?.addedServices || [],
       addedRates: provider.pendingServiceRequest?.addedRates || [],
       previousStatus: provider.pendingServiceRequest?.previousStatus,

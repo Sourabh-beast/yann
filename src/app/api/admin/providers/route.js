@@ -49,7 +49,8 @@ export async function GET(request) {
           experience: p.experience,
           status: p.status,
           rating: p.rating,
-          totalReviews: p.totalReviews
+          totalReviews: p.totalReviews,
+          driverServiceDetails: p.driverServiceDetails
         }))
       });
     }
