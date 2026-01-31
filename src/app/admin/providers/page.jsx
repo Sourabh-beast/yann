@@ -114,8 +114,8 @@ export default function ProvidersPage() {
       const res = await fetch('/api/admin/providers', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ 
-          id: provider._id, 
+        body: JSON.stringify({
+          id: provider._id,
           action: provider.isBlocked ? 'unblock' : 'block',
           reason: blockReason
         })
@@ -231,7 +231,7 @@ export default function ProvidersPage() {
           </h1>
           <p className="text-sm text-gray-500 mt-1">Management Panel</p>
         </div>
-        
+
         <nav className="p-4 overflow-y-auto" style={{ maxHeight: 'calc(100vh - 180px)' }}>
           <ul className="space-y-2">
             {sidebarItems.map((item) => {
@@ -352,18 +352,18 @@ export default function ProvidersPage() {
                       <td className="py-4 px-6 text-sm text-gray-600">{provider.phone}</td>
                       <td className="py-4 px-6 text-sm text-gray-600">
                         <div className="flex flex-col gap-1 max-w-xs">
-                          {(provider.serviceRates && provider.serviceRates.length > 0 
+                          {(provider.serviceRates && provider.serviceRates.length > 0
                             ? provider.serviceRates.slice(0, 3).map((rate, idx) => (
-                                <div key={idx} className="flex items-center justify-between gap-2 px-2 py-1 bg-blue-50 rounded-lg text-xs">
-                                  <span className="text-blue-700 font-medium truncate">{rate.serviceName}</span>
-                                  <span className="text-green-600 font-bold whitespace-nowrap">₹{rate.price?.toLocaleString('en-IN')}</span>
-                                </div>
-                              ))
+                              <div key={idx} className="flex items-center justify-between gap-2 px-2 py-1 bg-blue-50 rounded-lg text-xs">
+                                <span className="text-blue-700 font-medium truncate">{rate.serviceName}</span>
+                                <span className="text-green-600 font-bold whitespace-nowrap">₹{rate.price?.toLocaleString('en-IN')}</span>
+                              </div>
+                            ))
                             : provider.services.slice(0, 3).map((service, idx) => (
-                                <span key={idx} className="px-2 py-1 bg-blue-100 text-blue-700 rounded-full text-xs font-medium">
-                                  {service}
-                                </span>
-                              ))
+                              <span key={idx} className="px-2 py-1 bg-blue-100 text-blue-700 rounded-full text-xs font-medium">
+                                {service}
+                              </span>
+                            ))
                           )}
                           {((provider.serviceRates?.length || provider.services?.length || 0) > 3) && (
                             <span className="px-2 py-1 bg-gray-100 text-gray-700 rounded-lg text-xs font-medium text-center">
@@ -401,11 +401,10 @@ export default function ProvidersPage() {
                           )}
                           <button
                             onClick={() => setBlockModal(provider)}
-                            className={`p-2 rounded-lg transition-colors ${
-                              provider.isBlocked 
-                                ? 'bg-green-100 text-green-700 hover:bg-green-200' 
+                            className={`p-2 rounded-lg transition-colors ${provider.isBlocked
+                                ? 'bg-green-100 text-green-700 hover:bg-green-200'
                                 : 'bg-orange-100 text-orange-700 hover:bg-orange-200'
-                            }`}
+                              }`}
                             title={provider.isBlocked ? 'Unblock' : 'Block'}
                           >
                             <Ban className="w-4 h-4" />
@@ -497,15 +496,14 @@ export default function ProvidersPage() {
             <div className="bg-gradient-to-r from-blue-600 to-purple-600 px-6 py-4 flex items-center justify-between">
               <div>
                 <h3 className="text-xl font-bold text-white">{selectedProvider.name}</h3>
-                <span className={`inline-block mt-1 px-3 py-1 rounded-full text-xs font-semibold ${
-                  selectedProvider.status === 'active' ? 'bg-green-400/20 text-green-100' :
-                  selectedProvider.status === 'pending' ? 'bg-yellow-400/20 text-yellow-100' :
-                  'bg-red-400/20 text-red-100'
-                }`}>
+                <span className={`inline-block mt-1 px-3 py-1 rounded-full text-xs font-semibold ${selectedProvider.status === 'active' ? 'bg-green-400/20 text-green-100' :
+                    selectedProvider.status === 'pending' ? 'bg-yellow-400/20 text-yellow-100' :
+                      'bg-red-400/20 text-red-100'
+                  }`}>
                   {getStatusLabel(selectedProvider.status)}
                 </span>
               </div>
-              <button 
+              <button
                 onClick={() => { setDetailModalOpen(false); setSelectedProvider(null); }}
                 className="p-2 hover:bg-white/20 rounded-full transition-colors"
               >
@@ -622,6 +620,53 @@ export default function ProvidersPage() {
                 )}
               </div>
 
+              {/* Driver Details */}
+              {selectedProvider.driverServiceDetails && (
+                <div className="mb-6">
+                  <h4 className="text-lg font-semibold text-gray-900 mb-3 flex items-center gap-2">
+                    <span className="text-xl">🚗</span>
+                    Driver Preference Details
+                  </h4>
+                  <div className="bg-gradient-to-br from-gray-50 to-gray-100 rounded-xl p-4 border border-gray-200">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      {/* Trip Preference */}
+                      <div className="bg-white p-3 rounded-lg shadow-sm">
+                        <p className="text-xs text-gray-500 mb-1">Trip Preference</p>
+                        <p className="font-semibold text-gray-800 capitalize">
+                          {selectedProvider.driverServiceDetails.tripPreference || 'Not specified'}
+                        </p>
+                      </div>
+                      {/* Transmissions */}
+                      <div className="bg-white p-3 rounded-lg shadow-sm">
+                        <p className="text-xs text-gray-500 mb-1">Transmission Types</p>
+                        <div className="flex flex-wrap gap-2">
+                          {selectedProvider.driverServiceDetails.transmissionTypes && selectedProvider.driverServiceDetails.transmissionTypes.length > 0 ? (
+                            selectedProvider.driverServiceDetails.transmissionTypes.map((type, i) => (
+                              <span key={i} className="px-2 py-1 bg-blue-50 text-blue-700 text-xs rounded-md border border-blue-100 font-medium capitalize">
+                                {type}
+                              </span>
+                            ))
+                          ) : <span className="text-sm text-gray-400">None</span>}
+                        </div>
+                      </div>
+                      {/* Vehicle Types */}
+                      <div className="col-span-1 md:col-span-2 bg-white p-3 rounded-lg shadow-sm">
+                        <p className="text-xs text-gray-500 mb-1">Vehicle Types</p>
+                        <div className="flex flex-wrap gap-2">
+                          {selectedProvider.driverServiceDetails.vehicleTypes && selectedProvider.driverServiceDetails.vehicleTypes.length > 0 ? (
+                            selectedProvider.driverServiceDetails.vehicleTypes.map((type, i) => (
+                              <span key={i} className="px-2 py-1 bg-purple-50 text-purple-700 text-xs rounded-md border border-purple-100 font-medium capitalize">
+                                {type}
+                              </span>
+                            ))
+                          ) : <span className="text-sm text-gray-400">None</span>}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+
               {/* Address if available */}
               {selectedProvider.address && (
                 <div className="mb-6">
@@ -696,7 +741,7 @@ export default function ProvidersPage() {
                   {blockModal.isBlocked ? 'Unblock Provider' : 'Block Provider'}
                 </h3>
                 <p className="mt-1 text-sm text-gray-600">
-                  {blockModal.isBlocked 
+                  {blockModal.isBlocked
                     ? `Are you sure you want to unblock ${blockModal.name}?`
                     : `Are you sure you want to block ${blockModal.name}?`
                   }
@@ -725,11 +770,10 @@ export default function ProvidersPage() {
               <button
                 onClick={() => handleBlockProvider(blockModal)}
                 disabled={actionLoading}
-                className={`px-5 py-2.5 rounded-xl transition font-medium ${
-                  blockModal.isBlocked 
-                    ? 'bg-green-600 text-white hover:bg-green-700' 
+                className={`px-5 py-2.5 rounded-xl transition font-medium ${blockModal.isBlocked
+                    ? 'bg-green-600 text-white hover:bg-green-700'
                     : 'bg-orange-600 text-white hover:bg-orange-700'
-                } disabled:opacity-50`}
+                  } disabled:opacity-50`}
               >
                 {actionLoading ? 'Processing...' : blockModal.isBlocked ? 'Unblock' : 'Block'}
               </button>
