@@ -1,4 +1,8 @@
 import jwt from 'jsonwebtoken';
+import { NextResponse } from 'next/server';
+import connectDB from '@/lib/connectDB';
+import Homeowner from '@/models/Homeowner';
+import ServiceProvider from '@/models/ServiceProvider';
 import { cookies, headers } from 'next/headers';
 
 // Helper to get authenticated user (same as in profile/avatar/route.js)
