@@ -1,20 +1,21 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { NextResponse } from 'next/server';
 
 const GOOGLE_MAPS_API_KEY = process.env.GOOGLE_MAPS_API_KEY;
 
 export async function GET(request) {
     try {
         const { searchParams } = new URL(request.url);
-        const placeId = searchParams.get('placeId');
+        const origin = searchParams.get('origin');
+        const destination = searchParams.get('destination');
 
-        if (!placeId) {
+        if (!origin || !destination) {
             return NextResponse.json({
                 success: false,
-                message: 'placeId is required'
+                message: 'origin and destination are required'
             }, { status: 400 });
         }
 
-        const url = `https://maps.googleapis.com/maps/api/place/details/json?place_id=${placeId}&key=${GOOGLE_MAPS_API_KEY}&fields=geometry,formatted_address,name`;
+        const url = `https://maps.googleapis.com/maps/api/directions/json?origin=${origin}&destination=${destination}&key=${GOOGLE_MAPS_API_KEY}&mode=driving`;
 
         const response = await fetch(url);
         const data = await response.json();
@@ -22,21 +23,23 @@ export async function GET(request) {
         if (data.status === 'OK') {
             return NextResponse.json({
                 success: true,
-                result: data.result,
-                data: data.result
+                routes: data.routes,
+                data: data.routes
             });
         }
 
         return NextResponse.json({
             success: false,
-            message: data.status
+            message: data.status,
+            data: []
         }, { status: 400 });
 
     } catch (error) {
-        console.error('Place details error:', error);
+        console.error('Directions error:', error);
         return NextResponse.json({
             success: false,
-            message: error.message || 'Failed to fetch place details'
+            message: error.message || 'Failed to fetch directions',
+            data: []
         }, { status: 500 });
     }
 }

@@ -28,6 +28,7 @@ export async function sendPushNotification(pushToken, title, body, data = {}) {
     body,
     data, // data now ideally includes recipientId if passed from helper
     priority: 'high',
+    channelId: data.channelId || 'default', // Explicit channel ID for Android
   };
 
   try {
@@ -144,7 +145,7 @@ export async function sendBookingAcceptedWithOTPNotification(pushToken, serviceT
     pushToken,
     '✅ Booking Accepted!',
     `${providerName} has accepted your ${serviceType} booking. Your OTP to start the job is: ${otp}`,
-    { 
+    {
       type: 'booking_accepted',
       otp: otp,
       bookingId: bookingId,
@@ -161,7 +162,7 @@ export async function sendJobStartOTPNotification(pushToken, serviceType, provid
     pushToken,
     '🔐 Job Starting Soon',
     `${providerName} is ready to start your ${serviceType} service. Your OTP is: ${otp}`,
-    { 
+    {
       type: 'job_start_otp',
       otp: otp,
       bookingId: bookingId,
@@ -179,7 +180,7 @@ export async function sendJobEndOTPNotification(pushToken, serviceType, provider
     pushToken,
     '🏁 Job Completion Verification',
     `${providerName} is completing your ${serviceType} service. Your verification OTP is: ${otp}`,
-    { 
+    {
       type: 'job_end_otp',
       otp: otp,
       bookingId: bookingId,

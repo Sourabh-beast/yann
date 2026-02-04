@@ -188,32 +188,34 @@ export async function POST(request) {
 
     await booking.save();
 
-    // Send push notification to provider
-    if (provider.pushToken) {
-      await sendPushNotification(
-        provider.pushToken,
-        '🔔 New Booking Request!',
-        `${booking.customerName} needs ${booking.serviceName}. Respond within 3 minutes!`,
-        {
-          type: 'booking_request',
-          recipientId: providerId, // Crucial for filtering on device
-          bookingId: booking._id.toString(),
-          serviceName: booking.serviceName,
-          customerName: booking.customerName,
-          customerProfileImage: customerProfileImage || '',
-          customerAddress: booking.customerAddress,
-          customerPhone: booking.customerPhone,
-          bookingDate: booking.bookingDate,
-          bookingTime: booking.bookingTime,
-          totalPrice: booking.totalPrice,
-          notes: booking.notes || '',
-          expiresAt: expiresAt.toISOString(),
-          sound: 'buzzer',
-          priority: 'high',
-          channelId: 'booking_requests',
-          vibrate: [0, 500, 200, 500, 200, 500]
-        }
-      );
+    // Send push notification to provider (Wrapped in try-catch to prevent 500 error if notifications fail)
+    try {
+      if (provider.pushToken) {
+        await sendPushNotification(
+          provider.pushToken,
+          '🔔 New Booking Request!',
+          `${booking.customerName} needs ${booking.serviceName}. Respond within 3 minutes!`,
+          {
+            type: 'booking_request',
+            recipientId: providerId, // Crucial for filtering on device
+            bookingId: booking._id.toString(),
+            serviceName: booking.serviceName,
+            customerName: booking.customerName,
+            customerProfileImage: customerProfileImage || '',
+            customerAddress: booking.customerAddress,
+            customerPhone: booking.customerPhone,
+            bookingDate: booking.bookingDate,
+            bookingTime: booking.bookingTime,
+            totalPrice: booking.totalPrice,
+            notes: booking.notes || '',
+            expiresAt: expiresAt.toISOString(),
+            sound: 'buzzer',
+            priority: 'high',
+            channelId: 'booking_requests',
+            vibrate: [0, 500, 200, 500, 200, 500]
+          }
+        );
+      }
 
       // Create persistent notification record
       await createAndSendNotification({
@@ -221,7 +223,7 @@ export async function POST(request) {
         message: `${booking.customerName} needs ${booking.serviceName}. Respond within 3 minutes!`,
         recipientId: providerId,
         recipientType: 'provider',
-        pushToken: null, // Already sent above
+        pushToken: provider.pushToken || null,
         type: 'booking_request',
         data: {
           recipientId: providerId,
@@ -230,6 +232,9 @@ export async function POST(request) {
         },
         bookingId: booking._id.toString()
       });
+    } catch (notifError) {
+      console.error('⚠️ Notification sending failed, but booking was created:', notifError);
+      // Suppress error so response is still 200 OK
     }
 
     console.log(`✅ Booking request sent to provider ${provider.name}, expires at ${expiresAt}`);

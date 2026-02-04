@@ -126,6 +126,12 @@ const homeownerSchema = new mongoose.Schema(
       type: Boolean,
       default: true,
     },
+    // UGC Blocking
+    blockedUsers: [{
+      userId: { type: mongoose.Schema.Types.ObjectId, required: true },
+      userModel: { type: String, required: true, enum: ['Homeowner', 'ServiceProvider'] },
+      blockedAt: { type: Date, default: Date.now }
+    }],
   },
   { timestamps: true }
 );
@@ -136,7 +142,7 @@ homeownerSchema.index({ email: 1 }, { unique: true, sparse: true });
 homeownerSchema.index({ phone: 1 }, { unique: true, sparse: true });
 
 // Ensure at least one of email or phone is present
-homeownerSchema.pre('validate', function(next) {
+homeownerSchema.pre('validate', function (next) {
   if (!this.email && !this.phone) {
     next(new Error('Either email or phone number is required'));
   } else {
