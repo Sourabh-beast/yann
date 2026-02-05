@@ -198,7 +198,9 @@ export async function POST(request) {
     // Send push notification to provider (Wrapped in try-catch to prevent 500 error if notifications fail)
     try {
       if (provider.pushToken) {
-        await sendPushNotification(
+        console.log(`📲 Sending push to provider ${providerId} (Token: ${provider.pushToken.substring(0, 20)}...)`);
+
+        const ticket = await sendPushNotification(
           provider.pushToken,
           '🔔 New Booking Request!',
           `${booking.customerName} needs ${booking.serviceName}. Respond within 3 minutes!`,
@@ -216,12 +218,22 @@ export async function POST(request) {
             totalPrice: booking.totalPrice,
             notes: booking.notes || '',
             expiresAt: expiresAt.toISOString(),
-            sound: 'buzzer',
+            sound: 'default', // Changed to default to match channel config
             priority: 'high',
             channelId: 'booking_requests',
             vibrate: [0, 500, 200, 500, 200, 500]
           }
         );
+
+        if (ticket && ticket.status === 'ok') {
+          console.log(`✅ Push notification sent successfully! Ticket ID: ${ticket.id}`);
+        } else if (ticket) {
+          console.error(`⚠️ Push notification failed: ${JSON.stringify(ticket)}`);
+        } else {
+          console.warn('⚠️ Push notification function returned null ticket');
+        }
+      } else {
+        console.warn(`⚠️ Provider ${providerId} has NO push token`);
       }
 
       // Create persistent notification record
@@ -240,7 +252,7 @@ export async function POST(request) {
         bookingId: booking._id.toString()
       });
     } catch (notifError) {
-      console.error('⚠️ Notification sending failed, but booking was created:', notifError);
+      console.error('⚠️ Notification sending exception:', notifError);
       // Suppress error so response is still 200 OK
     }
 
