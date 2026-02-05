@@ -169,8 +169,13 @@ export async function POST(request) {
       timedOut: false
     };
 
+    // Ensure providerResponses array exists
+    if (!booking.providerResponses) {
+      booking.providerResponses = [];
+    }
+
     // Create/update provider response entry
-    const existingResponseIndex = booking.providerResponses?.findIndex(r => String(r.providerId) === String(providerId));
+    const existingResponseIndex = booking.providerResponses.findIndex(r => String(r.providerId) === String(providerId));
     if (existingResponseIndex >= 0) {
       booking.providerResponses[existingResponseIndex] = {
         providerId,
