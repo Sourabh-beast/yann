@@ -191,7 +191,9 @@ export async function POST(request) {
       });
     }
 
+    console.log('🔄 Saving booking with provider assignment...');
     await booking.save();
+    console.log('✅ Booking saved successfully!');
 
     // Send push notification to provider (Wrapped in try-catch to prevent 500 error if notifications fail)
     try {
@@ -262,8 +264,14 @@ export async function POST(request) {
 
   } catch (error) {
     console.error('❌ Error sending booking request:', error);
+    console.error('Stack:', error.stack);
     return NextResponse.json(
-      { success: false, message: 'Failed to send booking request' },
+      {
+        success: false,
+        message: 'Failed to send booking request',
+        error: error.message,
+        stack: error.stack
+      },
       { status: 500 }
     );
   }
