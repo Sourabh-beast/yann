@@ -220,7 +220,7 @@ export async function POST(request) {
             expiresAt: expiresAt.toISOString(),
             sound: 'default', // Changed to default to match channel config
             priority: 'high',
-            channelId: 'booking_requests',
+            channelId: 'booking_requests_v2',
             vibrate: [0, 500, 200, 500, 200, 500]
           }
         );
