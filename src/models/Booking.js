@@ -473,7 +473,7 @@ const bookingSchema = new mongoose.Schema({
     },
     response: {
       type: String,
-      enum: ['viewed', 'accepted', 'rejected']
+      enum: ['pending', 'viewed', 'accepted', 'rejected']
     },
     respondedAt: {
       type: Date,
