@@ -2,6 +2,31 @@ import { NextResponse } from 'next/server';
 import connectDB from '@/lib/connectDB';
 import ServiceProvider from '@/models/ServiceProvider';
 import Service from '@/models/Service';
+import Homeowner from '@/models/Homeowner';
+import { cookies, headers } from 'next/headers';
+import jwt from 'jsonwebtoken';
+
+const getAuthenticatedUser = async () => {
+  const cookieStore = await cookies();
+  let token = cookieStore.get('yann_session')?.value || cookieStore.get('yann_home_session')?.value;
+
+  if (!token) {
+    const headersList = await headers();
+    const authHeader = headersList.get('authorization');
+    if (authHeader && authHeader.startsWith('Bearer ')) {
+      token = authHeader.substring(7);
+    }
+  }
+
+  if (!token) return { userId: null };
+
+  try {
+    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    return { userId: decoded.id || decoded._id };
+  } catch (error) {
+    return { userId: null };
+  }
+};
 
 /**
  * GET /api/services/[id]/providers
@@ -22,7 +47,7 @@ export async function GET(request, { params }) {
 
     // First, get the service to find its title
     const service = await Service.findById(id);
-    
+
     if (!service) {
       return NextResponse.json(
         { success: false, message: 'Service not found', data: [] },
@@ -32,11 +57,28 @@ export async function GET(request, { params }) {
 
     const serviceTitle = service.title;
 
-    // Find all active providers that offer this service
-    const providers = await ServiceProvider.find({
+    // Get blocked users if logged in
+    const { userId } = await getAuthenticatedUser();
+    let blockedProviderIds = [];
+
+    if (userId) {
+      const user = await Homeowner.findById(userId).select('blockedUsers');
+      if (user?.blockedUsers?.length) {
+        blockedProviderIds = user.blockedUsers.map(b => b.userId);
+      }
+    }
+
+    const query = {
       status: 'active',
       services: { $regex: new RegExp(`^${serviceTitle}$`, 'i') },
-    }).select('name email phone experience rating totalReviews serviceRates workingHours profileImage services isOnline');
+    };
+
+    if (blockedProviderIds.length > 0) {
+      query._id = { $nin: blockedProviderIds };
+    }
+
+    // Find all active providers that offer this service
+    const providers = await ServiceProvider.find(query).select('name email phone experience rating totalReviews serviceRates workingHours profileImage services isOnline');
 
     // Map providers with their pricing for this specific service
     const mappedProviders = providers.map((provider) => {

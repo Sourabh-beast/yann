@@ -1,7 +1,32 @@
 import { NextResponse } from 'next/server';
 import connectDB from '@/lib/connectDB';
 import ServiceProvider from '@/models/ServiceProvider';
+import Homeowner from '@/models/Homeowner';
 import { getPaginationParams, createPaginationMeta } from '@/lib/pagination';
+import { cookies, headers } from 'next/headers';
+import jwt from 'jsonwebtoken';
+
+const getAuthenticatedUser = async () => {
+    const cookieStore = await cookies();
+    let token = cookieStore.get('yann_session')?.value || cookieStore.get('yann_home_session')?.value;
+
+    if (!token) {
+        const headersList = await headers();
+        const authHeader = headersList.get('authorization');
+        if (authHeader && authHeader.startsWith('Bearer ')) {
+            token = authHeader.substring(7);
+        }
+    }
+
+    if (!token) return { userId: null };
+
+    try {
+        const decoded = jwt.verify(token, process.env.JWT_SECRET);
+        return { userId: decoded.id || decoded._id };
+    } catch (error) {
+        return { userId: null };
+    }
+};
 
 /**
  * GET /api/providers/search
@@ -21,8 +46,24 @@ export async function GET(request) {
         // Get pagination params
         const { page, limit, skip } = getPaginationParams(request);
 
+        // Get available blocked users if logged in
+        const { userId } = await getAuthenticatedUser();
+        let blockedProviderIds = [];
+
+        if (userId) {
+            const user = await Homeowner.findById(userId).select('blockedUsers');
+            if (user?.blockedUsers?.length) {
+                blockedProviderIds = user.blockedUsers.map(b => b.userId);
+            }
+        }
+
         // Build search query
         const searchQuery = { status: 'active' };
+
+        // Exclude blocked providers
+        if (blockedProviderIds.length > 0) {
+            searchQuery._id = { $nin: blockedProviderIds };
+        }
 
         // Text search on name and services
         if (query) {
