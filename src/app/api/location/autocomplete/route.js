@@ -29,48 +29,51 @@ export async function GET(request) {
         const data = await response.json();
 
         if (data.status === 'OK') {
-            // Calculate distance for each prediction if location provided
             const predictions = data.predictions || [];
 
             if (latitude && longitude) {
-                // Fetch details for each prediction to get coordinates
-                const predictionsWithDistance = await Promise.all(
-                    predictions.slice(0, 5).map(async (prediction) => {
-                        try {
-                            const detailsUrl = `https://maps.googleapis.com/maps/api/place/details/json?place_id=${prediction.place_id}&key=${GOOGLE_MAPS_API_KEY}&fields=geometry`;
-                            const detailsResponse = await fetch(detailsUrl);
-                            const detailsData = await detailsResponse.json();
+                const limitedPredictions = predictions.slice(0, 5);
+                const destinations = limitedPredictions
+                    .map((prediction) => `place_id:${prediction.place_id}`)
+                    .join('|');
 
-                            if (detailsData.status === 'OK') {
-                                const placeLat = detailsData.result.geometry.location.lat;
-                                const placeLng = detailsData.result.geometry.location.lng;
-                                const distance = calculateDistance(
-                                    parseFloat(latitude),
-                                    parseFloat(longitude),
-                                    placeLat,
-                                    placeLng
-                                );
-                                return { ...prediction, distance };
+                try {
+                    const distanceUrl = `https://maps.googleapis.com/maps/api/distancematrix/json?origins=${latitude},${longitude}&destinations=${encodeURIComponent(destinations)}&key=${GOOGLE_MAPS_API_KEY}`;
+                    const distanceResponse = await fetch(distanceUrl);
+                    const distanceData = await distanceResponse.json();
+
+                    if (distanceData.status === 'OK' && distanceData.rows?.[0]?.elements) {
+                        const elements = distanceData.rows[0].elements;
+                        const predictionsWithDistance = limitedPredictions.map((prediction, index) => {
+                            const element = elements[index];
+                            if (element?.status === 'OK' && element.distance?.value != null) {
+                                const distanceKm = element.distance.value / 1000;
+                                return { ...prediction, distance: distanceKm };
                             }
-                        } catch (error) {
-                            console.error('Error fetching place details:', error);
-                        }
-                        return prediction;
-                    })
-                );
+                            return prediction;
+                        });
 
-                // Sort by distance
-                predictionsWithDistance.sort((a, b) => {
-                    if (a.distance && b.distance) return a.distance - b.distance;
-                    if (a.distance) return -1;
-                    if (b.distance) return 1;
-                    return 0;
-                });
+                        predictionsWithDistance.sort((a, b) => {
+                            if (a.distance && b.distance) return a.distance - b.distance;
+                            if (a.distance) return -1;
+                            if (b.distance) return 1;
+                            return 0;
+                        });
+
+                        return NextResponse.json({
+                            success: true,
+                            predictions: predictionsWithDistance,
+                            data: predictionsWithDistance
+                        });
+                    }
+                } catch (error) {
+                    console.error('Distance matrix error:', error);
+                }
 
                 return NextResponse.json({
                     success: true,
-                    predictions: predictionsWithDistance,
-                    data: predictionsWithDistance
+                    predictions: limitedPredictions,
+                    data: limitedPredictions
                 });
             }
 
@@ -97,15 +100,3 @@ export async function GET(request) {
     }
 }
 
-// Haversine formula to calculate distance
-function calculateDistance(lat1, lon1, lat2, lon2) {
-    const R = 6371; // Earth's radius in km
-    const dLat = (lat2 - lat1) * Math.PI / 180;
-    const dLon = (lon2 - lon1) * Math.PI / 180;
-    const a =
-        Math.sin(dLat / 2) * Math.sin(dLat / 2) +
-        Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
-        Math.sin(dLon / 2) * Math.sin(dLon / 2);
-    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-    return R * c;
-}
