@@ -14,30 +14,81 @@ const expo = new Expo();
  * @returns Promise with ticket or null if failed
  */
 export async function sendPushNotification(pushToken, title, body, data = {}) {
+  console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+  console.log('📤 SENDING PUSH NOTIFICATION');
+  console.log('   Token:', pushToken?.substring(0, 30) + '...');
+  console.log('   Title:', title);
+  console.log('   Body:', body);
+  console.log('   Data Keys:', Object.keys(data).join(', '));
+  console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+
   // Check that the push token is valid
   if (!Expo.isExpoPushToken(pushToken)) {
-    console.error(`❌ Invalid push token: ${pushToken}`);
+    console.error('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+    console.error('❌ INVALID PUSH TOKEN');
+    console.error('   Token:', pushToken);
+    console.error('   Expected format: ExponentPushToken[...]');
+    console.error('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
     return null;
   }
+
+  console.log('✅ Push token format is valid');
 
   // Construct the notification message
   const message = {
     to: pushToken,
-    sound: 'default',
+    sound: data.channelId === 'booking_requests_v2' ? 'booking_request' : 'default', // Custom sound for booking requests
     title,
     body,
     data, // data now ideally includes recipientId if passed from helper
     priority: 'high',
     channelId: data.channelId || 'default', // Explicit channel ID for Android
+    // Android-specific configuration
+    android: {
+      sound: data.channelId === 'booking_requests_v2' ? 'booking_request' : 'default',
+      channelId: data.channelId || 'default',
+      priority: 'max',
+    },
+    // iOS-specific configuration
+    ios: {
+      sound: data.channelId === 'booking_requests_v2' ? 'booking_request' : 'default',
+      _displayInForeground: true,
+    },
   };
 
+  console.log('📦 Message payload:', JSON.stringify(message, null, 2));
+
   try {
+    console.log('🚀 Sending to Expo push service...');
     // Send the notification
     const ticketChunk = await expo.sendPushNotificationsAsync([message]);
-    console.log('✅ Notification sent successfully:', ticketChunk);
-    return ticketChunk[0];
+    const ticket = ticketChunk[0];
+
+    console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+    console.log('📨 EXPO TICKET RESPONSE');
+    console.log('   Status:', ticket.status);
+    console.log('   ID:', ticket.id);
+
+    if (ticket.status === 'error') {
+      console.error('   Error Code:', ticket.details?.error);
+      console.error('   Error Message:', ticket.message);
+    }
+
+    console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+
+    if (ticket.status === 'ok') {
+      console.log('✅ Notification sent successfully to Expo');
+    } else {
+      console.error('❌ Notification failed:', ticket);
+    }
+
+    return ticket;
   } catch (error) {
-    console.error('❌ Error sending push notification:', error);
+    console.error('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+    console.error('❌ PUSH NOTIFICATION EXCEPTION');
+    console.error('   Error:', error.message);
+    console.error('   Stack:', error.stack);
+    console.error('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
     return null;
   }
 }
