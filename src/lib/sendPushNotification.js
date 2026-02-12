@@ -37,7 +37,7 @@ export async function sendPushNotification(pushToken, title, body, data = {}) {
   // Construct the notification message
   const message = {
     to: pushToken,
-    sound: data.channelId === 'booking_requests_v2' ? 'booking_request' : 'default', // Custom sound for booking requests
+    sound: data.channelId === 'booking_requests_v3' ? 'booking_request' : 'default', // Custom sound for booking requests
     title,
     body,
     data, // data now ideally includes recipientId if passed from helper
@@ -45,13 +45,13 @@ export async function sendPushNotification(pushToken, title, body, data = {}) {
     channelId: data.channelId || 'default', // Explicit channel ID for Android
     // Android-specific configuration
     android: {
-      sound: data.channelId === 'booking_requests_v2' ? 'booking_request' : 'default',
+      sound: data.channelId === 'booking_requests_v3' ? 'booking_request' : 'default',
       channelId: data.channelId || 'default',
       priority: 'max',
     },
     // iOS-specific configuration
     ios: {
-      sound: data.channelId === 'booking_requests_v2' ? 'booking_request' : 'default',
+      sound: data.channelId === 'booking_requests_v3' ? 'booking_request' : 'default',
       _displayInForeground: true,
     },
   };
