@@ -209,6 +209,7 @@ export async function POST(request) {
             recipientId: providerId, // Crucial for filtering on device
             bookingId: booking._id.toString(),
             serviceName: booking.serviceName,
+            serviceCategory: booking.serviceCategory || '',
             customerName: booking.customerName,
             customerProfileImage: customerProfileImage || '',
             customerAddress: booking.customerAddress,
@@ -216,8 +217,14 @@ export async function POST(request) {
             bookingDate: booking.bookingDate,
             bookingTime: booking.bookingTime,
             totalPrice: booking.totalPrice,
+            bookedHours: booking.quantity || booking.bookedHours || 0,
+            billingType: booking.billingType || 'one-time',
             notes: booking.notes || '',
             expiresAt: expiresAt.toISOString(),
+            // Driver-specific details
+            driverDetails: booking.driverDetails ? JSON.stringify(booking.driverDetails) : '',
+            driverTripDetails: booking.driverTripDetails ? JSON.stringify(booking.driverTripDetails) : '',
+            pricingBreakdown: booking.pricingBreakdown ? JSON.stringify(booking.pricingBreakdown) : '',
             sound: 'booking_request.mp3', // Custom buzzer - plays even when app closed
             priority: 'high',
             channelId: 'booking_requests_v3',
