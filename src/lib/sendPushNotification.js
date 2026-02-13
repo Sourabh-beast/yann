@@ -43,19 +43,24 @@ export async function sendPushNotification(pushToken, title, body, data = {}) {
     data, // data now ideally includes recipientId if passed from helper
     priority: 'high',
     channelId: data.channelId || 'default', // Top-level channelId for Android
+    // Collapse key: replaces old booking notifications instead of stacking
+    ...(data.type === 'booking_request' && { collapseKey: `booking_request_${data.recipientId}` }),
     // Android-specific configuration
     android: {
       sound: data.channelId === 'booking_requests_v3' ? 'booking_request.mp3' : 'default',
       channelId: data.channelId || 'default',
       priority: 'max',
-      // Critical for killed app state
       badge: 1,
+      // Tag ensures only one booking notification shows (replaces old ones)
+      ...(data.type === 'booking_request' && { tag: 'booking_request' }),
     },
     // iOS-specific configuration
     ios: {
       sound: data.channelId === 'booking_requests_v3' ? 'booking_request.caf' : 'default', // iOS uses .caf format
       _displayInForeground: true,
       badge: 1,
+      // threadId groups notifications and replaces old ones
+      ...(data.type === 'booking_request' && { threadId: 'booking_request' }),
     },
   };
 
