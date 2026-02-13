@@ -73,7 +73,12 @@ export async function POST(request) {
       );
     }
 
-    console.log(`📱 Saving push token for ${userType} ${userId}`);
+    console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+    console.log('💾 SAVING PUSH TOKEN TO DATABASE');
+    console.log('   User Type:', userType);
+    console.log('   User ID:', userId);
+    console.log('   Token:', pushToken?.substring(0, 30) + '...');
+    console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
 
     // Update the appropriate model
     const Model = userType === 'homeowner' ? Homeowner : ServiceProvider;
@@ -85,13 +90,19 @@ export async function POST(request) {
     );
 
     if (!user) {
+      console.error('❌ User not found in database:', userId);
       return NextResponse.json(
         { success: false, message: 'User not found' },
         { status: 404 }
       );
     }
 
-    console.log(`✅ Push token saved for ${userType}:`, userId);
+    console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+    console.log('✅ PUSH TOKEN SAVED SUCCESSFULLY');
+    console.log('   User:', user.name || user.email);
+    console.log('   Type:', userType);
+    console.log('   Token stored:', !!user.pushToken);
+    console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
 
     return NextResponse.json({
       success: true,
