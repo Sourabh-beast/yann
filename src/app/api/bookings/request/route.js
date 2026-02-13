@@ -218,10 +218,10 @@ export async function POST(request) {
             totalPrice: booking.totalPrice,
             notes: booking.notes || '',
             expiresAt: expiresAt.toISOString(),
-            sound: 'default', // Changed to default to match channel config
+            sound: 'booking_request.mp3', // Custom buzzer - plays even when app closed
             priority: 'high',
             channelId: 'booking_requests_v3',
-            vibrate: [0, 500, 200, 500, 200, 500]
+            vibrate: [0, 1000, 500, 1000, 500, 1000]
           }
         );
 
