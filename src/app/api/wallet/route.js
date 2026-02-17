@@ -49,15 +49,7 @@ export async function GET(req) {
       .limit(50)
       .lean();
 
-    return NextResponse.json({
-      success: true,
-      data: {
-        balance: user.wallet?.balance || 0,
-        currency: user.wallet?.currency || 'INR',
-        transactions,
-        userType
-      }
-    });
+
 
     // Post-process transactions to ensure correct signs (debit/credit)
     const processedTransactions = transactions.map(t => {
