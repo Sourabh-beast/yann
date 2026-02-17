@@ -51,6 +51,39 @@ export async function POST(request) {
       );
     }
 
+    // STRICT LATE START CHECK (2 Hours Buffer)
+    // Parse booking date and time
+    // Formats: date="YYYY-MM-DD" or ISO, time="HH:MM"
+    if (booking.bookingDate && booking.bookingTime) {
+      try {
+        let scheduledDate = new Date(booking.bookingDate);
+        const timeParts = booking.bookingTime.split(':');
+
+        if (!isNaN(scheduledDate.getTime()) && timeParts.length === 2) {
+          scheduledDate.setHours(parseInt(timeParts[0]), parseInt(timeParts[1]), 0, 0);
+
+          const twoHoursInMillis = 2 * 60 * 60 * 1000;
+          const lateThreshold = scheduledDate.getTime() + twoHoursInMillis;
+
+          if (Date.now() > lateThreshold) {
+            // Mark provider as having late starts
+            await ServiceProvider.findByIdAndUpdate(providerId, { hasLateStarts: true });
+
+            return NextResponse.json(
+              {
+                success: false,
+                message: 'Booking expired: You cannot start this booking as the 2-hour buffer period has passed. This incident has been recorded.'
+              },
+              { status: 400 }
+            );
+          }
+        }
+      } catch (e) {
+        console.error('Error checking late start:', e);
+        // Continue if date parsing fails to avoid blocking valid bookings due to data format issues
+      }
+    }
+
     // Check if job session already exists
     let jobSession = await JobSession.findOne({ booking: bookingId });
 

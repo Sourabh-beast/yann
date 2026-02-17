@@ -279,6 +279,12 @@ const serviceProviderSchema = new mongoose.Schema({
     default: 0
   },
 
+  // Reliability Metrics
+  hasLateStarts: {
+    type: Boolean,
+    default: false
+  },
+
   // Admin controls
   isBlocked: {
     type: Boolean,
