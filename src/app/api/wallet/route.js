@@ -58,6 +58,67 @@ export async function GET(req) {
         userType
       }
     });
+
+    // Post-process transactions to ensure correct signs (debit/credit)
+    const processedTransactions = transactions.map(t => {
+      let amount = t.amount;
+      const type = t.type;
+
+      // Default: positive
+      let isDebit = false;
+
+      if (userType === 'homeowner') {
+        // Customer Logic
+        // Debits: payment, wallet_debit, escrow_hold, booking_initial_payment, completion_payment
+        const debitTypes = [
+          'payment',
+          'wallet_debit',
+          'escrow_hold',
+          'booking_initial_payment',
+          'completion_payment',
+          'withdrawal_request' // If applicable
+        ];
+
+        if (debitTypes.includes(type)) {
+          isDebit = true;
+        }
+      } else if (userType === 'provider') {
+        // Provider Logic
+        // Debits: wallet_debit, withdrawal_completed, commission (if tracked here)
+        const debitTypes = [
+          'wallet_debit',
+          'withdrawal_completed',
+          'commission',
+          'escrow_refund' // If provider has to refund
+        ];
+
+        if (debitTypes.includes(type)) {
+          isDebit = true;
+        }
+      }
+
+      // Apply sign
+      if (isDebit) {
+        amount = -Math.abs(amount);
+      } else {
+        amount = Math.abs(amount);
+      }
+
+      return {
+        ...t,
+        amount
+      };
+    });
+
+    return NextResponse.json({
+      success: true,
+      data: {
+        balance: user.wallet?.balance || 0,
+        currency: user.wallet?.currency || 'INR',
+        transactions: processedTransactions,
+        userType
+      }
+    });
   } catch (error) {
     console.error('Wallet GET error:', error);
     return NextResponse.json({ success: false, message: 'Server error' }, { status: 500 });
