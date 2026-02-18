@@ -43,10 +43,21 @@ export async function GET(req) {
       return NextResponse.json({ success: false, message: 'User not found' }, { status: 404 });
     }
 
-    // Get recent wallet transactions (last 50)
+    // Pagination parameters
+    const searchParams = req.nextUrl.searchParams;
+    const page = parseInt(searchParams.get('page')) || 1;
+    const limit = parseInt(searchParams.get('limit')) || 20;
+    const skip = (page - 1) * limit;
+
+    // Get total count for pagination meta
+    const total = await Transaction.countDocuments(transactionQuery);
+    const totalPages = Math.ceil(total / limit);
+
+    // Get wallet transactions with pagination
     const transactions = await Transaction.find(transactionQuery)
       .sort({ createdAt: -1 })
-      .limit(50)
+      .skip(skip)
+      .limit(limit)
       .lean();
 
 
@@ -108,7 +119,14 @@ export async function GET(req) {
         balance: user.wallet?.balance || 0,
         currency: user.wallet?.currency || 'INR',
         transactions: processedTransactions,
-        userType
+        userType,
+        meta: {
+          total,
+          page,
+          limit,
+          totalPages,
+          hasMore: page < totalPages
+        }
       }
     });
   } catch (error) {
