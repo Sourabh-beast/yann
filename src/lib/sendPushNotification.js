@@ -46,8 +46,11 @@ export async function sendPushNotification(pushToken, title, body, data = {}) {
     // Collapse key: replaces old booking notifications instead of stacking
     ...(data.type === 'booking_request' && { collapseKey: `booking_request_${data.recipientId}` }),
     // Android-specific configuration
+    // NOTE: Do NOT set `sound` here for Android 8+.  Android ignores the
+    // payload sound in favour of the notification channel's sound setting.
+    // Setting it risks resolving to 'default' if the filename isn't found at
+    // the FCM layer, overriding our custom channel sound.
     android: {
-      sound: data.channelId === 'booking_requests' ? 'booking_request.wav' : 'default',
       channelId: data.channelId || 'default',
       priority: 'max',
       badge: 1,
