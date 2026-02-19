@@ -37,7 +37,7 @@ export async function sendPushNotification(pushToken, title, body, data = {}) {
   // Construct the notification message
   const message = {
     to: pushToken,
-    sound: data.channelId === 'booking_requests_v4' ? 'booking_request.wav' : 'default', // Custom buzzer for bookings
+    sound: data.channelId === 'booking_requests_v5' ? 'booking_request.wav' : 'default', // Custom buzzer for bookings
     title,
     body,
     data, // data now ideally includes recipientId if passed from helper
@@ -47,7 +47,7 @@ export async function sendPushNotification(pushToken, title, body, data = {}) {
     ...(data.type === 'booking_request' && { collapseKey: `booking_request_${data.recipientId}` }),
     // Android-specific configuration
     android: {
-      sound: data.channelId === 'booking_requests_v4' ? 'booking_request.wav' : 'default',
+      sound: data.channelId === 'booking_requests_v5' ? 'booking_request.wav' : 'default',
       channelId: data.channelId || 'default',
       priority: 'max',
       badge: 1,
@@ -56,7 +56,7 @@ export async function sendPushNotification(pushToken, title, body, data = {}) {
     },
     // iOS-specific configuration
     ios: {
-      sound: data.channelId === 'booking_requests_v4' ? 'booking_request.wav' : 'default', // WAV is bundled via app.json sounds array
+      sound: data.channelId === 'booking_requests_v5' ? 'booking_request.wav' : 'default', // WAV is bundled via app.json sounds array
       _displayInForeground: true,
       badge: 1,
       // threadId groups notifications and replaces old ones

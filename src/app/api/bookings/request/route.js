@@ -221,7 +221,7 @@ export async function POST(request) {
             recipientId: providerId,
             sound: 'booking_request.wav', // res/raw/booking_request.wav compiled into APK
             priority: 'high',
-            channelId: 'booking_requests_v4', // v4 forces fresh channel with correct sound
+            channelId: 'booking_requests_v5', // v5 forces fresh channel with correct sound
             vibrate: [0, 1000, 500, 1000, 500, 1000]
           }
         );

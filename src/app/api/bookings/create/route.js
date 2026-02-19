@@ -436,22 +436,11 @@ export async function POST(request) {
       console.log('💡 Tip: Make sure providers register with exact service name:', serviceName);
     }
 
-    // Send persistent notification to provider
-    if (provider) {
-      await createAndSendNotification({
-        title: '🔔 New Booking Request!',
-        message: `${booking.customerName} has requested ${booking.serviceName}. Tap to view details.`,
-        recipientId: provider._id.toString(),
-        recipientType: 'provider',
-        pushToken: provider.pushToken,
-        type: 'new_booking',
-        data: {
-          type: 'new_booking',
-          bookingId: booking._id.toString()
-        },
-        bookingId: booking._id.toString()
-      });
-    }
+    // NOTE: Provider notification is intentionally NOT sent here.
+    // The bookings/request route sends the full booking_request notification
+    // with all required data (expiresAt, customerAddress, channelId, etc.).
+    // Sending a second notification here causes two banners to appear and
+    // plays the default Android sound instead of the custom buzzer.
 
     return NextResponse.json({
       success: true,

@@ -172,11 +172,11 @@ export async function POST(request) {
         remainingSeconds,
         buzzerCount,
         priority: 'high',
-        // Must use booking_requests_v4 — the Android channel configured with the
+        // Must use booking_requests_v5 — the Android channel configured with the
         // custom booking_request.wav sound (compiled into res/raw in the APK).
-        // v4 was bumped from v3 to force fresh channel creation on all devices
+        // v5 was bumped from v4 to force fresh channel creation on all devices
         // (Android caches channel settings and ignores updates to existing IDs).
-        channelId: 'booking_requests_v4',
+        channelId: 'booking_requests_v5',
         vibrate: [0, 1000, 500, 1000, 500, 1000]
       }
     );
