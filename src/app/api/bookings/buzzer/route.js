@@ -172,10 +172,10 @@ export async function POST(request) {
         remainingSeconds,
         buzzerCount,
         priority: 'high',
-        // Always use the stable 'booking_requests' channel ID.
-        // The app deletes and recreates this channel on every startup so the
-        // correct sound is always applied — no version bumping ever needed.
-        channelId: 'booking_requests',
+        // 'booking_alert' is a fresh channel ID created in the app on first run.
+        // Android has no cached user-preference for this ID so our custom WAV
+        // (booking_request.wav compiled into res/raw) is always applied.
+        channelId: 'booking_alert',
         vibrate: [0, 1000, 500, 1000, 500, 1000]
       }
     );

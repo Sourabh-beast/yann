@@ -221,7 +221,7 @@ export async function POST(request) {
             recipientId: providerId,
             sound: 'booking_request.wav', // res/raw/booking_request.wav compiled into APK
             priority: 'high',
-            channelId: 'booking_requests', // stable ID — app deletes+recreates this channel on every startup
+            channelId: 'booking_alert', // fresh channel ID — never used before, avoids Android's cached-preference problem
             vibrate: [0, 1000, 500, 1000, 500, 1000]
           }
         );
