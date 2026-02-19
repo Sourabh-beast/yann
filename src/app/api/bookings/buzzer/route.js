@@ -155,13 +155,24 @@ export async function POST(request) {
         bookingId: booking._id.toString(),
         serviceName: booking.serviceName,
         customerName: booking.customerName,
+        customerAddress: booking.customerAddress || '',
+        customerPhone: booking.customerPhone || '',
+        customerProfileImage: booking.customerProfileImage || '',
+        bookingDate: booking.bookingDate || '',
+        bookingTime: booking.bookingTime || '',
+        notes: booking.notes || '',
         totalPrice: booking.totalPrice,
+        // expiresAt is required by the app to compute the remaining timer on the modal
+        expiresAt: new Date(booking.requestTimer.expiresAt).toISOString(),
+        recipientId: booking.assignedProvider.toString(),
         remainingSeconds,
         buzzerCount,
-        sound: 'buzzer',
         priority: 'high',
-        channelId: 'booking_requests',
-        vibrate: [0, 500, 200, 500, 200, 500]
+        // Must use booking_requests_v3 — the only Android channel configured with the
+        // custom booking_request.mp3 sound.  Using any other channel plays the default
+        // system sound instead of the buzzer.
+        channelId: 'booking_requests_v3',
+        vibrate: [0, 1000, 500, 1000, 500, 1000]
       }
     );
 
