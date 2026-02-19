@@ -218,9 +218,10 @@ export async function POST(request) {
             totalPrice: booking.totalPrice,
             notes: booking.notes || '',
             expiresAt: expiresAt.toISOString(),
-            sound: 'booking_request.mp3', // Custom buzzer - plays even when app closed
+            recipientId: providerId,
+            sound: 'booking_request.wav', // res/raw/booking_request.wav compiled into APK
             priority: 'high',
-            channelId: 'booking_requests_v3',
+            channelId: 'booking_requests_v4', // v4 forces fresh channel with correct sound
             vibrate: [0, 1000, 500, 1000, 500, 1000]
           }
         );
