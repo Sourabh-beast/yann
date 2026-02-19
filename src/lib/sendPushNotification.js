@@ -37,7 +37,13 @@ export async function sendPushNotification(pushToken, title, body, data = {}) {
   // Construct the notification message
   const message = {
     to: pushToken,
-    sound: data.channelId === 'booking_requests' ? 'booking_request.wav' : 'default', // Custom buzzer for bookings
+    // Do not set a custom sound name at the top-level for Android — Expo passes
+    // it to FCM's notification.sound, which some Android versions resolve before
+    // checking the channel, causing a fallback to the default sound when the
+    // filename is not found server-side.  The notification channel
+    // (booking_requests) controls the sound on Android 8+.  iOS uses the
+    // platform-specific ios.sound field below.
+    sound: 'default',
     title,
     body,
     data, // data now ideally includes recipientId if passed from helper
