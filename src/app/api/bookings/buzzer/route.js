@@ -6,8 +6,12 @@ import Homeowner from '@/models/Homeowner';
 import { sendPushNotification } from '@/lib/sendPushNotification';
 import { createAndSendNotification } from '@/lib/notificationHelper';
 
-// Buzzer interval in seconds
-const BUZZER_INTERVAL_SECONDS = 30;
+// Buzzer interval in seconds.
+// The booking_request.wav sound is ~23 s long.  Sending a new notification
+// every 20 s means the next ping arrives ~3 s before the previous sound ends,
+// producing near-seamless ringing on the partner's device while the app is
+// in the background (system notification channel sound plays on every push).
+const BUZZER_INTERVAL_SECONDS = 20;
 
 /**
  * POST - Send continuous buzzer notification to provider
