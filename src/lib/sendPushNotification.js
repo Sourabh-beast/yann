@@ -56,7 +56,7 @@ export async function sendPushNotification(pushToken, title, body, data = {}) {
     },
     // iOS-specific configuration
     ios: {
-      sound: data.channelId === 'booking_requests_v4' ? 'booking_request.caf' : 'default', // iOS uses .caf format
+      sound: data.channelId === 'booking_requests_v4' ? 'booking_request.wav' : 'default', // WAV is bundled via app.json sounds array
       _displayInForeground: true,
       badge: 1,
       // threadId groups notifications and replaces old ones
