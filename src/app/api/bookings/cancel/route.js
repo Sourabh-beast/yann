@@ -112,7 +112,7 @@ export async function POST(req) {
               type: 'booking_cancelled',
               bookingId: booking._id.toString(),
               recipientId: provider._id.toString(),
-              channelId: 'booking_alert_v3',
+              channelId: 'default',
             }
           );
           console.log(`📲 Cancellation push sent to provider ${provider.name}`);
