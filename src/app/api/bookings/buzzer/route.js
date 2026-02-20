@@ -172,10 +172,10 @@ export async function POST(request) {
         remainingSeconds,
         buzzerCount,
         priority: 'high',
-        // 'booking_alert_v2' is a fresh channel ID created in the app on first run.
+        // 'booking_alert_v3' is a fresh channel ID created in the app on first run.
         // Android has no cached user-preference for this ID so our custom MP3
         // (booking_request.mp3 compiled into res/raw) is always applied.
-        channelId: 'booking_alert_v2',
+        channelId: 'booking_alert_v3',
         vibrate: [0, 1000, 500, 1000, 500, 1000]
       }
     );

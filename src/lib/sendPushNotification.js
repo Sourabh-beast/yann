@@ -13,6 +13,9 @@ export async function sendPushNotification(pushToken, title, body, data = {}) {
     return null;
   }
 
+  // currently we are using expo notification 
+  // what if we move to bare react native will that buzzer stuff work then ?
+
   const message = {
     to: pushToken,
     // ALWAYS 'default' — FCM needs this to show a visible banner.
@@ -31,7 +34,7 @@ export async function sendPushNotification(pushToken, title, body, data = {}) {
       ...(data.type === 'booking_request' && { tag: 'booking_request' }),
     },
     ios: {
-      sound: data.channelId === 'booking_alert_v2' ? 'booking_request.mp3' : 'default',
+      sound: data.channelId === 'booking_alert_v3' ? 'booking_request.mp3' : 'default',
       _displayInForeground: true,
       badge: 1,
       ...(data.type === 'booking_request' && { threadId: 'booking_request' }),

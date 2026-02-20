@@ -228,7 +228,7 @@ export async function POST(request) {
             recipientId: providerId,
             sound: 'booking_request.mp3', // res/raw/booking_request.mp3 compiled into APK
             priority: 'high',
-            channelId: 'booking_alert_v2', // fresh channel ID — never used before, avoids Android's cached-preference problem
+            channelId: 'booking_alert_v3', // fresh channel ID — never used before, avoids Android's cached-preference problem
             vibrate: [0, 1000, 500, 1000, 500, 1000]
           }
         );
