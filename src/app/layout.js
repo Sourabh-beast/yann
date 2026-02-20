@@ -1,6 +1,7 @@
 import './globals.css';
 import NavbarWrapper from '@/components/NavbarWrapper';
 import PageLoader from '@/components/PageLoader';
+import { SpeedInsights } from '@vercel/speed-insights/next';
 
 export const metadata = {
   title: 'YANN - Professional Home Services | Trusted & Verified',
@@ -25,6 +26,7 @@ export default function RootLayout({ children }) {
         <PageLoader />
         <NavbarWrapper />
         {children}
+        <SpeedInsights />
       </body>
     </html>
   );
