@@ -37,7 +37,13 @@ export async function sendPushNotification(pushToken, title, body, data = {}) {
   // Construct the notification message
   const message = {
     to: pushToken,
-    sound: data.channelId === 'booking_requests_v3' ? 'booking_request.mp3' : 'default', // Custom buzzer for bookings
+    // Do not set a custom sound name at the top-level for Android — Expo passes
+    // it to FCM's notification.sound, which some Android versions resolve before
+    // checking the channel, causing a fallback to the default sound when the
+    // filename is not found server-side.  The notification channel
+    // (booking_requests) controls the sound on Android 8+.  iOS uses the
+    // platform-specific ios.sound field below.
+    sound: 'default',
     title,
     body,
     data, // data now ideally includes recipientId if passed from helper
@@ -46,8 +52,11 @@ export async function sendPushNotification(pushToken, title, body, data = {}) {
     // Collapse key: replaces old booking notifications instead of stacking
     ...(data.type === 'booking_request' && { collapseKey: `booking_request_${data.recipientId}` }),
     // Android-specific configuration
+    // NOTE: Do NOT set `sound` here for Android 8+.  Android ignores the
+    // payload sound in favour of the notification channel's sound setting.
+    // Setting it risks resolving to 'default' if the filename isn't found at
+    // the FCM layer, overriding our custom channel sound.
     android: {
-      sound: data.channelId === 'booking_requests_v3' ? 'booking_request.mp3' : 'default',
       channelId: data.channelId || 'default',
       priority: 'max',
       badge: 1,
@@ -56,7 +65,7 @@ export async function sendPushNotification(pushToken, title, body, data = {}) {
     },
     // iOS-specific configuration
     ios: {
-      sound: data.channelId === 'booking_requests_v3' ? 'booking_request.caf' : 'default', // iOS uses .caf format
+      sound: data.channelId === 'booking_alert' ? 'booking_request.wav' : 'default', // WAV is bundled via app.json sounds array
       _displayInForeground: true,
       badge: 1,
       // threadId groups notifications and replaces old ones

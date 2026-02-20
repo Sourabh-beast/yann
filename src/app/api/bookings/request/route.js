@@ -221,13 +221,18 @@ export async function POST(request) {
             billingType: booking.billingType || 'one-time',
             notes: booking.notes || '',
             expiresAt: expiresAt.toISOString(),
+<<<<<<< HEAD
             // Driver-specific details
             driverDetails: booking.driverDetails ? JSON.stringify(booking.driverDetails) : '',
             driverTripDetails: booking.driverTripDetails ? JSON.stringify(booking.driverTripDetails) : '',
             pricingBreakdown: booking.pricingBreakdown ? JSON.stringify(booking.pricingBreakdown) : '',
             sound: 'booking_request.mp3', // Custom buzzer - plays even when app closed
+=======
+            recipientId: providerId,
+            sound: 'booking_request.wav', // res/raw/booking_request.wav compiled into APK
+>>>>>>> 92928498d3d67357332695fcb9d446003346f297
             priority: 'high',
-            channelId: 'booking_requests_v3',
+            channelId: 'booking_alert', // fresh channel ID — never used before, avoids Android's cached-preference problem
             vibrate: [0, 1000, 500, 1000, 500, 1000]
           }
         );

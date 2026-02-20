@@ -1,5 +1,6 @@
 'use client'
 import React, { useState, useEffect } from 'react';
+import Image from 'next/image';
 import { useAuth } from '@/hooks/useAuth';
 import LoginModal from '@/components/LoginModal';
 
@@ -120,7 +121,9 @@ const ServicesHero = () => {
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
               {filteredServices.map(service => (
                 <div key={service.id} className="bg-white rounded-lg shadow-md hover:shadow-lg transition-shadow overflow-hidden">
-                  <img src={service.image} alt={service.name} className="w-full h-48 object-cover" />
+                  <div className="relative w-full h-48">
+                    <Image src={service.image} alt={service.name} fill className="object-cover" sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw" />
+                  </div>
                   <div className="p-6">
                     <div className="flex items-center justify-between mb-2">
                       <h3 className="text-lg font-bold text-gray-900">{service.name}</h3>

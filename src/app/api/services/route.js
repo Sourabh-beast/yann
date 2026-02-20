@@ -475,6 +475,11 @@ export async function GET(request) {
         success: true,
         data: cache.data,
         cached: true
+      }, {
+        headers: {
+          'Cache-Control': 'public, s-maxage=1800, stale-while-revalidate=3600',
+          'CDN-Cache-Control': 'public, s-maxage=1800, stale-while-revalidate=3600',
+        }
       });
     }
 
@@ -533,6 +538,11 @@ export async function GET(request) {
     return NextResponse.json({
       success: true,
       data: mappedServices,
+    }, {
+      headers: {
+        'Cache-Control': 'public, s-maxage=1800, stale-while-revalidate=3600',
+        'CDN-Cache-Control': 'public, s-maxage=1800, stale-while-revalidate=3600',
+      }
     });
   } catch (error) {
     console.error('Error fetching services:', error);

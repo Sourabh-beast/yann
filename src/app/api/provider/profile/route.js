@@ -4,7 +4,7 @@ import jwt from 'jsonwebtoken';
 import connectDB from '@/lib/connectDB';
 import ServiceProvider from '@/models/ServiceProvider';
 
-export const dynamic = 'force-dynamic';
+// Removed force-dynamic — cookies() already makes route dynamic in Next.js 14+
 
 const PROVIDER_COOKIE = 'yann_session';
 

@@ -1,5 +1,6 @@
 'use client';
 
+import Image from 'next/image';
 import useProviderSession from "@/hooks/useProviderSession";
 
 const quickLinks = [
@@ -42,9 +43,11 @@ export default function ProfileOverview() {
             <div className="flex items-center gap-3 rounded-2xl border border-blue-100 bg-blue-50/60 px-4 py-3 shadow-sm">
               <div className="h-14 w-14 overflow-hidden rounded-2xl border-2 border-white shadow">
                 {provider?.profileImage ? (
-                  <img
+                  <Image
                     src={provider.profileImage}
                     alt={`${provider.name}'s profile`}
+                    width={56}
+                    height={56}
                     className="h-full w-full object-cover"
                   />
                 ) : (
@@ -67,9 +70,11 @@ export default function ProfileOverview() {
               <div className="flex items-start gap-4">
                 <div className="h-16 w-16 overflow-hidden rounded-2xl border border-blue-100 shadow">
                   {provider?.profileImage ? (
-                    <img
+                    <Image
                       src={provider.profileImage}
                       alt={`${provider.name}'s profile`}
+                      width={64}
+                      height={64}
                       className="h-full w-full object-cover"
                     />
                   ) : (

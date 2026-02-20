@@ -43,19 +43,90 @@ export async function GET(req) {
       return NextResponse.json({ success: false, message: 'User not found' }, { status: 404 });
     }
 
-    // Get recent wallet transactions (last 50)
+    // Pagination parameters
+    const searchParams = req.nextUrl.searchParams;
+    const page = parseInt(searchParams.get('page')) || 1;
+    const limit = parseInt(searchParams.get('limit')) || 20;
+    const skip = (page - 1) * limit;
+
+    // Get total count for pagination meta
+    const total = await Transaction.countDocuments(transactionQuery);
+    const totalPages = Math.ceil(total / limit);
+
+    // Get wallet transactions with pagination
     const transactions = await Transaction.find(transactionQuery)
       .sort({ createdAt: -1 })
-      .limit(50)
+      .skip(skip)
+      .limit(limit)
       .lean();
+
+
+
+    // Post-process transactions to ensure correct signs (debit/credit)
+    const processedTransactions = transactions.map(t => {
+      let amount = t.amount;
+      const type = t.type;
+
+      // Default: positive
+      let isDebit = false;
+
+      if (userType === 'homeowner') {
+        // Customer Logic
+        // Debits: payment, wallet_debit, escrow_hold, booking_initial_payment, completion_payment
+        const debitTypes = [
+          'payment',
+          'wallet_debit',
+          'escrow_hold',
+          'booking_initial_payment',
+          'completion_payment',
+          'withdrawal_request' // If applicable
+        ];
+
+        if (debitTypes.includes(type)) {
+          isDebit = true;
+        }
+      } else if (userType === 'provider') {
+        // Provider Logic
+        // Debits: wallet_debit, withdrawal_completed, commission (if tracked here)
+        const debitTypes = [
+          'wallet_debit',
+          'withdrawal_completed',
+          'commission',
+          'escrow_refund' // If provider has to refund
+        ];
+
+        if (debitTypes.includes(type)) {
+          isDebit = true;
+        }
+      }
+
+      // Apply sign
+      if (isDebit) {
+        amount = -Math.abs(amount);
+      } else {
+        amount = Math.abs(amount);
+      }
+
+      return {
+        ...t,
+        amount
+      };
+    });
 
     return NextResponse.json({
       success: true,
       data: {
         balance: user.wallet?.balance || 0,
         currency: user.wallet?.currency || 'INR',
-        transactions,
-        userType
+        transactions: processedTransactions,
+        userType,
+        meta: {
+          total,
+          page,
+          limit,
+          totalPages,
+          hasMore: page < totalPages
+        }
       }
     });
   } catch (error) {

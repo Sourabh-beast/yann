@@ -1,5 +1,6 @@
 'use client'
 import React, { useState, useMemo, useEffect } from 'react';
+import Image from 'next/image';
 import { useAuth } from '@/hooks/useAuth';
 import { useRouter } from 'next/navigation';
 import { Search, Star, Clock, MapPin, Filter, Heart, ChevronDown, Sparkles, TrendingUp, Award, Shield, Zap, Calendar, CheckCircle, X, Car, Briefcase, AlertCircle, Copy, RefreshCw, Loader2 } from 'lucide-react';
@@ -1039,7 +1040,7 @@ const BookingModal = ({ open, onClose, baseService, servicesList = [], onConfirm
                               isSelected ? 'from-blue-600 to-indigo-600' : 'from-gray-600 to-gray-700'
                             }`}>
                               {partner.profileImage ? (
-                                <img src={partner.profileImage} alt={partner.name} className="w-full h-full object-cover rounded-2xl" />
+                                <Image src={partner.profileImage} alt={partner.name} width={56} height={56} className="w-full h-full object-cover rounded-2xl" />
                               ) : (
                                 <span>{partner.name?.[0] ?? 'P'}</span>
                               )}
@@ -1554,11 +1555,13 @@ const ServiceCard = ({ service, onBook, isFavorite, onToggleFavorite, startingPr
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
     >
-      <div className="relative overflow-hidden">
-        <img 
+      <div className="relative overflow-hidden h-56">
+        <Image 
           src={service.image} 
           alt={service.name} 
-          className={`w-full h-56 object-cover transition-transform duration-700 ${isHovered ? 'scale-110' : 'scale-100'} ${isActive ? '' : 'filter grayscale'}`} 
+          fill
+          sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
+          className={`object-cover transition-transform duration-700 ${isHovered ? 'scale-110' : 'scale-100'} ${isActive ? '' : 'filter grayscale'}`} 
           loading="lazy" 
         />
         <div className={`absolute inset-0 bg-gradient-to-t from-black/60 via-black/20 to-transparent transition-opacity duration-500 ${isHovered ? 'opacity-100' : 'opacity-0'}`} />

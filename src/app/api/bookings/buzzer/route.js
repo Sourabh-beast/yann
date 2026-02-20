@@ -6,8 +6,12 @@ import Homeowner from '@/models/Homeowner';
 import { sendPushNotification } from '@/lib/sendPushNotification';
 import { createAndSendNotification } from '@/lib/notificationHelper';
 
-// Buzzer interval in seconds
-const BUZZER_INTERVAL_SECONDS = 30;
+// Buzzer interval in seconds.
+// The booking_request.wav sound is ~23 s long.  Sending a new notification
+// every 20 s means the next ping arrives ~3 s before the previous sound ends,
+// producing near-seamless ringing on the partner's device while the app is
+// in the background (system notification channel sound plays on every push).
+const BUZZER_INTERVAL_SECONDS = 20;
 
 /**
  * POST - Send continuous buzzer notification to provider
@@ -155,13 +159,24 @@ export async function POST(request) {
         bookingId: booking._id.toString(),
         serviceName: booking.serviceName,
         customerName: booking.customerName,
+        customerAddress: booking.customerAddress || '',
+        customerPhone: booking.customerPhone || '',
+        customerProfileImage: booking.customerProfileImage || '',
+        bookingDate: booking.bookingDate || '',
+        bookingTime: booking.bookingTime || '',
+        notes: booking.notes || '',
         totalPrice: booking.totalPrice,
+        // expiresAt is required by the app to compute the remaining timer on the modal
+        expiresAt: new Date(booking.requestTimer.expiresAt).toISOString(),
+        recipientId: booking.assignedProvider.toString(),
         remainingSeconds,
         buzzerCount,
-        sound: 'buzzer',
         priority: 'high',
-        channelId: 'booking_requests',
-        vibrate: [0, 500, 200, 500, 200, 500]
+        // 'booking_alert' is a fresh channel ID created in the app on first run.
+        // Android has no cached user-preference for this ID so our custom WAV
+        // (booking_request.wav compiled into res/raw) is always applied.
+        channelId: 'booking_alert',
+        vibrate: [0, 1000, 500, 1000, 500, 1000]
       }
     );
 

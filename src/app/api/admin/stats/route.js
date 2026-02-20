@@ -79,6 +79,11 @@ export async function GET() {
           requestStatusDistribution
         }
       }
+    }, {
+      headers: {
+        'Cache-Control': 'private, s-maxage=300, stale-while-revalidate=600',
+        'CDN-Cache-Control': 'private, max-age=300',
+      }
     });
   } catch (error) {
     console.error('Error fetching admin stats:', error);
