@@ -112,8 +112,8 @@ export async function POST(request) {
 
     // Check if enough time has passed since last buzzer
     const lastBuzzer = booking.requestTimer?.lastBuzzerAt;
-    const timeSinceLastBuzzer = lastBuzzer 
-      ? (now - new Date(lastBuzzer)) / 1000 
+    const timeSinceLastBuzzer = lastBuzzer
+      ? (now - new Date(lastBuzzer)) / 1000
       : BUZZER_INTERVAL_SECONDS + 1;
 
     if (timeSinceLastBuzzer < BUZZER_INTERVAL_SECONDS) {
@@ -142,7 +142,7 @@ export async function POST(request) {
     }
 
     // Calculate remaining time
-    const remainingSeconds = Math.max(0, 
+    const remainingSeconds = Math.max(0,
       Math.floor((new Date(booking.requestTimer.expiresAt) - now) / 1000)
     );
 
@@ -172,10 +172,10 @@ export async function POST(request) {
         remainingSeconds,
         buzzerCount,
         priority: 'high',
-        // 'booking_alert' is a fresh channel ID created in the app on first run.
-        // Android has no cached user-preference for this ID so our custom WAV
-        // (booking_request.wav compiled into res/raw) is always applied.
-        channelId: 'booking_alert',
+        // 'booking_alert_v2' is a fresh channel ID created in the app on first run.
+        // Android has no cached user-preference for this ID so our custom MP3
+        // (booking_request.mp3 compiled into res/raw) is always applied.
+        channelId: 'booking_alert_v2',
         vibrate: [0, 1000, 500, 1000, 500, 1000]
       }
     );
