@@ -40,7 +40,7 @@ export async function sendPushNotification(pushToken, title, body, data = {}) {
     // Note: Do not globally set sound: 'default' here. If set, Android may override 
     // the custom channel's sound with the system default. We conditionally apply 
     // it below for non-custom channels.
-    ...(data.channelId !== 'booking_alert' && { sound: 'default' }),
+    ...(data.channelId !== 'booking_alert_v2' && { sound: 'default' }),
     title,
     body,
     data, // data now ideally includes recipientId if passed from helper
@@ -60,7 +60,7 @@ export async function sendPushNotification(pushToken, title, body, data = {}) {
     },
     // iOS-specific configuration
     ios: {
-      sound: data.channelId === 'booking_alert' ? 'booking_request.wav' : 'default', // WAV is bundled via app.json sounds array
+      sound: data.channelId === 'booking_alert_v2' ? 'booking_request.mp3' : 'default', // MP3 is bundled via app.json sounds array
       _displayInForeground: true,
       badge: 1,
       // threadId groups notifications and replaces old ones
