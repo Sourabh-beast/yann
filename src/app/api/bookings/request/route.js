@@ -250,7 +250,7 @@ export async function POST(request) {
         message: `${booking.customerName} needs ${booking.serviceName}. Respond within 3 minutes!`,
         recipientId: providerId,
         recipientType: 'provider',
-        pushToken: provider.pushToken || null,
+        pushToken: null, // Prevent duplicate push notification (already sent via sendPushNotification above)
         type: 'booking_request',
         data: {
           recipientId: providerId,
