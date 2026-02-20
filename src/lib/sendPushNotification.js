@@ -16,29 +16,18 @@ export async function sendPushNotification(pushToken, title, body, data = {}) {
   // currently we are using expo notification 
   // what if we move to bare react native will that buzzer stuff work then ?
 
+  // Keep payload simple — matching the format that works from Expo's Push Tool.
+  // The android/ios sub-objects with priority:'max' and collapseKey were causing
+  // FCM to silently drop notifications. channelId at top level is sufficient
+  // for Android channel routing + custom sound.
   const message = {
     to: pushToken,
-    // ALWAYS 'default' — FCM needs this to show a visible banner.
-    // The actual sound on Android 8+ is controlled by the notification channel.
     sound: 'default',
     title,
     body,
     data,
     priority: 'high',
     channelId: data.channelId || 'default',
-    ...(data.type === 'booking_request' && { collapseKey: `booking_request_${data.recipientId}` }),
-    android: {
-      channelId: data.channelId || 'default',
-      priority: 'max',
-      badge: 1,
-      ...(data.type === 'booking_request' && { tag: 'booking_request' }),
-    },
-    ios: {
-      sound: data.channelId === 'booking_alert_v3' ? 'booking_request.mp3' : 'default',
-      _displayInForeground: true,
-      badge: 1,
-      ...(data.type === 'booking_request' && { threadId: 'booking_request' }),
-    },
   };
 
   try {
