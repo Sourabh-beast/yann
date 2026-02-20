@@ -37,11 +37,12 @@ export async function sendPushNotification(pushToken, title, body, data = {}) {
   // Construct the notification message
   const message = {
     to: pushToken,
-    // For booking_alert_v2, set the custom sound filename so Android sees a
-    // visible notification (omitting sound entirely makes FCM treat it as
-    // data-only / silent). The actual playback is controlled by the channel.
-    // For all other channels, use the standard 'default' sound.
-    sound: data.channelId === 'booking_alert_v2' ? 'booking_request.mp3' : 'default',
+    // ALWAYS use 'default' here. This tells FCM "this notification should make
+    // sound and show a banner". The ACTUAL sound played on Android 8+ is
+    // determined by the notification channel (booking_alert_v2 plays our custom
+    // MP3). Setting a custom filename here causes FCM to look for it on Google's
+    // servers, which silently drops the notification when not found.
+    sound: 'default',
     title,
     body,
     data, // data now ideally includes recipientId if passed from helper
