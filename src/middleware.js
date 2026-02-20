@@ -18,12 +18,13 @@ function isAllowedOrigin(origin) {
 }
 
 // Public GET API routes that can be cached at the CDN edge
-// Format: { path: string | regex, maxAge: number (seconds), staleWhileRevalidate: number }
+// IMPORTANT: More specific routes MUST come BEFORE less specific ones!
+// Format: { path: string, maxAge: number (seconds), swr: number, exact: boolean }
 const CACHEABLE_GET_ROUTES = [
-  { path: '/api/services', maxAge: 1800, swr: 3600 },          // 30 min cache, 1 hr stale
-  { path: '/api/providers', maxAge: 60, swr: 300 },            // 1 min cache, 5 min stale
-  { path: '/api/providers/search', maxAge: 30, swr: 120 },     // 30 sec cache, 2 min stale
-  { path: '/api/health', maxAge: 0, swr: 0 },                  // never cache
+  { path: '/api/services', maxAge: 1800, swr: 3600, exact: true },  // 30 min cache, 1 hr stale
+  { path: '/api/providers/search', maxAge: 0, swr: 0 },             // NO cache — has user-specific blocked-users logic
+  { path: '/api/providers', maxAge: 60, swr: 300, exact: true },    // 1 min cache (listing only, not sub-routes)
+  { path: '/api/health', maxAge: 0, swr: 0 },                      // never cache
 ];
 
 // Admin GET routes - shorter cache, private
@@ -36,9 +37,12 @@ const CACHEABLE_ADMIN_ROUTES = [
 function getCacheHeaders(pathname, isGet) {
   if (!isGet) return null;
 
-  // Check public cacheable routes
+  // Check public cacheable routes (specific first)
   for (const route of CACHEABLE_GET_ROUTES) {
-    if (pathname === route.path || pathname.startsWith(route.path + '/')) {
+    const isMatch = route.exact
+      ? pathname === route.path
+      : (pathname === route.path || pathname.startsWith(route.path + '/'));
+    if (isMatch) {
       if (route.maxAge === 0) return null;
       return `public, s-maxage=${route.maxAge}, stale-while-revalidate=${route.swr}`;
     }
