@@ -2,7 +2,9 @@ import { NextResponse } from 'next/server';
 import connectDB from '@/lib/connectDB';
 import Booking from '@/models/Booking';
 import Homeowner from '@/models/Homeowner';
+import ServiceProvider from '@/models/ServiceProvider';
 import Transaction from '@/models/Transaction';
+import { sendPushNotification } from '@/lib/sendPushNotification';
 
 export async function POST(req) {
   try {
@@ -95,6 +97,30 @@ export async function POST(req) {
       throw error;
     } finally {
       session.endSession();
+    }
+
+    // Notify the assigned provider that the booking was cancelled
+    if (booking.assignedProvider) {
+      try {
+        const provider = await ServiceProvider.findById(booking.assignedProvider).select('pushToken name');
+        if (provider?.pushToken) {
+          await sendPushNotification(
+            provider.pushToken,
+            '❌ Booking Cancelled',
+            `${booking.customerName || 'Customer'} cancelled their ${booking.serviceName || 'booking'} request.`,
+            {
+              type: 'booking_cancelled',
+              bookingId: booking._id.toString(),
+              recipientId: provider._id.toString(),
+              channelId: 'booking_alert_v3',
+            }
+          );
+          console.log(`📲 Cancellation push sent to provider ${provider.name}`);
+        }
+      } catch (pushError) {
+        // Don't fail the cancellation if push fails
+        console.error('⚠️ Failed to notify provider of cancellation:', pushError.message);
+      }
     }
 
     const balanceAfter = user.wallet.balance;
