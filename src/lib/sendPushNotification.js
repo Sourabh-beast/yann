@@ -16,16 +16,20 @@ export async function sendPushNotification(pushToken, title, body, data = {}) {
   // currently we are using expo notification 
   // what if we move to bare react native will that buzzer stuff work then ?
 
-  // Keep payload simple — matching the format that works from Expo's Push Tool.
-  // The android/ios sub-objects with priority:'max' and collapseKey were causing
-  // FCM to silently drop notifications. channelId at top level is sufficient
-  // for Android channel routing + custom sound.
+  // FCM requires ALL data values to be flat strings.
+  // Arrays, objects, numbers, booleans will cause DeveloperError.
+  const sanitizedData = {};
+  for (const [key, value] of Object.entries(data)) {
+    if (value === null || value === undefined) continue;
+    sanitizedData[key] = typeof value === 'string' ? value : JSON.stringify(value);
+  }
+
   const message = {
     to: pushToken,
     sound: 'default',
     title,
     body,
-    data,
+    data: sanitizedData,
     priority: 'high',
     channelId: data.channelId || 'default',
   };

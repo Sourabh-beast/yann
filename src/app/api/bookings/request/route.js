@@ -206,30 +206,12 @@ export async function POST(request) {
           `${booking.customerName} needs ${booking.serviceName}. Respond within 3 minutes!`,
           {
             type: 'booking_request',
-            recipientId: providerId, // Crucial for filtering on device
             bookingId: booking._id.toString(),
-            serviceName: booking.serviceName,
-            serviceCategory: booking.serviceCategory || '',
-            customerName: booking.customerName,
-            customerProfileImage: customerProfileImage || '',
-            customerAddress: booking.customerAddress,
-            customerPhone: booking.customerPhone,
-            bookingDate: booking.bookingDate,
-            bookingTime: booking.bookingTime,
-            totalPrice: booking.totalPrice,
-            bookedHours: booking.quantity || booking.bookedHours || 0,
-            billingType: booking.billingType || 'one-time',
-            notes: booking.notes || '',
-            expiresAt: expiresAt.toISOString(),
-            // Driver-specific details
-            driverDetails: booking.driverDetails ? JSON.stringify(booking.driverDetails) : '',
-            driverTripDetails: booking.driverTripDetails ? JSON.stringify(booking.driverTripDetails) : '',
-            pricingBreakdown: booking.pricingBreakdown ? JSON.stringify(booking.pricingBreakdown) : '',
             recipientId: providerId,
-            sound: 'booking_request.mp3', // res/raw/booking_request.mp3 compiled into APK
-            priority: 'high',
-            channelId: 'booking_alert_v3', // fresh channel ID — never used before, avoids Android's cached-preference problem
-            vibrate: [0, 1000, 500, 1000, 500, 1000]
+            serviceName: booking.serviceName || '',
+            customerName: booking.customerName || '',
+            expiresAt: expiresAt.toISOString(),
+            channelId: 'booking_alert_v3',
           }
         );
 
