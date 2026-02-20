@@ -84,31 +84,21 @@ export default function Navbar() {
     };
 
     try {
-      const res = await fetch('/api/auth/me', {
+      // Single unified session call instead of 2 separate calls
+      const res = await fetch('/api/auth/session', {
         credentials: 'include',
         cache: 'no-store',
       });
       if (requestId === sessionRequestIdRef.current && res.ok) {
         const data = await res.json();
-        hydrateProvider(data);
-      }
-    } catch (err) {
-      console.error('Error fetching partner session:', err);
-    }
-
-    if (!applied) {
-      try {
-        const res = await fetch('/api/homeowner/me', {
-          credentials: 'include',
-          cache: 'no-store',
-        });
-        if (requestId === sessionRequestIdRef.current && res.ok) {
-          const data = await res.json();
+        if (data.success && data.role === 'provider') {
+          hydrateProvider(data);
+        } else if (data.success && data.role === 'resident') {
           hydrateResident(data);
         }
-      } catch (err) {
-        console.error('Error fetching resident session:', err);
       }
+    } catch (err) {
+      console.error('Error fetching session:', err);
     }
 
     if (requestId === sessionRequestIdRef.current && !applied) {
@@ -405,9 +395,11 @@ export default function Navbar() {
                       aria-expanded={isUserMenuOpen}
                     >
                       {userAvatar ? (
-                        <img
+                        <Image
                           src={userAvatar}
                           alt={`${userName}'s avatar`}
+                          width={32}
+                          height={32}
                           className="h-8 w-8 rounded-full border-2 border-white object-cover shadow-sm"
                         />
                       ) : (
@@ -625,9 +617,11 @@ export default function Navbar() {
 
                   <div className="flex items-center space-x-3 rounded-xl bg-gradient-to-r from-blue-50 to-purple-50 px-4 py-3">
                     {userAvatar ? (
-                      <img
+                      <Image
                         src={userAvatar}
                         alt={`${userName}'s avatar`}
+                        width={40}
+                        height={40}
                         className="h-10 w-10 rounded-full border-2 border-white object-cover shadow-sm"
                       />
                     ) : (

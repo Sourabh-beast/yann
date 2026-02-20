@@ -66,6 +66,11 @@ export async function GET(request) {
           totalPages: Math.ceil(total / limit)
         }
       }
+    }, {
+      headers: {
+        'Cache-Control': 'private, s-maxage=60, stale-while-revalidate=300',
+        'CDN-Cache-Control': 'private, max-age=60',
+      }
     });
   } catch (error) {
     console.error('Error fetching providers:', error);

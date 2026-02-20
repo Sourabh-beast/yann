@@ -1,5 +1,6 @@
 'use client';
 import React, { useEffect, useState, useCallback } from 'react';
+import Image from 'next/image';
 import { useRouter } from 'next/navigation';
 
 export default function Dashboard() {
@@ -284,9 +285,11 @@ export default function Dashboard() {
               {/* User Avatar - shows uploaded profile image if available */}
               <div className="w-20 h-20 rounded-2xl shadow-lg overflow-hidden border-4 border-white">
                 {provider.profileImage ? (
-                  <img
+                  <Image
                     src={provider.profileImage}
                     alt={`${provider.name}'s profile`}
+                    width={80}
+                    height={80}
                     className="h-full w-full object-cover"
                   />
                 ) : (
@@ -418,9 +421,11 @@ export default function Dashboard() {
                 <div className="flex items-center space-x-4 p-4 bg-purple-50 rounded-xl border border-purple-100">
                   <div className="w-16 h-16 rounded-xl overflow-hidden border-2 border-white shadow-sm">
                     {provider.profileImage ? (
-                      <img
+                      <Image
                         src={provider.profileImage}
                         alt={`${provider.name}'s profile`}
+                        width={64}
+                        height={64}
                         className="h-full w-full object-cover"
                       />
                     ) : (
