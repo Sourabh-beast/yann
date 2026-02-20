@@ -30,12 +30,34 @@ export async function sendPushNotification(pushToken, title, body, data = {}) {
     channelId: data.channelId || 'default',
   };
 
+  // Log the full message for debugging
+  console.log('📦 Full push message:', JSON.stringify(message, null, 2));
+
   try {
     const ticketChunk = await expo.sendPushNotificationsAsync([message]);
     const ticket = ticketChunk[0];
 
     if (ticket.status === 'ok') {
       console.log(`✅ Push sent → ticket: ${ticket.id}`);
+
+      // Check receipt after a delay to see if FCM actually delivered it
+      setTimeout(async () => {
+        try {
+          const receiptChunk = await expo.getPushNotificationReceiptsAsync([ticket.id]);
+          const receipt = receiptChunk[ticket.id];
+          if (receipt) {
+            if (receipt.status === 'ok') {
+              console.log(`📬 Receipt OK → ${ticket.id} delivered to FCM`);
+            } else {
+              console.error(`📬 Receipt ERROR → ${ticket.id}:`, receipt.status, receipt.details?.error, receipt.message);
+            }
+          } else {
+            console.log(`📬 Receipt pending → ${ticket.id} (not yet processed by Expo)`);
+          }
+        } catch (err) {
+          console.error('📬 Receipt check failed:', err.message);
+        }
+      }, 15000); // Check after 15 seconds
     } else {
       console.error('❌ Push failed:', ticket.details?.error, ticket.message);
     }
