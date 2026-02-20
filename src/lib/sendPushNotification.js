@@ -37,10 +37,11 @@ export async function sendPushNotification(pushToken, title, body, data = {}) {
   // Construct the notification message
   const message = {
     to: pushToken,
-    // Note: Do not globally set sound: 'default' here. If set, Android may override 
-    // the custom channel's sound with the system default. We conditionally apply 
-    // it below for non-custom channels.
-    ...(data.channelId !== 'booking_alert_v2' && { sound: 'default' }),
+    // For booking_alert_v2, set the custom sound filename so Android sees a
+    // visible notification (omitting sound entirely makes FCM treat it as
+    // data-only / silent). The actual playback is controlled by the channel.
+    // For all other channels, use the standard 'default' sound.
+    sound: data.channelId === 'booking_alert_v2' ? 'booking_request.mp3' : 'default',
     title,
     body,
     data, // data now ideally includes recipientId if passed from helper
