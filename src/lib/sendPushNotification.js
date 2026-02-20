@@ -1,128 +1,72 @@
 import { Expo } from 'expo-server-sdk';
 
-// Create a new Expo SDK client
 const expo = new Expo();
-
-// ... (imports)
 
 /**
  * Send a push notification to a single device
- * @param pushToken - Expo push token
- * @param title - Notification title
- * @param body - Notification body
- * @param data - Additional data to send with notification
- * @returns Promise with ticket or null if failed
  */
 export async function sendPushNotification(pushToken, title, body, data = {}) {
-  console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
-  console.log('📤 SENDING PUSH NOTIFICATION');
-  console.log('   Token:', pushToken?.substring(0, 30) + '...');
-  console.log('   Title:', title);
-  console.log('   Body:', body);
-  console.log('   Data Keys:', Object.keys(data).join(', '));
-  console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+  console.log(`📤 Push → ${title} | channel: ${data.channelId || 'default'} | token: ${pushToken?.substring(0, 25)}...`);
 
-  // Check that the push token is valid
   if (!Expo.isExpoPushToken(pushToken)) {
-    console.error('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
-    console.error('❌ INVALID PUSH TOKEN');
-    console.error('   Token:', pushToken);
-    console.error('   Expected format: ExponentPushToken[...]');
-    console.error('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+    console.error('❌ Invalid push token:', pushToken);
     return null;
   }
 
-  console.log('✅ Push token format is valid');
-
-  // Construct the notification message
   const message = {
     to: pushToken,
-    // ALWAYS use 'default' here. This tells FCM "this notification should make
-    // sound and show a banner". The ACTUAL sound played on Android 8+ is
-    // determined by the notification channel (booking_alert_v2 plays our custom
-    // MP3). Setting a custom filename here causes FCM to look for it on Google's
-    // servers, which silently drops the notification when not found.
+    // ALWAYS 'default' — FCM needs this to show a visible banner.
+    // The actual sound on Android 8+ is controlled by the notification channel.
     sound: 'default',
     title,
     body,
-    data, // data now ideally includes recipientId if passed from helper
+    data,
     priority: 'high',
-    channelId: data.channelId || 'default', // Top-level channelId for Android
-    // Collapse key: replaces old booking notifications instead of stacking
+    channelId: data.channelId || 'default',
     ...(data.type === 'booking_request' && { collapseKey: `booking_request_${data.recipientId}` }),
-    // Android-specific configuration
-    // NOTE: Do NOT set `sound` here for Android 8+. Android ignores the
-    // payload sound in favour of the notification channel's sound setting.
     android: {
       channelId: data.channelId || 'default',
       priority: 'max',
       badge: 1,
-      // Tag ensures only one booking notification shows (replaces old ones)
       ...(data.type === 'booking_request' && { tag: 'booking_request' }),
     },
-    // iOS-specific configuration
     ios: {
-      sound: data.channelId === 'booking_alert_v2' ? 'booking_request.mp3' : 'default', // MP3 is bundled via app.json sounds array
+      sound: data.channelId === 'booking_alert_v2' ? 'booking_request.mp3' : 'default',
       _displayInForeground: true,
       badge: 1,
-      // threadId groups notifications and replaces old ones
       ...(data.type === 'booking_request' && { threadId: 'booking_request' }),
     },
   };
 
-  console.log('📦 Message payload:', JSON.stringify(message, null, 2));
-
   try {
-    console.log('🚀 Sending to Expo push service...');
-    // Send the notification
     const ticketChunk = await expo.sendPushNotificationsAsync([message]);
     const ticket = ticketChunk[0];
 
-    console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
-    console.log('📨 EXPO TICKET RESPONSE');
-    console.log('   Status:', ticket.status);
-    console.log('   ID:', ticket.id);
-
-    if (ticket.status === 'error') {
-      console.error('   Error Code:', ticket.details?.error);
-      console.error('   Error Message:', ticket.message);
-    }
-
-    console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
-
     if (ticket.status === 'ok') {
-      console.log('✅ Notification sent successfully to Expo');
+      console.log(`✅ Push sent → ticket: ${ticket.id}`);
     } else {
-      console.error('❌ Notification failed:', ticket);
+      console.error('❌ Push failed:', ticket.details?.error, ticket.message);
     }
 
     return ticket;
   } catch (error) {
-    console.error('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
-    console.error('❌ PUSH NOTIFICATION EXCEPTION');
-    console.error('   Error:', error.message);
-    console.error('   Stack:', error.stack);
-    console.error('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+    console.error('❌ Push exception:', error.message);
     return null;
   }
 }
 
 /**
  * Send push notifications to multiple devices
- * @param messages - Array of notification messages
- * @returns Promise with tickets array
  */
 export async function sendBulkPushNotifications(messages) {
-  // Filter out invalid tokens
   const validMessages = messages.filter(msg => Expo.isExpoPushToken(msg.to));
 
   if (validMessages.length === 0) {
-    console.log('⚠️ No valid push tokens found');
+    console.warn('⚠️ No valid push tokens found');
     return [];
   }
 
   try {
-    // Send notifications in chunks (Expo recommends chunks of 100)
     const chunks = expo.chunkPushNotifications(validMessages);
     const tickets = [];
 
@@ -131,14 +75,14 @@ export async function sendBulkPushNotifications(messages) {
         const ticketChunk = await expo.sendPushNotificationsAsync(chunk);
         tickets.push(...ticketChunk);
       } catch (error) {
-        console.error('❌ Error sending notification chunk:', error);
+        console.error('❌ Chunk send error:', error.message);
       }
     }
 
-    console.log(`✅ Sent ${tickets.length} notifications`);
+    console.log(`✅ Sent ${tickets.length} bulk notifications`);
     return tickets;
   } catch (error) {
-    console.error('❌ Error sending bulk notifications:', error);
+    console.error('❌ Bulk send error:', error.message);
     return [];
   }
 }
@@ -202,6 +146,7 @@ export async function sendBookingRejectedNotification(pushToken, providerName, s
     { type: 'booking_rejected' }
   );
 }
+
 /**
  * Helper function to send booking accepted notification with OTP to homeowner
  */
