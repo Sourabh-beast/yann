@@ -130,11 +130,6 @@ export async function GET(request) {
                 query,
                 filters: { service, minRating, sortBy, sortOrder: sortOrder === 1 ? 'asc' : 'desc' },
             },
-        }, {
-            headers: {
-                'Cache-Control': 'public, s-maxage=30, stale-while-revalidate=120',
-                'CDN-Cache-Control': 'public, s-maxage=30, stale-while-revalidate=120',
-            }
         });
     } catch (error) {
         console.error('Provider search error:', error);
