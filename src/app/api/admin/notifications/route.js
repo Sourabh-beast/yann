@@ -3,20 +3,21 @@ import connectDB from '@/lib/connectDB';
 import Notification from '@/models/Notification';
 import Homeowner from '@/models/Homeowner';
 import ServiceProvider from '@/models/ServiceProvider';
+import { sendPushNotification } from '@/lib/sendPushNotification';
 
 export async function GET(request) {
   try {
     await connectDB();
-    
+
     const { searchParams } = new URL(request.url);
     const page = parseInt(searchParams.get('page')) || 1;
     const limit = parseInt(searchParams.get('limit')) || 20;
     const type = searchParams.get('type');
     const status = searchParams.get('status');
     const category = searchParams.get('category');
-    
+
     const query = {};
-    
+
     if (type) query.type = type;
     if (status) query.status = status;
     if (category) query.category = category;
@@ -78,22 +79,22 @@ export async function GET(request) {
 export async function POST(request) {
   try {
     await connectDB();
-    
+
     const body = await request.json();
-    const { 
-      type, 
-      targetAudience, 
-      title, 
-      message, 
+    const {
+      type,
+      targetAudience,
+      title,
+      message,
       htmlContent,
       category,
       priority,
       scheduledFor,
       actionUrl,
       actionText,
-      sendNow 
+      sendNow
     } = body;
-    
+
     if (!type || !title || !message) {
       return NextResponse.json(
         { success: false, message: 'Type, title and message are required' },
@@ -120,9 +121,9 @@ export async function POST(request) {
     }
 
     if (targetAudience === 'all' || targetAudience === 'providers') {
-      const providers = await ServiceProvider.find({ 
-        status: 'active', 
-        isBlocked: { $ne: true } 
+      const providers = await ServiceProvider.find({
+        status: 'active',
+        isBlocked: { $ne: true }
       })
         .select('_id phone email fullName')
         .lean();
@@ -163,14 +164,64 @@ export async function POST(request) {
 
     await notification.save();
 
-    // If sendNow, simulate sending (in real app, this would trigger actual sending)
+    // If sendNow, actually send push notifications to all recipients
     if (sendNow) {
-      // Simulate sending process
-      notification.status = 'sent';
+      notification.status = 'sending';
       notification.sentAt = new Date();
-      notification.stats.sent = recipientCount;
-      notification.stats.delivered = Math.floor(recipientCount * 0.95); // 95% delivery rate simulation
       await notification.save();
+
+      // Fetch push tokens for all targeted users
+      let sentCount = 0;
+      let failedCount = 0;
+
+      const pushData = {
+        type: 'admin_notification',
+        notificationId: notification._id.toString(),
+        channelId: 'default',
+      };
+
+      // Send to homeowners
+      if (targetAudience === 'all' || targetAudience === 'homeowners') {
+        const homeowners = await Homeowner.find({
+          isBlocked: { $ne: true },
+          pushToken: { $exists: true, $ne: null, $ne: '' }
+        }).select('pushToken').lean();
+
+        for (const hw of homeowners) {
+          try {
+            const result = await sendPushNotification(hw.pushToken, title, message, pushData);
+            if (result) sentCount++; else failedCount++;
+          } catch (e) {
+            failedCount++;
+          }
+        }
+      }
+
+      // Send to providers
+      if (targetAudience === 'all' || targetAudience === 'providers') {
+        const providers = await ServiceProvider.find({
+          status: 'active',
+          isBlocked: { $ne: true },
+          pushToken: { $exists: true, $ne: null, $ne: '' }
+        }).select('pushToken').lean();
+
+        for (const prov of providers) {
+          try {
+            const result = await sendPushNotification(prov.pushToken, title, message, pushData);
+            if (result) sentCount++; else failedCount++;
+          } catch (e) {
+            failedCount++;
+          }
+        }
+      }
+
+      notification.status = 'sent';
+      notification.stats.sent = sentCount + failedCount;
+      notification.stats.delivered = sentCount;
+      notification.stats.failed = failedCount;
+      await notification.save();
+
+      console.log(`📢 Admin notification sent: ${sentCount} delivered, ${failedCount} failed`);
     }
 
     return NextResponse.json({
@@ -191,10 +242,10 @@ export async function POST(request) {
 export async function PATCH(request) {
   try {
     await connectDB();
-    
+
     const body = await request.json();
     const { id, action } = body;
-    
+
     if (!id || !action) {
       return NextResponse.json(
         { success: false, message: 'ID and action required' },
@@ -222,24 +273,67 @@ export async function PATCH(request) {
           );
         }
         break;
-        
+
       case 'send':
         if (notification.status === 'draft' || notification.status === 'scheduled') {
-          notification.status = 'sent';
+          notification.status = 'sending';
           notification.sentAt = new Date();
-          notification.stats.sent = notification.stats.totalRecipients;
-          notification.stats.delivered = Math.floor(notification.stats.totalRecipients * 0.95);
+          await notification.save();
+
+          let sentCount = 0;
+          let failedCount = 0;
+          const pushData = {
+            type: 'admin_notification',
+            notificationId: notification._id.toString(),
+            channelId: 'default',
+          };
+
+          const audience = notification.targetAudience;
+
+          if (audience === 'all' || audience === 'homeowners') {
+            const homeowners = await Homeowner.find({
+              isBlocked: { $ne: true },
+              pushToken: { $exists: true, $ne: null, $ne: '' }
+            }).select('pushToken').lean();
+
+            for (const hw of homeowners) {
+              try {
+                const result = await sendPushNotification(hw.pushToken, notification.title, notification.message, pushData);
+                if (result) sentCount++; else failedCount++;
+              } catch (e) { failedCount++; }
+            }
+          }
+
+          if (audience === 'all' || audience === 'providers') {
+            const providers = await ServiceProvider.find({
+              status: 'active',
+              isBlocked: { $ne: true },
+              pushToken: { $exists: true, $ne: null, $ne: '' }
+            }).select('pushToken').lean();
+
+            for (const prov of providers) {
+              try {
+                const result = await sendPushNotification(prov.pushToken, notification.title, notification.message, pushData);
+                if (result) sentCount++; else failedCount++;
+              } catch (e) { failedCount++; }
+            }
+          }
+
+          notification.status = 'sent';
+          notification.stats.sent = sentCount + failedCount;
+          notification.stats.delivered = sentCount;
+          notification.stats.failed = failedCount;
         }
         break;
-        
+
       case 'deactivate':
         notification.isActive = false;
         break;
-        
+
       case 'activate':
         notification.isActive = true;
         break;
-        
+
       default:
         return NextResponse.json(
           { success: false, message: 'Invalid action' },
@@ -267,10 +361,10 @@ export async function PATCH(request) {
 export async function DELETE(request) {
   try {
     await connectDB();
-    
+
     const { searchParams } = new URL(request.url);
     const id = searchParams.get('id');
-    
+
     if (!id) {
       return NextResponse.json(
         { success: false, message: 'Notification ID required' },
@@ -279,7 +373,7 @@ export async function DELETE(request) {
     }
 
     const notification = await Notification.findByIdAndDelete(id);
-    
+
     if (!notification) {
       return NextResponse.json(
         { success: false, message: 'Notification not found' },
