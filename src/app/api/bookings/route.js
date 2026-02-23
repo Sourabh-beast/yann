@@ -11,6 +11,41 @@ import { getPaginationParams, createPaginationMeta } from '@/lib/pagination';
 const HOME_COOKIE = 'yann_home_session';
 
 /**
+ * Helper to mask phone numbers if the booking is > 3 hours away.
+ */
+function maskPhoneIfEarly(bookingDate, bookingTime, phone) {
+  if (!phone || phone === 'N/A') return 'N/A';
+  if (!bookingDate || !bookingTime) return phone;
+
+  try {
+    let dateStr = bookingDate.toString();
+    if (dateStr.includes('T')) dateStr = dateStr.split('T')[0];
+
+    // YYYY-MM-DD from the DB Date object typically
+    const d = new Date(bookingDate);
+    const yr = d.getFullYear();
+    const mo = String(d.getMonth() + 1).padStart(2, '0');
+    const da = String(d.getDate()).padStart(2, '0');
+    const finalDateStr = `${yr}-${mo}-${da}`;
+
+    const bookingDateTime = new Date(`${finalDateStr}T${bookingTime}`);
+    if (isNaN(bookingDateTime.getTime())) return phone;
+
+    const now = new Date();
+    const threeHoursBefore = new Date(bookingDateTime.getTime() - 3 * 60 * 60 * 1000);
+
+    if (now.getTime() < threeHoursBefore.getTime()) {
+      return 'N/A'; // Hide phone
+    }
+  } catch (e) {
+    return phone;
+  }
+
+  return phone;
+}
+
+
+/**
  * GET /api/bookings
  * Get all bookings for the authenticated homeowner with pagination
  */
@@ -111,7 +146,7 @@ export async function GET(request) {
         id: booking.assignedProvider._id.toString(),
         name: booking.assignedProvider.name,
         email: booking.assignedProvider.email,
-        phone: booking.assignedProvider.phone,
+        phone: maskPhoneIfEarly(booking.bookingDate, booking.bookingTime, booking.assignedProvider.phone),
         rating: booking.assignedProvider.rating,
         profileImage: booking.assignedProvider.profileImage,
       } : null,

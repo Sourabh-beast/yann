@@ -18,6 +18,40 @@ const serializeNegotiation = (negotiation) => {
   };
 };
 
+/**
+ * Helper to mask phone numbers if the booking is > 3 hours away.
+ */
+function maskPhoneIfEarly(bookingDate, bookingTime, phone) {
+  if (!phone || phone === 'N/A') return 'N/A';
+  if (!bookingDate || !bookingTime) return phone;
+
+  try {
+    let dateStr = bookingDate.toString();
+    if (dateStr.includes('T')) dateStr = dateStr.split('T')[0];
+
+    // YYYY-MM-DD from the DB Date object typically
+    const d = new Date(bookingDate);
+    const yr = d.getFullYear();
+    const mo = String(d.getMonth() + 1).padStart(2, '0');
+    const da = String(d.getDate()).padStart(2, '0');
+    const finalDateStr = `${yr}-${mo}-${da}`;
+
+    const bookingDateTime = new Date(`${finalDateStr}T${bookingTime}`);
+    if (isNaN(bookingDateTime.getTime())) return phone;
+
+    const now = new Date();
+    const threeHoursBefore = new Date(bookingDateTime.getTime() - 3 * 60 * 60 * 1000);
+
+    if (now.getTime() < threeHoursBefore.getTime()) {
+      return 'N/A'; // Hide phone
+    }
+  } catch (e) {
+    return phone;
+  }
+
+  return phone;
+}
+
 export async function GET(request) {
   try {
     await connectDB();
@@ -210,7 +244,7 @@ export async function GET(request) {
         serviceName: booking.serviceName,
         serviceCategory: booking.serviceCategory,
         customerName: booking.customerName,
-        customerPhone: booking.customerPhone,
+        customerPhone: maskPhoneIfEarly(booking.bookingDate, booking.bookingTime, booking.customerPhone),
         customerAddress: booking.customerAddress,
         customerAvatar: booking.customerId?.avatar || null,
         bookingDate: booking.bookingDate,
@@ -238,7 +272,7 @@ export async function GET(request) {
         serviceName: booking.serviceName,
         serviceCategory: booking.serviceCategory,
         customerName: booking.customerName,
-        customerPhone: booking.customerPhone,
+        customerPhone: maskPhoneIfEarly(booking.bookingDate, booking.bookingTime, booking.customerPhone),
         customerAddress: booking.customerAddress,
         customerAvatar: booking.customerId?.avatar || null,
         bookingDate: booking.bookingDate,

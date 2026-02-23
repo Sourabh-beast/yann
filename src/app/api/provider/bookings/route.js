@@ -8,6 +8,41 @@ import ServiceProvider from '@/models/ServiceProvider';
 const PROVIDER_COOKIE = 'yann_session';
 
 /**
+ * Helper to mask phone numbers if the booking is > 3 hours away.
+ */
+function maskPhoneIfEarly(bookingDate, bookingTime, phone) {
+  if (!phone || phone === 'N/A') return 'N/A';
+  if (!bookingDate || !bookingTime) return phone;
+
+  try {
+    let dateStr = bookingDate.toString();
+    if (dateStr.includes('T')) dateStr = dateStr.split('T')[0];
+
+    // YYYY-MM-DD from the DB Date object typically
+    const d = new Date(bookingDate);
+    const yr = d.getFullYear();
+    const mo = String(d.getMonth() + 1).padStart(2, '0');
+    const da = String(d.getDate()).padStart(2, '0');
+    const finalDateStr = `${yr}-${mo}-${da}`;
+
+    const bookingDateTime = new Date(`${finalDateStr}T${bookingTime}`);
+    if (isNaN(bookingDateTime.getTime())) return phone;
+
+    const now = new Date();
+    const threeHoursBefore = new Date(bookingDateTime.getTime() - 3 * 60 * 60 * 1000);
+
+    if (now.getTime() < threeHoursBefore.getTime()) {
+      return 'N/A'; // Hide phone
+    }
+  } catch (e) {
+    return phone;
+  }
+
+  return phone;
+}
+
+
+/**
  * Helper to get authenticated provider from session
  * Supports: cookie-based (website), token-based (mobile), and x-user-id header (mobile)
  */
@@ -115,7 +150,7 @@ export async function GET(request) {
       totalPrice: booking.totalPrice,
       basePrice: booking.basePrice,
       customerName: booking.customerName,
-      customerPhone: booking.customerPhone,
+      customerPhone: maskPhoneIfEarly(booking.bookingDate, booking.bookingTime, booking.customerPhone),
       customerAddress: booking.customerAddress,
       paymentMethod: booking.paymentMethod,
       paymentStatus: booking.paymentStatus,
@@ -134,7 +169,7 @@ export async function GET(request) {
         id: booking.customerId._id?.toString(),
         name: booking.customerId.name,
         email: booking.customerId.email,
-        phone: booking.customerId.phone,
+        phone: maskPhoneIfEarly(booking.bookingDate, booking.bookingTime, booking.customerId.phone),
       } : null,
       driverDetails: booking.driverDetails || null,
       extras: booking.extras || [],
@@ -158,7 +193,7 @@ export async function GET(request) {
       totalPrice: booking.totalPrice,
       basePrice: booking.basePrice,
       customerName: booking.customerName,
-      customerPhone: booking.customerPhone,
+      customerPhone: maskPhoneIfEarly(booking.bookingDate, booking.bookingTime, booking.customerPhone),
       customerAddress: booking.customerAddress,
       paymentMethod: booking.paymentMethod,
       notes: booking.notes || '',
