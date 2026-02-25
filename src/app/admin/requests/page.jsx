@@ -1,15 +1,11 @@
 'use client'
 import { useState, useEffect } from 'react';
-import Link from 'next/link';
-import { useRouter } from 'next/navigation';
 import { Users, Briefcase, ClipboardList, Activity, Menu, X, Search, Filter, CheckCircle, XCircle, Clock, AlertCircle, LogOut, Calendar, Phone, MapPin, DollarSign, User, Car, Package, Settings, BarChart3, Star, Bell, Gift, HeadphonesIcon, FileText } from 'lucide-react';
 
 export default function RequestsPage() {
-  const router = useRouter();
   const [bookings, setBookings] = useState([]);
   const [providers, setProviders] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [sidebarOpen, setSidebarOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
   const [page, setPage] = useState(1);
@@ -163,78 +159,8 @@ export default function RequestsPage() {
     return true;
   });
 
-  const sidebarItems = [
-    { label: 'Dashboard', href: '/admin', icon: Activity },
-    { label: 'Analytics', href: '/admin/analytics', icon: BarChart3 },
-    { label: 'Services', href: '/admin/services', icon: Package },
-    { label: 'Service Providers', href: '/admin/providers', icon: Briefcase },
-    { label: 'Homeowners', href: '/admin/homeowners', icon: Users },
-    { label: 'Bookings', href: '/admin/requests', icon: ClipboardList },
-    { label: 'Reviews', href: '/admin/reviews', icon: Star },
-    { label: 'Financials', href: '/admin/financials', icon: DollarSign },
-    { label: 'Notifications', href: '/admin/notifications', icon: Bell },
-    { label: 'Promotions', href: '/admin/promotions', icon: Gift },
-    { label: 'Support Tickets', href: '/admin/support', icon: HeadphonesIcon },
-    { label: 'Audit Logs', href: '/admin/logs', icon: FileText },
-    { label: 'Settings', href: '/admin/settings', icon: Settings },
-  ];
-
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-50 via-blue-50/30 to-purple-50/20">
-      {/* Mobile Menu Button */}
-      <button
-        onClick={() => setSidebarOpen(!sidebarOpen)}
-        className="lg:hidden fixed top-4 left-4 z-50 p-2 bg-white rounded-lg shadow-lg"
-      >
-        {sidebarOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
-      </button>
-
-      {/* Sidebar */}
-      <aside className={`fixed top-0 left-0 h-full w-64 bg-white border-r border-gray-200 shadow-xl z-40 transform transition-transform duration-300 ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'} lg:translate-x-0`}>
-        <div className="p-6 border-b border-gray-200">
-          <h1 className="text-2xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
-            YANN Admin
-          </h1>
-          <p className="text-sm text-gray-500 mt-1">Management Panel</p>
-        </div>
-        
-        <nav className="p-4 overflow-y-auto" style={{ maxHeight: 'calc(100vh - 180px)' }}>
-          <ul className="space-y-2">
-            {sidebarItems.map((item) => {
-              const Icon = item.icon;
-              return (
-                <li key={item.href}>
-                  <Link
-                    href={item.href}
-                    onClick={() => setSidebarOpen(false)}
-                    className="flex items-center gap-3 px-4 py-3 rounded-xl text-gray-700 hover:bg-gradient-to-r hover:from-blue-50 hover:to-purple-50 hover:text-blue-600 transition-all duration-300 font-medium"
-                  >
-                    <Icon className="w-5 h-5" />
-                    {item.label}
-                  </Link>
-                </li>
-              );
-            })}
-          </ul>
-        </nav>
-
-        <div className="absolute bottom-0 left-0 right-0 p-4 border-t border-gray-200 bg-white">
-          <button
-            onClick={async () => {
-              await fetch('/api/admin/logout', { method: 'POST' });
-              router.push('/admin/login');
-              router.refresh();
-            }}
-            className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-red-600 hover:bg-red-50 transition-all duration-300 font-medium"
-          >
-            <LogOut className="w-5 h-5" />
-            Logout
-          </button>
-        </div>
-      </aside>
-
-      {/* Main Content */}
-      <main className="lg:ml-64 p-4 lg:p-8 pt-16 lg:pt-8">
+    <>
         {/* Header */}
         <header className="mb-8">
           <div className="flex items-center justify-between">
@@ -785,7 +711,6 @@ export default function RequestsPage() {
             </div>
           </div>
         )}
-      </main>
-    </div>
+    </>
   );
 }

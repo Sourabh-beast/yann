@@ -1,7 +1,5 @@
 'use client'
 import { useState, useEffect } from 'react';
-import Link from 'next/link';
-import { useRouter } from 'next/navigation';
 import {
   Users, Briefcase, ClipboardList, Activity, Menu, X, Search,
   DollarSign, Package, Settings, LogOut, TrendingUp, TrendingDown,
@@ -11,9 +9,7 @@ import {
 } from 'lucide-react';
 
 export default function FinancialsPage() {
-  const router = useRouter();
   const [loading, setLoading] = useState(true);
-  const [sidebarOpen, setSidebarOpen] = useState(false);
   const [activeTab, setActiveTab] = useState('overview'); // overview, transactions, refunds, disputes
 
   // Data states
@@ -227,85 +223,12 @@ export default function FinancialsPage() {
     }
   };
 
-  const sidebarItems = [
-    { label: 'Dashboard', href: '/admin', icon: Activity },
-    { label: 'Analytics', href: '/admin/analytics', icon: BarChart3 },
-    { label: 'Services', href: '/admin/services', icon: Package },
-    { label: 'Service Providers', href: '/admin/providers', icon: Briefcase },
-    { label: 'Homeowners', href: '/admin/homeowners', icon: Users },
-    { label: 'Bookings', href: '/admin/requests', icon: ClipboardList },
-    { label: 'Reviews', href: '/admin/reviews', icon: Star },
-    { label: 'Financials', href: '/admin/financials', icon: DollarSign },
-    { label: 'Notifications', href: '/admin/notifications', icon: Bell },
-    { label: 'Promotions', href: '/admin/promotions', icon: Gift },
-    { label: 'Support Tickets', href: '/admin/support', icon: HeadphonesIcon },
-    { label: 'Audit Logs', href: '/admin/logs', icon: FileText },
-    { label: 'Settings', href: '/admin/settings', icon: Settings },
-  ];
-
   const formatCurrency = (amount) => {
     return new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 }).format(amount || 0);
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-50 via-blue-50/30 to-purple-50/20">
-      {/* Mobile Menu Button */}
-      <button
-        onClick={() => setSidebarOpen(!sidebarOpen)}
-        className="lg:hidden fixed top-4 left-4 z-50 p-2 bg-white rounded-lg shadow-lg"
-      >
-        {sidebarOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
-      </button>
-
-      {/* Sidebar */}
-      <aside className={`fixed top-0 left-0 h-full w-64 bg-white border-r border-gray-200 shadow-xl z-40 transform transition-transform duration-300 ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'} lg:translate-x-0`}>
-        <div className="p-6 border-b border-gray-200">
-          <h1 className="text-2xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
-            YANN Admin
-          </h1>
-          <p className="text-sm text-gray-500 mt-1">Management Panel</p>
-        </div>
-
-        <nav className="p-4 overflow-y-auto" style={{ maxHeight: 'calc(100vh - 180px)' }}>
-          <ul className="space-y-2">
-            {sidebarItems.map((item) => {
-              const Icon = item.icon;
-              const isActive = item.href === '/admin/financials';
-              return (
-                <li key={item.href}>
-                  <Link
-                    href={item.href}
-                    onClick={() => setSidebarOpen(false)}
-                    className={`flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-300 font-medium ${isActive
-                      ? 'bg-gradient-to-r from-blue-500 to-purple-500 text-white shadow-lg'
-                      : 'text-gray-700 hover:bg-gradient-to-r hover:from-blue-50 hover:to-purple-50 hover:text-blue-600'
-                      }`}
-                  >
-                    <Icon className="w-5 h-5" />
-                    {item.label}
-                  </Link>
-                </li>
-              );
-            })}
-          </ul>
-        </nav>
-
-        <div className="absolute bottom-0 left-0 right-0 p-4 border-t border-gray-200 bg-white">
-          <button
-            onClick={async () => {
-              await fetch('/api/admin/logout', { method: 'POST' });
-              router.push('/admin/login');
-            }}
-            className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-red-600 hover:bg-red-50 transition-all duration-300 font-medium"
-          >
-            <LogOut className="w-5 h-5" />
-            Logout
-          </button>
-        </div>
-      </aside>
-
-      {/* Main Content */}
-      <main className="lg:ml-64 p-4 lg:p-8 pt-16 lg:pt-8">
+    <>
         {/* Header */}
         <header className="mb-8 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
           <div>
@@ -850,8 +773,6 @@ export default function FinancialsPage() {
             )}
           </>
         )}
-      </main>
-
       {/* Dispute Resolution Modal */}
       {disputeModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm px-4">
@@ -894,39 +815,7 @@ export default function FinancialsPage() {
           </div>
         </div>
       )}
-    </div>
+    </>
   );
 }
 
-// Helper Components
-function StatCard({ title, value, subtitle, icon: Icon, trend, gradient, negative }) {
-  return (
-    <div className="bg-white rounded-2xl p-6 shadow-lg border border-gray-100 hover:shadow-xl transition-all duration-300">
-      <div className="flex items-center justify-between mb-4">
-        <div className={`w-12 h-12 bg-gradient-to-br ${gradient} rounded-xl flex items-center justify-center shadow-lg`}>
-          <Icon className="w-6 h-6 text-white" />
-        </div>
-        {trend !== undefined && (
-          <div className={`flex items-center gap-1 ${trend >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-            {trend >= 0 ? <ArrowUpRight className="w-4 h-4" /> : <ArrowDownRight className="w-4 h-4" />}
-            <span className="text-sm font-semibold">{Math.abs(trend)}%</span>
-          </div>
-        )}
-      </div>
-      <h3 className="text-sm font-medium text-gray-600 mb-1">{title}</h3>
-      <p className={`text-2xl font-bold ${negative ? 'text-red-600' : 'text-gray-900'} mb-1`}>{value}</p>
-      <p className="text-xs text-gray-500">{subtitle}</p>
-    </div>
-  );
-}
-
-function getStatusClass(status) {
-  const classes = {
-    completed: 'bg-green-100 text-green-700',
-    pending: 'bg-yellow-100 text-yellow-700',
-    failed: 'bg-red-100 text-red-700',
-    refunded: 'bg-purple-100 text-purple-700',
-    disputed: 'bg-orange-100 text-orange-700'
-  };
-  return classes[status] || 'bg-gray-100 text-gray-700';
-}

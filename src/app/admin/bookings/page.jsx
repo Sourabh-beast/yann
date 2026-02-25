@@ -16,19 +16,19 @@ export default function AdminBookingsPage() {
   const fetchData = async () => {
     try {
       setLoading(true);
-      
+
       // Fetch all bookings
       const bookingsRes = await fetch('/api/admin/bookings');
       const bookingsData = await bookingsRes.json();
-      
+
       // Fetch all providers (simple format)
       const providersRes = await fetch('/api/admin/providers?simple=true');
       const providersData = await providersRes.json();
-      
+
       if (bookingsData.success) {
         setBookings(bookingsData.bookings || []);
       }
-      
+
       if (providersData.success) {
         setProviders(providersData.providers || []);
       }
@@ -58,19 +58,19 @@ export default function AdminBookingsPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-gray-50 to-blue-50 pt-20 px-4">
+      <>
         <div className="max-w-7xl mx-auto">
           <div className="text-center py-20">
             <div className="w-16 h-16 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
             <p className="text-gray-600 text-lg">Loading bookings...</p>
           </div>
         </div>
-      </div>
+      </>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-50 to-blue-50 pt-20 px-4 pb-12">
+    <>
       <div className="max-w-7xl mx-auto">
         {/* Header */}
         <div className="bg-white rounded-2xl shadow-lg p-8 mb-8">
@@ -96,11 +96,10 @@ export default function AdminBookingsPage() {
                 <button
                   key={status}
                   onClick={() => setFilter(status)}
-                  className={`px-4 py-3 rounded-xl font-semibold transition-all ${
-                    filter === status
+                  className={`px-4 py-3 rounded-xl font-semibold transition-all ${filter === status
                       ? 'bg-blue-600 text-white shadow-lg'
                       : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                  }`}
+                    }`}
                 >
                   {status.charAt(0).toUpperCase() + status.slice(1)}
                 </button>
@@ -154,7 +153,7 @@ export default function AdminBookingsPage() {
           ) : (
             filteredBookings.map((booking) => {
               const matchingProviders = getProvidersForService(booking.serviceName);
-              
+
               return (
                 <div key={booking._id} className="bg-white rounded-2xl shadow-lg overflow-hidden">
                   <div className="p-6">
@@ -163,13 +162,12 @@ export default function AdminBookingsPage() {
                       <div className="flex-1">
                         <div className="flex items-center gap-3 mb-2">
                           <h3 className="text-2xl font-bold text-gray-900">{booking.serviceName}</h3>
-                          <span className={`px-3 py-1 rounded-full text-sm font-semibold ${
-                            booking.status === 'pending' ? 'bg-yellow-100 text-yellow-700' :
-                            booking.status === 'accepted' ? 'bg-green-100 text-green-700' :
-                            booking.status === 'completed' ? 'bg-blue-100 text-blue-700' :
-                            booking.status === 'rejected' ? 'bg-red-100 text-red-700' :
-                            'bg-gray-100 text-gray-700'
-                          }`}>
+                          <span className={`px-3 py-1 rounded-full text-sm font-semibold ${booking.status === 'pending' ? 'bg-yellow-100 text-yellow-700' :
+                              booking.status === 'accepted' ? 'bg-green-100 text-green-700' :
+                                booking.status === 'completed' ? 'bg-blue-100 text-blue-700' :
+                                  booking.status === 'rejected' ? 'bg-red-100 text-red-700' :
+                                    'bg-gray-100 text-gray-700'
+                            }`}>
                             {booking.status.toUpperCase()}
                           </span>
                         </div>
@@ -221,7 +219,7 @@ export default function AdminBookingsPage() {
                         <User className="w-5 h-5 text-blue-600" />
                         Provider Assignment ({matchingProviders.length} available)
                       </h4>
-                      
+
                       {booking.assignedProvider ? (
                         <div className="bg-green-50 border-2 border-green-200 rounded-xl p-4">
                           <p className="text-green-700 font-semibold">
@@ -283,6 +281,6 @@ export default function AdminBookingsPage() {
           )}
         </div>
       </div>
-    </div>
+    </>
   );
 }

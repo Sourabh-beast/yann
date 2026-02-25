@@ -1,6 +1,7 @@
 'use client'
 import { useEffect, useState } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
+import AdminSidebar from '@/components/AdminSidebar';
 
 export default function AdminLayout({ children }) {
   const router = useRouter();
@@ -57,5 +58,12 @@ export default function AdminLayout({ children }) {
     return null;
   }
 
-  return children;
+  return (
+    <div className="min-h-screen bg-gradient-to-br from-gray-50 via-blue-50/30 to-purple-50/20">
+      <AdminSidebar />
+      <main className="lg:ml-64 p-4 lg:p-8 pt-16 lg:pt-8">
+        {children}
+      </main>
+    </div>
+  );
 }
