@@ -174,39 +174,7 @@ export async function POST(request) {
 
       await booking.save();
 
-      // Handle wallet refund
-      if (booking.paymentMethod === 'wallet' && booking.walletPaymentStage === 'initial_25_held') {
-        if (customer) {
-          if (!customer.wallet) {
-            customer.wallet = { balance: 0, currency: 'INR' };
-          }
-
-          const refundAmount = booking.escrowDetails?.initialAmount || booking.totalPrice * 0.25;
-          const balanceBefore = customer.wallet.balance || 0;
-          customer.wallet.balance = balanceBefore + refundAmount;
-          await customer.save();
-
-          booking.walletPaymentStage = 'none';
-          booking.escrowDetails.initialRefundedAt = now;
-          booking.paymentStatus = 'refunded';
-          await booking.save();
-
-          // Create refund transaction
-          await Transaction.create({
-            bookingId: bookingId,
-            customerId: customer._id,
-            type: 'escrow_refund',
-            amount: refundAmount,
-            balanceBefore: balanceBefore,
-            balanceAfter: customer.wallet.balance,
-            description: `25% booking deposit refunded - Provider declined`,
-            status: 'completed',
-            paymentMethod: 'wallet',
-            currency: 'INR',
-            serviceName: booking.serviceName
-          });
-        }
-      }
+      // No refund issued — payment is only collected after acceptance, so nothing to return here.
 
       // Notify customer about rejection
       if (customer?.pushToken) {

@@ -59,23 +59,7 @@ export async function POST(request) {
       booking.requestTimer.timedOut = true;
       await booking.save();
 
-      // Refund wallet payment if applicable
-      if (booking.paymentMethod === 'wallet' && booking.walletPaymentStage === 'initial_25_held') {
-        const customer = await Homeowner.findById(booking.customerId);
-        if (customer) {
-          if (!customer.wallet) {
-            customer.wallet = { balance: 0, currency: 'INR' };
-          }
-          const refundAmount = booking.escrowDetails?.initialAmount || booking.totalPrice * 0.25;
-          customer.wallet.balance = (customer.wallet.balance || 0) + refundAmount;
-          await customer.save();
-
-          booking.walletPaymentStage = 'none';
-          booking.escrowDetails.initialRefundedAt = now;
-          booking.paymentStatus = 'refunded';
-          await booking.save();
-        }
-      }
+      // No refund issued — payment is only collected after acceptance, so nothing to return on timeout.
 
       // Notify customer about timeout
       const customer = await Homeowner.findById(booking.customerId);
