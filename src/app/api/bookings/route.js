@@ -28,7 +28,8 @@ function maskPhoneIfEarly(bookingDate, bookingTime, phone) {
     const da = String(d.getDate()).padStart(2, '0');
     const finalDateStr = `${yr}-${mo}-${da}`;
 
-    const bookingDateTime = new Date(`${finalDateStr}T${bookingTime}`);
+    const bookingDateTimeStr = `${finalDateStr}T${bookingTime}:00+05:30`;
+    const bookingDateTime = new Date(bookingDateTimeStr);
     if (isNaN(bookingDateTime.getTime())) return phone;
 
     const now = new Date();
