@@ -23,7 +23,7 @@ export default function CallRequestsPage() {
 
     const fetchRequests = async () => {
         try {
-            const res = await fetch('/api/call-requests');
+            const res = await fetch('/api/admin/call-requests');
             const data = await res.json();
             if (data.success) {
                 setRequests(data.data);
@@ -37,7 +37,7 @@ export default function CallRequestsPage() {
 
     const updateStatus = async (id, newStatus) => {
         try {
-            const res = await fetch('/api/call-requests', {
+            const res = await fetch('/api/admin/call-requests', {
                 method: 'PATCH',
                 headers: {
                     'Content-Type': 'application/json',
@@ -87,7 +87,7 @@ export default function CallRequestsPage() {
     };
 
     return (
-        <div className="min-h-screen bg-gray-50/50">
+        <>
             <div className="p-8">
                 {/* Header */}
                 <div className="mb-8">
@@ -115,8 +115,8 @@ export default function CallRequestsPage() {
                                     key={status}
                                     onClick={() => setFilterStatus(status)}
                                     className={`px-4 py-2 rounded-xl text-sm font-medium transition-all whitespace-nowrap ${filterStatus === status
-                                            ? 'bg-blue-600 text-white shadow-lg shadow-blue-500/30'
-                                            : 'bg-gray-50 text-gray-600 hover:bg-gray-100'
+                                        ? 'bg-blue-600 text-white shadow-lg shadow-blue-500/30'
+                                        : 'bg-gray-50 text-gray-600 hover:bg-gray-100'
                                         }`}
                                 >
                                     {status.charAt(0).toUpperCase() + status.slice(1)}
@@ -202,6 +202,6 @@ export default function CallRequestsPage() {
                     </div>
                 )}
             </div>
-        </div>
+        </>
     );
 }

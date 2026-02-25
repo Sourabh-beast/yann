@@ -1,4 +1,10 @@
 /** @type {import('next').NextConfig} */
+import path from 'path';
+import { fileURLToPath } from 'url';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
 const nextConfig = {
     // output: 'export', // Reverted: API routes require dynamic server/serverless (not static export)
     // trailingSlash: true, // Optional
@@ -32,6 +38,11 @@ const nextConfig = {
     },
     // Enable gzip/brotli compression to reduce transfer size
     compress: true,
+    // Avoid incorrect workspace-root inference (monorepo with multiple lockfiles)
+    outputFileTracingRoot: __dirname,
+    turbopack: {
+        root: __dirname,
+    },
     // Set aggressive caching headers for static assets
     async headers() {
         return [

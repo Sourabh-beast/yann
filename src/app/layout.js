@@ -10,6 +10,9 @@ export const metadata = {
   authors: [{ name: 'YANN Technologies Pvt. Ltd.' }],
   creator: 'YANN',
   publisher: 'YANN Technologies Pvt. Ltd.',
+  icons: {
+    icon: '/logo.svg',
+  },
   openGraph: {
     title: 'YANN - Professional Home Services',
     description: 'Book trusted home services with verified professionals',
