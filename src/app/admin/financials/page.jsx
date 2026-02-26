@@ -819,3 +819,24 @@ export default function FinancialsPage() {
   );
 }
 
+// Helper Components
+function StatCard({ title, value, subtitle, icon: Icon, gradient, trend, negative }) {
+  return (
+    <div className="bg-white rounded-2xl p-6 shadow-lg border border-gray-100 hover:shadow-xl transition-all duration-300 hover:-translate-y-1">
+      <div className="flex items-center justify-between mb-4">
+        <div className={`w-12 h-12 bg-gradient-to-br ${gradient} rounded-xl flex items-center justify-center shadow-lg`}>
+          <Icon className="w-6 h-6 text-white" />
+        </div>
+        {trend !== undefined && trend !== null && (
+          <div className={`flex items-center gap-1 text-sm font-medium ${trend >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+            {trend >= 0 ? <ArrowUpRight className="w-4 h-4" /> : <ArrowDownRight className="w-4 h-4" />}
+            {Math.abs(trend).toFixed(1)}%
+          </div>
+        )}
+      </div>
+      <h3 className="text-sm font-medium text-gray-600 mb-1">{title}</h3>
+      <p className={`text-3xl font-bold mb-1 ${negative ? 'text-red-600' : 'text-gray-900'}`}>{value}</p>
+      <p className="text-xs text-gray-500">{subtitle}</p>
+    </div>
+  );
+}
