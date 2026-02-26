@@ -213,11 +213,11 @@ export async function POST(request) {
             customerName: booking.customerName || '',
             customerAddress: booking.customerAddress || '',
             customerPhone: booking.customerPhone || '',
-            customerProfileImage: customerProfileImage || '',
+            // Omitted customerProfileImage here because massive Base64 strings exceed FCM's 4KB payload limit and cause DeveloperErrors
             totalPrice: booking.totalPrice || 0,
             bookingDate: booking.bookingDate || '',
             bookingTime: booking.bookingTime || '',
-            notes: booking.notes || '',
+            notes: (booking.notes || '').substring(0, 50),
             expiresAt: expiresAt.toISOString(),
             channelId: 'booking_alert_v3',
           }

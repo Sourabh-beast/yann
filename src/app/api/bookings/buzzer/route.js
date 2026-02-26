@@ -145,10 +145,10 @@ export async function POST(request) {
         customerName: booking.customerName,
         customerAddress: booking.customerAddress || '',
         customerPhone: booking.customerPhone || '',
-        customerProfileImage: booking.customerProfileImage || '',
+        // Omitted customerProfileImage because base64 strings exceed FCM's 4KB payload limit and cause DeveloperError
         bookingDate: booking.bookingDate || '',
         bookingTime: booking.bookingTime || '',
-        notes: booking.notes || '',
+        notes: (booking.notes || '').substring(0, 50),
         totalPrice: booking.totalPrice,
         // expiresAt is required by the app to compute the remaining timer on the modal
         expiresAt: new Date(booking.requestTimer.expiresAt).toISOString(),
