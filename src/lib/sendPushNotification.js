@@ -24,19 +24,25 @@ export async function sendPushNotification(pushToken, title, body, data = {}) {
     sanitizedData[key] = typeof value === 'string' ? value : JSON.stringify(value);
   }
 
-  // Use custom sound for booking alert channel (iOS uses the bundled .caf file,
-  // Android uses the channel's sound — so this affects iOS only in practice)
   const isBookingAlert = data.channelId === 'booking_alert_v3';
-  const sound = isBookingAlert ? 'booking_request.caf' : 'default';
 
   const message = {
     to: pushToken,
-    sound,
+    sound: 'default',
     title,
     body,
     data: sanitizedData,
     priority: 'high',
     channelId: data.channelId || 'default',
+    android: {
+      sound: isBookingAlert ? 'booking_request' : 'default',
+      channelId: data.channelId || 'default',
+      priority: 'max'
+    },
+    ios: {
+      sound: isBookingAlert ? 'booking_request.wav' : 'default',
+      _displayInForeground: true
+    }
   };
 
   // Log the full message for debugging
