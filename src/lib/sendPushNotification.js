@@ -34,10 +34,6 @@ export async function sendPushNotification(pushToken, title, body, data = {}) {
     data: sanitizedData,
     priority: 'high',
     channelId: data.channelId || 'default',
-    ios: {
-      sound: isBookingAlert ? 'booking_request.wav' : 'default',
-      _displayInForeground: true
-    }
   };
 
   // Log the full message for debugging
