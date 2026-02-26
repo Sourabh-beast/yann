@@ -28,12 +28,16 @@ export async function sendPushNotification(pushToken, title, body, data = {}) {
 
   const message = {
     to: pushToken,
-    sound: isBookingAlert ? 'booking_request.wav' : 'default',
+    sound: 'default',
     title,
     body,
     data: sanitizedData,
     priority: 'high',
     channelId: data.channelId || 'default',
+    ios: {
+      sound: isBookingAlert ? 'booking_request.wav' : 'default',
+      _displayInForeground: true
+    }
   };
 
   // Log the full message for debugging
