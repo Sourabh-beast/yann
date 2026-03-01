@@ -138,6 +138,8 @@ const homeownerSchema = new mongoose.Schema(
 
 // Create sparse unique indexes for email and phone
 // This allows users to sign up with either email OR phone
+// IMPORTANT: If old non-sparse indexes exist in MongoDB, they must be dropped first
+// Run this in MongoDB shell: db.homeowners.dropIndex("email_1"); db.homeowners.dropIndex("phone_1");
 homeownerSchema.index({ email: 1 }, { unique: true, sparse: true });
 homeownerSchema.index({ phone: 1 }, { unique: true, sparse: true });
 
@@ -150,4 +152,45 @@ homeownerSchema.pre('validate', function (next) {
   }
 });
 
-export default mongoose.models.Homeowner || mongoose.model("Homeowner", homeownerSchema);
+// Auto-fix stale indexes on model initialization
+const fixIndexes = async (model) => {
+  try {
+    const collection = model.collection;
+    const indexes = await collection.indexes();
+    
+    for (const idx of indexes) {
+      // Check for non-sparse unique indexes on email or phone
+      if (idx.unique && !idx.sparse && (idx.key?.email || idx.key?.phone)) {
+        const fieldName = idx.key?.email ? 'email' : 'phone';
+        console.log(`⚠️ Dropping stale non-sparse unique index '${idx.name}' on '${fieldName}'`);
+        try {
+          await collection.dropIndex(idx.name);
+          console.log(`✅ Dropped stale index '${idx.name}'. Mongoose will recreate it as sparse.`);
+        } catch (dropErr) {
+          console.error(`❌ Failed to drop stale index '${idx.name}':`, dropErr.message);
+        }
+      }
+    }
+    
+    // Ensure correct indexes exist
+    await model.ensureIndexes();
+  } catch (err) {
+    // Silently ignore - index fix is best effort
+    console.error('Index fix error:', err.message);
+  }
+};
+
+const HomeownerModel = mongoose.models.Homeowner || mongoose.model("Homeowner", homeownerSchema);
+
+// Run index fix asynchronously (non-blocking)
+if (typeof process !== 'undefined' && !process.env._HOMEOWNER_INDEX_FIXED) {
+  process.env._HOMEOWNER_INDEX_FIXED = '1';
+  // Delay to ensure connection is ready
+  setTimeout(() => {
+    if (mongoose.connection.readyState === 1) {
+      fixIndexes(HomeownerModel).catch(() => {});
+    }
+  }, 3000);
+}
+
+export default HomeownerModel;

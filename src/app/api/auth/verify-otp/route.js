@@ -1,4 +1,5 @@
 import crypto from "crypto";
+import mongoose from "mongoose";
 import jwt from "jsonwebtoken";
 import { NextResponse } from "next/server";
 import connectDB from "@/lib/connectDB";
@@ -162,6 +163,7 @@ export async function POST(req) {
 
     // Verify OTP based on identifier type
     let isOtpValid = false;
+    let msg91ErrorMessage = "Invalid OTP";
 
     if (isPhoneLogin) {
       // Check if this is a test user
@@ -176,6 +178,9 @@ export async function POST(req) {
         // Real user - verify via MSG91
         const msg91Result = await verifyOTPViaMSG91(phone, otp);
         isOtpValid = msg91Result.success;
+        if (!isOtpValid) {
+          msg91ErrorMessage = msg91Result.message || "Invalid OTP";
+        }
       }
 
       if (!isOtpValid) {
@@ -192,7 +197,7 @@ export async function POST(req) {
         await Otp.updateOne({ _id: otpDoc._id }, { $set: update });
 
         const status = attempts >= MAX_ATTEMPTS ? 429 : 400;
-        const message = attempts >= MAX_ATTEMPTS ? "Too many invalid attempts. Try again later." : msg91Result.message || "Invalid OTP";
+        const message = attempts >= MAX_ATTEMPTS ? "Too many invalid attempts. Try again later." : msg91ErrorMessage;
 
         return NextResponse.json({ success: false, message }, { status });
       }
@@ -356,6 +361,7 @@ export async function POST(req) {
           if (otpDoc.metadata?.email) {
             homeownerData.email = otpDoc.metadata.email.toLowerCase().trim();
           }
+          // Do NOT set email at all for phone-only signups (sparse index requires field to be absent, not null)
         } else {
           homeownerData.email = email;
           // If phone is provided in metadata, use it
@@ -364,7 +370,42 @@ export async function POST(req) {
           }
         }
 
-        homeowner = await Homeowner.create(homeownerData);
+        try {
+          homeowner = await Homeowner.create(homeownerData);
+        } catch (createError) {
+          // Handle duplicate key error (E11000) - likely stale non-sparse index on email/phone
+          if (createError.code === 11000) {
+            const dupField = Object.keys(createError.keyPattern || {})[0] || 'unknown';
+            console.error(`Duplicate key error on field '${dupField}' while creating homeowner. keyValue:`, createError.keyValue);
+
+            // If duplicate on email:null, try creating without email field entirely
+            if (dupField === 'email' && !homeownerData.email) {
+              try {
+                // Use raw MongoDB insert to avoid Mongoose setting email field
+                const db = mongoose.connection.db;
+                const result = await db.collection('homeowners').insertOne({
+                  ...homeownerData,
+                  createdAt: new Date(),
+                  updatedAt: new Date(),
+                });
+                homeowner = await Homeowner.findById(result.insertedId);
+              } catch (rawInsertError) {
+                console.error("Raw insert also failed:", rawInsertError);
+                return NextResponse.json({
+                  success: false,
+                  message: "Account creation failed. Please try signing up with an email address as well."
+                }, { status: 500 });
+              }
+            } else {
+              return NextResponse.json({
+                success: false,
+                message: `An account with this ${dupField} already exists. Please login instead.`
+              }, { status: 409 });
+            }
+          } else {
+            throw createError;
+          }
+        }
       } // End of second !homeowner check
     }
 
