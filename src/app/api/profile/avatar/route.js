@@ -46,14 +46,23 @@ const getAuthenticatedUser = async () => {
     return { user: null, userType: null };
   }
 
-  // Try to find user as provider first
-  let user = await ServiceProvider.findOne({ email: decoded.email });
+  // Try to find user based on audience first if available
+  if (decoded.audience === 'provider') {
+    let user = await ServiceProvider.findById(decoded.id);
+    if (user) return { user, userType: 'provider' };
+  } else if (decoded.audience === 'homeowner') {
+    let user = await Homeowner.findById(decoded.id);
+    if (user) return { user, userType: 'homeowner' };
+  }
+
+  // Fallback if audience is missing from token
+  let user = await ServiceProvider.findById(decoded.id);
   if (user) {
     return { user, userType: 'provider' };
   }
 
   // If not found as provider, try homeowner
-  user = await Homeowner.findOne({ email: decoded.email });
+  user = await Homeowner.findById(decoded.id);
   if (user) {
     return { user, userType: 'homeowner' };
   }

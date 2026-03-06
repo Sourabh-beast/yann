@@ -74,7 +74,7 @@ export async function GET(request) {
       return clearHomeSession("Invalid session scope");
     }
 
-    const homeowner = await Homeowner.findOne({ email: decoded.email });
+    const homeowner = await Homeowner.findById(decoded.id);
     if (!homeowner) {
       return clearHomeSession("Resident not found");
     }
