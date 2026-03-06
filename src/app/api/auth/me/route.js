@@ -68,7 +68,7 @@ export async function GET() {
       return clearSessionResponse("Invalid session scope");
     }
 
-    const provider = await ServiceProvider.findOne({ email: decoded.email });
+    const provider = await ServiceProvider.findById(decoded.id);
 
     if (!provider) {
       return clearSessionResponse("User not found");
