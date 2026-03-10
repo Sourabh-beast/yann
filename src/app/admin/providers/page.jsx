@@ -313,7 +313,8 @@ export default function ProvidersPage() {
                       ⭐ {provider.rating?.toFixed(1) ?? 'N/A'} ({provider.totalReviews ?? 0})
                     </td>
                     <td className="py-4 px-6">
-                      <span className={`px-3 py-1 rounded-full text-xs font-semibold ${getStatusClass(provider.status)}`}>
+                      <span className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold whitespace-nowrap ${getStatusClass(provider.status)}`}>
+                        <span className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${getStatusDot(provider.status)}`}></span>
                         {getStatusLabel(provider.status)}
                       </span>
                     </td>
@@ -785,11 +786,20 @@ export default function ProvidersPage() {
 
 function getStatusClass(status) {
   const classes = {
-    active: 'bg-green-100 text-green-700',
-    inactive: 'bg-red-100 text-red-700',
-    pending: 'bg-yellow-100 text-yellow-700'
+    active: 'bg-green-100 text-green-700 border border-green-200',
+    inactive: 'bg-orange-100 text-orange-700 border border-orange-200',
+    pending: 'bg-yellow-100 text-yellow-700 border border-yellow-200'
   };
-  return classes[status] || 'bg-gray-100 text-gray-700';
+  return classes[status] || 'bg-gray-100 text-gray-700 border border-gray-200';
+}
+
+function getStatusDot(status) {
+  const dots = {
+    active: 'bg-green-500',
+    inactive: 'bg-orange-500',
+    pending: 'bg-yellow-500'
+  };
+  return dots[status] || 'bg-gray-400';
 }
 
 function getStatusLabel(status) {
