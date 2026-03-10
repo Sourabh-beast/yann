@@ -38,6 +38,8 @@ const sanitizeProvider = (provider) => ({
   profileImage: provider.profileImage || '',
   pendingServiceRequest: provider.pendingServiceRequest || null,
   isOnline: provider.isOnline ?? true,
+  aadhaarVerified: provider.aadhaarVerified || false,
+  aadhaarVerifiedAt: provider.aadhaarVerifiedAt || null,
 });
 
 export async function GET() {

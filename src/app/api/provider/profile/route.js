@@ -180,6 +180,36 @@ async function handleProfileUpdate(request) {
     const body = await request.json();
     console.log('📥 Received profile update request:', body);
 
+    // Provide the same CATEGORY_SERVICES definition as in the register route
+    const CATEGORY_SERVICES_DRIVER = [
+      'Full-Day Personal Driver',
+      'Outstation Driving Service'
+    ];
+
+    // If services are being updated, check for driver constraints
+    if (body.services && Array.isArray(body.services)) {
+      const hasDriverService = body.services.some(s => CATEGORY_SERVICES_DRIVER.includes(s));
+      const hasOtherService = body.services.some(s => !CATEGORY_SERVICES_DRIVER.includes(s));
+
+      if (hasDriverService && hasOtherService) {
+        return NextResponse.json(
+          { success: false, message: "Driver services cannot be combined with other service types." },
+          { status: 400 }
+        );
+      }
+
+      if (hasDriverService) {
+        // Fallback to existing if not provided in body
+        const driverDetails = body.driverServiceDetails || provider.driverServiceDetails || {};
+        if (!driverDetails.licenseFrontImage || !driverDetails.licenseBackImage) {
+          return NextResponse.json(
+            { success: false, message: "Both front and back photos of the driving license are required." },
+            { status: 400 }
+          );
+        }
+      }
+    }
+
     // Added 'status' and 'services' to enable availability toggle from mobile app
     const allowedUpdates = ['name', 'phone', 'profileImage', 'experience', 'workingHours', 'bio', 'serviceRates', 'status', 'services', 'driverServiceDetails'];
 

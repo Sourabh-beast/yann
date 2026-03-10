@@ -47,6 +47,13 @@ export async function POST(request) {
       );
     }
 
+    if (!provider.aadhaarVerified) {
+      return NextResponse.json(
+        { success: false, message: 'You must be Aadhaar verified to accept bookings' },
+        { status: 403 }
+      );
+    }
+
     // Verify provider offers this service (safety check)
     if (provider.services && !provider.services.includes(booking.serviceName)) {
       // Warn but don't block for admin overrides

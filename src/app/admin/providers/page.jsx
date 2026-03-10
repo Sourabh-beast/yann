@@ -627,6 +627,26 @@ export default function ProvidersPage() {
                           ) : <span className="text-sm text-gray-400">None</span>}
                         </div>
                       </div>
+                      {/* License Images */}
+                      {(selectedProvider.driverServiceDetails.licenseFrontImage || selectedProvider.driverServiceDetails.licenseBackImage) && (
+                        <div className="col-span-1 md:col-span-2 mt-2">
+                          <p className="text-xs text-gray-500 mb-2 font-medium">Driving License Photos</p>
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            {selectedProvider.driverServiceDetails.licenseFrontImage && (
+                              <div className="bg-white p-2 rounded-lg shadow-sm border border-gray-100">
+                                <p className="text-xs font-semibold text-gray-400 mb-1 uppercase text-center tracking-wider">Front Photo</p>
+                                <img src={selectedProvider.driverServiceDetails.licenseFrontImage} alt="License Front" className="w-full h-32 object-cover rounded border border-gray-200" />
+                              </div>
+                            )}
+                            {selectedProvider.driverServiceDetails.licenseBackImage && (
+                              <div className="bg-white p-2 rounded-lg shadow-sm border border-gray-100">
+                                <p className="text-xs font-semibold text-gray-400 mb-1 uppercase text-center tracking-wider">Back Photo</p>
+                                <img src={selectedProvider.driverServiceDetails.licenseBackImage} alt="License Back" className="w-full h-32 object-cover rounded border border-gray-200" />
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      )}
                     </div>
                   </div>
                 </div>

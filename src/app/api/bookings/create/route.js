@@ -4,6 +4,7 @@ import Booking from '@/models/Booking';
 import Service from '@/models/Service';
 import ServiceProvider from '@/models/ServiceProvider';
 import ResidentRequest from '@/models/ResidentRequest';
+import Homeowner from '@/models/Homeowner';
 import { createAndSendNotification } from '@/lib/notificationHelper';
 import { validateDriverCarType, checkHourlyBillingSupport } from '@/utils/bookingValidator';
 import { requireAuth, verifyOwnership } from '@/lib/authMiddleware';
@@ -97,6 +98,29 @@ export async function POST(request) {
     // If no customerId provided, use authenticated user's ID
     if (!validatedData.customerId && authResult.user.audience === 'homeowner') {
       validatedData.customerId = authResult.user.id;
+    }
+
+    // AADHAAR CHECK: Always verify homeowner is Aadhaar verified before booking
+    if (validatedData.customerId) {
+      const customer = await Homeowner.findById(validatedData.customerId);
+      if (!customer) {
+        return NextResponse.json(
+          { success: false, message: 'Customer account not found' },
+          { status: 404 }
+        );
+      }
+      if (!customer.aadhaarVerified) {
+        return NextResponse.json(
+          { success: false, message: 'Please verify your Aadhaar to create a booking' },
+          { status: 403 }
+        );
+      }
+    } else if (authResult.user.audience === 'homeowner') {
+      // If we still have no customerId but authenticated as homeowner, block the booking
+      return NextResponse.json(
+        { success: false, message: 'Please verify your Aadhaar to create a booking' },
+        { status: 403 }
+      );
     }
 
     // Validate required fields

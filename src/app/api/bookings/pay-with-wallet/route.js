@@ -54,6 +54,14 @@ export async function POST(req) {
       return NextResponse.json({ success: false, message: 'User not found - please log out and log back in' }, { status: 404 });
     }
 
+    // AADHAAR CHECK: Only verified homeowners can make bookings
+    if (!user.aadhaarVerified) {
+      return NextResponse.json(
+        { success: false, message: 'Please verify your Aadhaar to make a booking' },
+        { status: 403 }
+      );
+    }
+
     // Get platform settings for initial payment percentage
     let initialPercentage = 25; // Default to 25%
     try {

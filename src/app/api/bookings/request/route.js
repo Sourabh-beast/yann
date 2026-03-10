@@ -146,6 +146,14 @@ export async function POST(request) {
       );
     }
 
+    // AADHAAR CHECK: Only Aadhaar-verified providers can receive booking requests
+    if (!provider.aadhaarVerified) {
+      return NextResponse.json(
+        { success: false, message: 'This provider is not Aadhaar verified and cannot receive bookings' },
+        { status: 403 }
+      );
+    }
+
     // Get customer profile image
     const customer = booking.customerId;
     const customerProfileImage = (customer && (customer.profileImage || customer.avatar))
