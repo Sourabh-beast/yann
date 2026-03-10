@@ -3,6 +3,10 @@ import ServiceProvider from "@/models/ServiceProvider";
 import Service from "@/models/Service";
 import connectDB from "@/lib/connectDB";
 
+// Increase body size limit to 10MB to support base64 license images
+export const maxDuration = 30;
+export const dynamic = 'force-dynamic';
+
 const DEFAULT_MAX_BY_CATEGORY = {
   cleaning: 5000,
   laundry: 2000,

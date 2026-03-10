@@ -83,6 +83,13 @@ export async function POST(request) {
     const customer = await Homeowner.findById(booking.customerId);
 
     if (action === 'accept') {
+      if (!provider.aadhaarVerified) {
+        return NextResponse.json(
+          { success: false, message: 'You must be Aadhaar verified to accept bookings' },
+          { status: 403 }
+        );
+      }
+
       // ACCEPT FLOW - All bookings require 25% wallet payment
       booking.requestTimer.respondedAt = now;
 
