@@ -1,6 +1,6 @@
 'use client'
 import { useState, useEffect } from 'react';
-import { Users, Briefcase, ClipboardList, Activity, Search, Filter, CheckCircle, XCircle, Clock, Eye, Phone, Mail, MapPin, IndianRupee, AlertCircle, Plus, Ban, Trash2, ShieldCheck, Download } from 'lucide-react';
+import { Users, Briefcase, ClipboardList, Activity, Search, Filter, CheckCircle, XCircle, Clock, Eye, Phone, Mail, MapPin, IndianRupee, AlertCircle, Plus, Ban, Trash2, ShieldCheck, Download, X } from 'lucide-react';
 
 export default function ProvidersPage() {
   const [providers, setProviders] = useState([]);
@@ -274,7 +274,16 @@ export default function ProvidersPage() {
               <tbody>
                 {providers.map((provider) => (
                   <tr key={provider._id} className="border-t border-gray-100 hover:bg-gray-50 transition-colors">
-                    <td className="py-4 px-6 text-sm font-medium text-gray-900">{provider.name}</td>
+                    <td className="py-4 px-6 text-sm font-medium text-gray-900">
+                      <div className="flex flex-col gap-1">
+                        <span>{provider.name}</span>
+                        {provider.isBlocked && (
+                          <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-red-100 text-red-700 rounded-full text-xs font-semibold w-fit">
+                            <Ban className="w-3 h-3" /> Blocked
+                          </span>
+                        )}
+                      </div>
+                    </td>
                     <td className="py-4 px-6 text-sm text-gray-600">{provider.email}</td>
                     <td className="py-4 px-6 text-sm text-gray-600">{provider.phone}</td>
                     <td className="py-4 px-6 text-sm text-gray-600">
@@ -301,7 +310,7 @@ export default function ProvidersPage() {
                     </td>
                     <td className="py-4 px-6 text-sm text-gray-600">{provider.experience} yrs</td>
                     <td className="py-4 px-6 text-sm text-gray-600">
-                      ⭐ {provider.rating.toFixed(1)} ({provider.totalReviews})
+                      ⭐ {provider.rating?.toFixed(1) ?? 'N/A'} ({provider.totalReviews ?? 0})
                     </td>
                     <td className="py-4 px-6">
                       <span className={`px-3 py-1 rounded-full text-xs font-semibold ${getStatusClass(provider.status)}`}>
@@ -470,6 +479,35 @@ export default function ProvidersPage() {
                   </div>
                 </div>
               </div>
+
+              {/* Blocked Banner */}
+              {selectedProvider.isBlocked && (
+                <div className="mb-6 rounded-2xl border border-red-200 bg-gradient-to-r from-red-50 to-rose-50 overflow-hidden">
+                  <div className="flex items-center gap-3 px-5 py-3 bg-red-600">
+                    <Ban className="w-5 h-5 text-white flex-shrink-0" />
+                    <span className="text-white font-bold text-sm tracking-wide uppercase">Account Blocked</span>
+                  </div>
+                  <div className="p-5 grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <p className="text-xs font-semibold text-red-400 uppercase tracking-wider mb-1">Reason</p>
+                      <p className="text-sm font-medium text-red-800">
+                        {selectedProvider.blockedReason || 'No reason provided'}
+                      </p>
+                    </div>
+                    <div>
+                      <p className="text-xs font-semibold text-red-400 uppercase tracking-wider mb-1">Blocked On</p>
+                      <p className="text-sm font-medium text-red-800">
+                        {selectedProvider.blockedAt
+                          ? new Date(selectedProvider.blockedAt).toLocaleString('en-IN', {
+                              dateStyle: 'medium',
+                              timeStyle: 'short'
+                            })
+                          : 'N/A'}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              )}
       
               {/* Pending Service Request */}
               {selectedProvider.pendingServiceRequest && selectedProvider.pendingServiceRequest.addedServices && selectedProvider.pendingServiceRequest.addedServices.length > 0 && (
