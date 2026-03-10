@@ -144,6 +144,27 @@ export async function POST(req) {
       );
     }
 
+    // Check for Driver service exclusivity
+    const hasDriverService = body.services.some(s => CATEGORY_SERVICES.driver?.includes(s));
+    const hasOtherService = body.services.some(s => !CATEGORY_SERVICES.driver?.includes(s));
+
+    if (hasDriverService && hasOtherService) {
+      return NextResponse.json(
+        { success: false, message: "Driver services cannot be combined with other service types." },
+        { status: 400 }
+      );
+    }
+
+    if (hasDriverService) {
+      const driverDetails = body.driverServiceDetails || {};
+      if (!driverDetails.licenseFrontImage || !driverDetails.licenseBackImage) {
+        return NextResponse.json(
+          { success: false, message: "Both front and back photos of the driving license are required." },
+          { status: 400 }
+        );
+      }
+    }
+
     if (!Array.isArray(body.serviceRates) || body.serviceRates.length === 0) {
       return NextResponse.json(
         { success: false, message: "Please provide pricing for each selected service" },

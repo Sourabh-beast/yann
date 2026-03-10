@@ -188,6 +188,14 @@ const serviceProviderSchema = new mongoose.Schema({
       type: String,
       enum: ['incity', 'outstation', 'both'],
       default: 'both'
+    },
+    licenseFrontImage: {
+      type: String,
+      default: null
+    },
+    licenseBackImage: {
+      type: String,
+      default: null
     }
   },
 

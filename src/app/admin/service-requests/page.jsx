@@ -191,6 +191,30 @@ export default function ServiceRequestsPage() {
                     </div>
                   </div>
 
+                  {/* Driver License Images */}
+                  {request.driverServiceDetails && (request.driverServiceDetails.licenseFrontImage || request.driverServiceDetails.licenseBackImage) && (
+                    <div className="mt-6">
+                      <h4 className="text-sm font-semibold text-gray-600 uppercase tracking-wide mb-3 flex items-center gap-2">
+                         <span className="text-lg">🪪</span>
+                         Driving License Photos
+                      </h4>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        {request.driverServiceDetails.licenseFrontImage && (
+                          <div className="border border-gray-200 rounded-xl overflow-hidden bg-gray-50 p-2">
+                            <p className="text-xs text-gray-500 font-medium mb-2 uppercase text-center tracking-wider">Front Photo</p>
+                            <img src={request.driverServiceDetails.licenseFrontImage} alt="License Front" className="w-full h-40 object-cover rounded-lg shadow-sm" />
+                          </div>
+                        )}
+                        {request.driverServiceDetails.licenseBackImage && (
+                          <div className="border border-gray-200 rounded-xl overflow-hidden bg-gray-50 p-2">
+                            <p className="text-xs text-gray-500 font-medium mb-2 uppercase text-center tracking-wider">Back Photo</p>
+                            <img src={request.driverServiceDetails.licenseBackImage} alt="License Back" className="w-full h-40 object-cover rounded-lg shadow-sm" />
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  )}
+
                   {/* Status Info */}
                   <div className="mt-6 flex items-center gap-2 text-sm text-gray-600 bg-gray-50 px-4 py-3 rounded-xl">
                     <AlertCircle className="w-4 h-4 text-amber-600" />
