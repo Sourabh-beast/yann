@@ -93,7 +93,14 @@ export async function GET(request) {
         totalReviews: provider.totalReviews || 0,
         bio: provider.bio || '',
         createdAt: provider.createdAt,
-        updatedAt: provider.updatedAt
+        updatedAt: provider.updatedAt,
+        // Identity verification fields
+        isVerified: provider.isVerified ?? false,
+        aadhaarVerified: provider.aadhaarVerified ?? false,
+        identityType: provider.identityType || null,
+        identityVerificationStatus: provider.identityVerificationStatus || 'not_started',
+        identitySubmittedAt: provider.identitySubmittedAt || null,
+        identityRejectionReason: provider.identityRejectionReason || null,
       }
     });
 
