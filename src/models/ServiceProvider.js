@@ -318,6 +318,43 @@ const serviceProviderSchema = new mongoose.Schema({
   aadhaarVerifiedAt: {
     type: Date
   },
+  // Identity Verification (New System)
+  identityType: {
+    type: String,
+    enum: ['indian', 'foreigner', 'nri', null],
+    default: null
+  },
+  identityVerificationStatus: {
+    type: String,
+    enum: ['not_started', 'pending', 'approved', 'rejected'],
+    default: 'not_started'
+  },
+  identityDocuments: [{
+    documentType: {
+      type: String,
+      enum: ['passport', 'visa', 'residential_certificate', 'oci_card', 'other']
+    },
+    documentUrl: String,
+    uploadedAt: {
+      type: Date,
+      default: Date.now
+    }
+  }],
+  identitySubmittedAt: {
+    type: Date
+  },
+  identityApprovedAt: {
+    type: Date
+  },
+  identityApprovedBy: {
+    type: String
+  },
+  identityRejectedAt: {
+    type: Date
+  },
+  identityRejectionReason: {
+    type: String
+  },
   // Admin approval (required after Aadhaar verification)
   adminApproved: {
     type: Boolean,
