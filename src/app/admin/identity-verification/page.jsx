@@ -35,7 +35,7 @@ export default function IdentityVerificationPage() {
       const res = await fetch(`/api/identity/pending?userType=${tab}`);
       const data = await res.json();
       if (data.success) {
-        setSubmissions(data.data?.submissions || []);
+        setSubmissions(data.data?.pending || []);
       }
     } catch (err) {
       console.error('Error fetching identity submissions:', err);
@@ -50,7 +50,7 @@ export default function IdentityVerificationPage() {
       const res = await fetch('/api/identity/approve', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ userId: submission.userId, userType: submission.userType }),
+        body: JSON.stringify({ userId: submission._id, userType: submission.userType }),
       });
       const data = await res.json();
       if (data.success) {
@@ -77,7 +77,7 @@ export default function IdentityVerificationPage() {
       const res = await fetch('/api/identity/reject', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ userId: submission.userId, userType: submission.userType, reason: rejectReason }),
+        body: JSON.stringify({ userId: submission._id, userType: submission.userType, reason: rejectReason }),
       });
       const data = await res.json();
       if (data.success) {
@@ -157,7 +157,7 @@ export default function IdentityVerificationPage() {
               </thead>
               <tbody>
                 {submissions.map((s) => (
-                  <tr key={`${s.userType}-${s.userId}`} className="border-t border-gray-100 hover:bg-gray-50 transition-colors">
+                  <tr key={`${s.userType}-${s._id}`} className="border-t border-gray-100 hover:bg-gray-50 transition-colors">
                     <td className="py-4 px-6">
                       <div className="flex items-center gap-3">
                         <div className="w-9 h-9 rounded-full bg-blue-100 flex items-center justify-center text-blue-700 font-bold text-sm flex-shrink-0">
