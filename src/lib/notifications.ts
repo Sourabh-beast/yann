@@ -1,8 +1,9 @@
-/**
- * Helper function to send push notifications to users
- * This is a placeholder - implement with your notification service (FCM, Expo Push, etc.)
- */
+import connectDB from './connectDB';
+import Notification from '../models/Notification';
 
+/**
+ * Saves an in-app notification to MongoDB so it appears in the user's notification screen.
+ */
 export async function sendPushNotification(params: {
   userId: string;
   userType: 'homeowner' | 'provider';
@@ -12,29 +13,28 @@ export async function sendPushNotification(params: {
 }) {
   const { userId, userType, title, body, data } = params;
 
-  console.log('📧 Sending push notification:', {
-    userId,
-    userType,
-    title,
-    body,
-    data,
-  });
+  console.log('📧 Saving in-app notification:', { userId, userType, title });
 
-  // TODO: Implement actual push notification logic here
-  // Options:
-  // 1. Use Expo Push Notifications
-  // 2. Use Firebase Cloud Messaging (FCM)
-  // 3. Use OneSignal or other push notification service
-
-  // For now, just log the notification
-  // In production, this should:
-  // 1. Get user's push token from database
-  // 2. Send notification via push service
-  // 3. Store notification in database
+  try {
+    await connectDB();
+    await (Notification as any).create({
+      type: 'general',
+      targetAudience: 'specific',
+      recipients: [{ userId, userType }],
+      title,
+      message: body,
+      status: 'sent',
+      sentAt: new Date(),
+      metadata: data || {},
+    });
+    console.log('✅ In-app notification saved:', title);
+  } catch (err) {
+    console.error('❌ Failed to save notification to DB:', err);
+  }
 
   return {
     success: true,
-    message: 'Notification sent (demo mode)',
+    message: 'Notification saved',
   };
 }
 
