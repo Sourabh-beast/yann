@@ -5,7 +5,7 @@ import { useRouter, usePathname } from 'next/navigation';
 import {
     Activity, Users, Briefcase, ClipboardList, Menu, X, LogOut,
     AlertTriangle, DollarSign, Package, Settings, BarChart3, Star,
-    Bell, Gift, HeadphonesIcon, FileText, PhoneCall
+    Bell, Gift, HeadphonesIcon, FileText, PhoneCall, ShieldCheck
 } from 'lucide-react';
 
 const sidebarItems = [
@@ -14,6 +14,7 @@ const sidebarItems = [
     { label: 'Services', href: '/admin/services', icon: Package },
     { label: 'Service Providers', href: '/admin/providers', icon: Briefcase },
     { label: 'Service Requests', href: '/admin/service-requests', icon: AlertTriangle },
+    { label: 'Identity Verification', href: '/admin/identity-verification', icon: ShieldCheck },
     { label: 'Homeowners', href: '/admin/homeowners', icon: Users },
     { label: 'Call Requests', href: '/admin/call-requests', icon: PhoneCall },
     { label: 'Bookings', href: '/admin/bookings', icon: ClipboardList },
