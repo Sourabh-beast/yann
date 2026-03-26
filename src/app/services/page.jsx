@@ -1,12 +1,12 @@
-import React from 'react'
-import ServicesPage from '@/components/services/ServicesHero-OLD'
+import React from 'react';
+import Services from '@/components/Services';
 
 const page = () => {
   return (
-    <>
-      <ServicesPage />
-    </>
-  )
-}
+    <main className="min-h-screen bg-white">
+      <Services />
+    </main>
+  );
+};
 
-export default page
+export default page;

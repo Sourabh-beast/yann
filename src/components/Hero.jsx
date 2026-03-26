@@ -38,13 +38,6 @@ const Hero = () => {
       gradient: "from-green-600 to-teal-600",
       category: "maid"
     },
-    {
-      title: "Baby Sitting Services",
-      subtitle: "Care You Can Trust",
-      description: "Experienced and caring babysitters for your little ones. Background-verified professionals who treat your child like family.",
-      gradient: "from-pink-600 to-purple-600",
-      category: "maid"
-    },
   ];
 
   useEffect(() => {
@@ -90,12 +83,6 @@ const Hero = () => {
       label: 'Gardening',
       color: 'from-green-500 to-green-600',
       description: 'Lawn & plant care'
-    },
-    { 
-      icon: 'M14.828 14.828a4 4 0 01-5.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z', 
-      label: 'Baby Sitting',
-      color: 'from-pink-500 to-pink-600',
-      description: 'Caring for your little ones'
     },
   ];
 

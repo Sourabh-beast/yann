@@ -30,7 +30,6 @@ const CACHEABLE_GET_ROUTES = [
 // Admin GET routes - shorter cache, private
 const CACHEABLE_ADMIN_ROUTES = [
   { path: '/api/admin/stats', maxAge: 300, swr: 600 },         // 5 min cache
-  { path: '/api/admin/services', maxAge: 600, swr: 1200 },     // 10 min cache
   { path: '/api/admin/providers', maxAge: 60, swr: 300 },      // 1 min cache
 ];
 

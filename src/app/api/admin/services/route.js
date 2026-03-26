@@ -54,8 +54,9 @@ export async function GET(request) {
       }
     }, {
       headers: {
-        'Cache-Control': 'private, s-maxage=600, stale-while-revalidate=1200',
-        'CDN-Cache-Control': 'private, max-age=600',
+        'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate',
+        'Pragma': 'no-cache',
+        'Expires': '0',
       }
     });
   } catch (error) {

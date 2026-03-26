@@ -20,6 +20,7 @@ export default function ServicesManagementPage() {
   const [editingService, setEditingService] = useState(null);
   const [deleteConfirm, setDeleteConfirm] = useState(null);
   const [saving, setSaving] = useState(false);
+  const [notice, setNotice] = useState(null);
 
   const EXPERIENCE_RANGES = [
     { label: '0-5', minYears: 0, maxYears: 5 },
@@ -42,10 +43,22 @@ export default function ServicesManagementPage() {
       return {
         minYears: range.minYears,
         maxYears: range.maxYears,
-        maxPrice: match ? Number(match.maxPrice) || 0 : 0,
+        maxPrice: String(match ? Number(match.maxPrice) || 0 : 0),
         label: range.label,
       };
     });
+  };
+
+  const sanitizeNumericInput = (value) => {
+    const digitsOnly = String(value ?? '').replace(/\D/g, '');
+    if (!digitsOnly) return '';
+    return digitsOnly.replace(/^0+(?=\d)/, '');
+  };
+
+  const blockInvalidNumericKeys = (e) => {
+    if (['-', '+', 'e', 'E', '.'].includes(e.key)) {
+      e.preventDefault();
+    }
   };
 
   // Form state
@@ -66,6 +79,16 @@ export default function ServicesManagementPage() {
     tags: ''
   });
 
+  const pushNotice = (type, message) => {
+    setNotice({ type, message });
+  };
+
+  useEffect(() => {
+    if (!notice) return;
+    const timer = setTimeout(() => setNotice(null), 3500);
+    return () => clearTimeout(timer);
+  }, [notice]);
+
   useEffect(() => {
     fetchServices();
   }, [searchTerm, categoryFilter, statusFilter]);
@@ -78,14 +101,22 @@ export default function ServicesManagementPage() {
       if (categoryFilter) params.append('category', categoryFilter);
       if (statusFilter) params.append('status', statusFilter);
 
-      const res = await fetch(`/api/admin/services?${params}`);
+      const res = await fetch(`/api/admin/services?${params}`, {
+        cache: 'no-store',
+        headers: {
+          'Cache-Control': 'no-cache'
+        }
+      });
       const data = await res.json();
       if (data.success) {
         setServices(data.data.services);
         setCategories(data.data.categories);
+      } else {
+        pushNotice('error', data.message || 'Unable to load services');
       }
     } catch (error) {
       console.error('Error fetching services:', error);
+      pushNotice('error', 'Failed to fetch services');
     } finally {
       setLoading(false);
     }
@@ -138,12 +169,12 @@ export default function ServicesManagementPage() {
     try {
       const payload = {
         ...formData,
-        features: formData.features.split('\n').filter(f => f.trim()),
+        features: formData.features.split('\n').map(f => f.trim()).filter(Boolean),
         tags: formData.tags.split(',').map(t => t.trim()).filter(t => t),
         experiencePriceLimits: (formData.experiencePriceLimits || []).map(limit => ({
           minYears: Number(limit.minYears) || 0,
           maxYears: limit.maxYears === null || limit.maxYears === undefined ? null : Number(limit.maxYears),
-          maxPrice: Number(limit.maxPrice) || 0
+          maxPrice: Number(sanitizeNumericInput(limit.maxPrice)) || 0
         }))
       };
 
@@ -154,20 +185,37 @@ export default function ServicesManagementPage() {
       const res = await fetch('/api/admin/services', {
         method: editingService ? 'PUT' : 'POST',
         headers: { 'Content-Type': 'application/json' },
+        cache: 'no-store',
         body: JSON.stringify(payload)
       });
 
       const data = await res.json();
       if (data.success) {
+        const savedService = data.data;
+
+        if (editingService && savedService?._id) {
+          setServices(prev => prev.map(service => service._id === savedService._id ? savedService : service));
+        } else if (savedService?._id) {
+          setServices(prev => [savedService, ...prev]);
+        }
+
+        if (savedService?.category) {
+          setCategories(prev => {
+            if (prev.includes(savedService.category)) return prev;
+            return [...prev, savedService.category].sort();
+          });
+        }
+
         setModalOpen(false);
+        setEditingService(null);
+        pushNotice('success', editingService ? 'Service updated successfully' : 'Service created successfully');
         fetchServices();
-        alert(editingService ? '✅ Service updated!' : '✅ Service created!');
       } else {
-        alert('❌ ' + data.message);
+        pushNotice('error', data.message || 'Failed to save service');
       }
     } catch (error) {
       console.error('Error saving service:', error);
-      alert('❌ Failed to save service');
+      pushNotice('error', 'Failed to save service');
     } finally {
       setSaving(false);
     }
@@ -176,19 +224,21 @@ export default function ServicesManagementPage() {
   const handleDelete = async (id) => {
     try {
       const res = await fetch(`/api/admin/services?id=${id}`, {
-        method: 'DELETE'
+        method: 'DELETE',
+        cache: 'no-store'
       });
       const data = await res.json();
       if (data.success) {
         setDeleteConfirm(null);
+        setServices(prev => prev.filter(service => service._id !== id));
         fetchServices();
-        alert('✅ Service deleted!');
+        pushNotice('success', 'Service deleted successfully');
       } else {
-        alert('❌ ' + data.message);
+        pushNotice('error', data.message || 'Failed to delete service');
       }
     } catch (error) {
       console.error('Error deleting service:', error);
-      alert('❌ Failed to delete service');
+      pushNotice('error', 'Failed to delete service');
     }
   };
 
@@ -197,24 +247,43 @@ export default function ServicesManagementPage() {
       const res = await fetch('/api/admin/services', {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
+        cache: 'no-store',
         body: JSON.stringify({ id: service._id, isActive: !service.isActive })
       });
       const data = await res.json();
       if (data.success) {
+        if (data.data?._id) {
+          setServices(prev => prev.map(item => item._id === data.data._id ? data.data : item));
+        }
         fetchServices();
+        pushNotice('success', `Service ${data.data?.isActive ? 'activated' : 'deactivated'} successfully`);
       }
     } catch (error) {
       console.error('Error toggling service:', error);
+      pushNotice('error', 'Failed to update service status');
     }
   };
 
   return (
     <>
+        {notice && (
+          <div className="fixed top-6 left-1/2 -translate-x-1/2 z-[60] px-4">
+            <div className={`w-max max-w-[calc(100vw-2rem)] rounded-2xl px-4 py-3 shadow-xl border backdrop-blur-sm ${
+              notice.type === 'success'
+                ? 'bg-emerald-50/95 border-emerald-200 text-emerald-800'
+                : 'bg-red-50/95 border-red-200 text-red-800'
+            }`}>
+              <p className="text-sm font-semibold">{notice.message}</p>
+            </div>
+          </div>
+        )}
+
         {/* Header */}
         <header className="mb-8 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
           <div>
             <h2 className="text-3xl font-bold text-gray-900 mb-2">Services Management</h2>
             <p className="text-gray-600">Add, edit, and manage all services on the platform.</p>
+            <p className="text-xs text-gray-500 mt-1">Edits are saved directly to database and reflected instantly.</p>
           </div>
           <button
             onClick={openCreateModal}
@@ -449,9 +518,20 @@ export default function ServicesManagementPage() {
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Base Price (₹)</label>
                   <input
-                    type="number"
+                    type="text"
+                    inputMode="numeric"
+                    pattern="[0-9]*"
                     value={formData.basePrice}
-                    onChange={(e) => setFormData({...formData, basePrice: parseInt(e.target.value) || 0})}
+                    onKeyDown={blockInvalidNumericKeys}
+                    onChange={(e) => {
+                      const value = sanitizeNumericInput(e.target.value);
+                      setFormData({ ...formData, basePrice: value === '' ? '' : value });
+                    }}
+                    onBlur={() => {
+                      const safeValue = Number(sanitizeNumericInput(formData.basePrice)) || 0;
+                      setFormData({ ...formData, basePrice: safeValue });
+                    }}
+                    onWheel={(e) => e.currentTarget.blur()}
                     className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500"
                   />
                 </div>
@@ -469,14 +549,24 @@ export default function ServicesManagementPage() {
                         </div>
                         <div className="px-4 py-2">
                           <input
-                            type="number"
-                            value={limit.maxPrice}
+                            type="text"
+                            inputMode="numeric"
+                            pattern="[0-9]*"
+                            value={sanitizeNumericInput(limit.maxPrice)}
+                            onKeyDown={blockInvalidNumericKeys}
                             onChange={(e) => {
-                              const value = parseInt(e.target.value) || 0;
+                              const value = sanitizeNumericInput(e.target.value);
                               const updated = [...(formData.experiencePriceLimits || [])];
                               updated[idx] = { ...updated[idx], maxPrice: value };
                               setFormData({ ...formData, experiencePriceLimits: updated });
                             }}
+                            onBlur={() => {
+                              const updated = [...(formData.experiencePriceLimits || [])];
+                              const current = sanitizeNumericInput(updated[idx]?.maxPrice);
+                              updated[idx] = { ...updated[idx], maxPrice: current === '' ? '0' : current };
+                              setFormData({ ...formData, experiencePriceLimits: updated });
+                            }}
+                            onWheel={(e) => e.currentTarget.blur()}
                             className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                           />
                         </div>
@@ -490,9 +580,20 @@ export default function ServicesManagementPage() {
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Duration (minutes)</label>
                 <input
-                  type="number"
+                  type="text"
+                  inputMode="numeric"
+                  pattern="[0-9]*"
                   value={formData.estimatedDuration}
-                  onChange={(e) => setFormData({...formData, estimatedDuration: parseInt(e.target.value) || 60})}
+                  onKeyDown={blockInvalidNumericKeys}
+                  onChange={(e) => {
+                    const value = sanitizeNumericInput(e.target.value);
+                    setFormData({ ...formData, estimatedDuration: value === '' ? '' : value });
+                  }}
+                  onBlur={() => {
+                    const safeValue = Number(sanitizeNumericInput(formData.estimatedDuration)) || 60;
+                    setFormData({ ...formData, estimatedDuration: safeValue });
+                  }}
+                  onWheel={(e) => e.currentTarget.blur()}
                   className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500"
                 />
               </div>
