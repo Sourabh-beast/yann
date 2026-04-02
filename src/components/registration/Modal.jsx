@@ -34,6 +34,8 @@ export default function ServiceProviderRegistration({ isOpen, onClose }) {
     'Laundry Services': 2000,
     'Pujari Services': 25000,
     'Driver Services': 2000,
+    'Electrical Services': 4000,
+    'Home Appliance Repair': 12000,
     'Other Services': 10000
   };
 
@@ -81,6 +83,36 @@ export default function ServiceProviderRegistration({ isOpen, onClose }) {
     'Driver Services': [
       'Full-Day Personal Driver',
       'Outstation Driving Service'
+    ],
+    'Electrical Services': [
+      'Light Fitting',
+      'Fan Fitting',
+      'Fan Repair',
+      'Switch and Socket Repair',
+      'Short Circuit Troubleshooting',
+      'MCB and Fuse Repair',
+      'Wiring and Rewiring',
+      'Water Pump Repair',
+      'Starter Repair',
+      'Cooler Repair',
+    ],
+    'Home Appliance Repair': [
+      'AC Service and Repair',
+      'Window AC Installation',
+      'Split AC Installation',
+      'Window AC Service',
+      'Split AC Service',
+      'Window AC Water Leakage',
+      'Split AC Water Leakage',
+      'AC Noise and Start Issue',
+      'Refrigerator Repair',
+      'Washing Machine Repair',
+      'Microwave Repair',
+      'LCD/LED TV Repair',
+      'Music System Repair',
+      'Induction Cooktop Repair',
+      'Iron Repair',
+      'Juicer Mixer Grinder Repair',
     ],
     'Other Services': [
       'Other',

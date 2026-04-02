@@ -8,6 +8,17 @@ import {
 } from 'lucide-react';
 
 export default function ServicesManagementPage() {
+  const CATEGORY_HINTS = [
+    'electrical',
+    'appliance-repair',
+    'cleaning',
+    'laundry',
+    'pujari',
+    'driver',
+    'maintenance',
+    'specialty',
+  ];
+
   const [services, setServices] = useState([]);
   const [categories, setCategories] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -474,9 +485,15 @@ export default function ServicesManagementPage() {
                     type="text"
                     value={formData.category}
                     onChange={(e) => setFormData({...formData, category: e.target.value})}
+                    list="service-category-suggestions"
                     className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    placeholder="e.g. cleaning"
+                    placeholder="e.g. electrical or appliance-repair"
                   />
+                  <datalist id="service-category-suggestions">
+                    {[...new Set([...CATEGORY_HINTS, ...categories])].map((cat) => (
+                      <option key={cat} value={cat} />
+                    ))}
+                  </datalist>
                 </div>
               </div>
 

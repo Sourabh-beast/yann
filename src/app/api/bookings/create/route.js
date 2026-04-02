@@ -47,6 +47,36 @@ const SERVICE_CONFIG = {
   'Dry Cleaning Service': { gstRate: 0.18 },
   'Chimney & Exhaust Cleaning': { gstRate: 0.18 },
   'Water Tank Cleaning': { gstRate: 0.18, hasOvertime: true },
+
+  // ===== ELECTRICAL SERVICES (18% GST) =====
+  'Light Fitting': { gstRate: 0.18 },
+  'Fan Fitting': { gstRate: 0.18 },
+  'Fan Repair': { gstRate: 0.18 },
+  'Switch and Socket Repair': { gstRate: 0.18 },
+  'Short Circuit Troubleshooting': { gstRate: 0.18 },
+  'MCB and Fuse Repair': { gstRate: 0.18 },
+  'Wiring and Rewiring': { gstRate: 0.18 },
+  'Water Pump Repair': { gstRate: 0.18 },
+  'Starter Repair': { gstRate: 0.18 },
+  'Cooler Repair': { gstRate: 0.18 },
+
+  // ===== APPLIANCE REPAIR SERVICES (18% GST) =====
+  'AC Service and Repair': { gstRate: 0.18 },
+  'Window AC Installation': { gstRate: 0.18 },
+  'Split AC Installation': { gstRate: 0.18 },
+  'Window AC Service': { gstRate: 0.18 },
+  'Split AC Service': { gstRate: 0.18 },
+  'Window AC Water Leakage': { gstRate: 0.18 },
+  'Split AC Water Leakage': { gstRate: 0.18 },
+  'AC Noise and Start Issue': { gstRate: 0.18 },
+  'Refrigerator Repair': { gstRate: 0.18 },
+  'Washing Machine Repair': { gstRate: 0.18 },
+  'Microwave Repair': { gstRate: 0.18 },
+  'LCD/LED TV Repair': { gstRate: 0.18 },
+  'Music System Repair': { gstRate: 0.18 },
+  'Induction Cooktop Repair': { gstRate: 0.18 },
+  'Iron Repair': { gstRate: 0.18 },
+  'Juicer Mixer Grinder Repair': { gstRate: 0.18 },
 };
 
 // Get GST rate for a service (default 18% if not found)

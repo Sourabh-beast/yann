@@ -32,7 +32,9 @@ const bookingSchema = new mongoose.Schema({
       'security',
       'beauty',
       'events',
-      'office'
+      'office',
+      'electrical',
+      'appliance-repair'
     ]
   },
 

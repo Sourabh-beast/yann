@@ -12,6 +12,8 @@ const DEFAULT_MAX_BY_CATEGORY = {
   laundry: 2000,
   pujari: 25000,
   driver: 2000,
+  electrical: 4000,
+  'appliance-repair': 12000,
   other: 10000
 };
 
@@ -55,6 +57,34 @@ const DEFAULT_MAX_BY_SERVICE = {
 
   'Laundry & Ironing': 1000,
   'Dry Cleaning Service': 1500,
+
+  'Light Fitting': 1200,
+  'Fan Fitting': 1500,
+  'Fan Repair': 2000,
+  'Switch and Socket Repair': 1800,
+  'Short Circuit Troubleshooting': 2500,
+  'MCB and Fuse Repair': 2200,
+  'Wiring and Rewiring': 5000,
+  'Water Pump Repair': 3500,
+  'Starter Repair': 2800,
+  'Cooler Repair': 3000,
+
+  'AC Service and Repair': 5000,
+  'Window AC Installation': 4500,
+  'Split AC Installation': 6000,
+  'Window AC Service': 3500,
+  'Split AC Service': 3800,
+  'Window AC Water Leakage': 4200,
+  'Split AC Water Leakage': 4500,
+  'AC Noise and Start Issue': 4500,
+  'Refrigerator Repair': 5000,
+  'Washing Machine Repair': 5500,
+  'Microwave Repair': 4500,
+  'LCD/LED TV Repair': 7000,
+  'Music System Repair': 5000,
+  'Induction Cooktop Repair': 3500,
+  'Iron Repair': 1800,
+  'Juicer Mixer Grinder Repair': 3000,
 
   'Other': 5000,
 };
@@ -103,6 +133,36 @@ const CATEGORY_SERVICES = {
   driver: [
     'Full-Day Personal Driver',
     'Outstation Driving Service'
+  ],
+  electrical: [
+    'Light Fitting',
+    'Fan Fitting',
+    'Fan Repair',
+    'Switch and Socket Repair',
+    'Short Circuit Troubleshooting',
+    'MCB and Fuse Repair',
+    'Wiring and Rewiring',
+    'Water Pump Repair',
+    'Starter Repair',
+    'Cooler Repair'
+  ],
+  'appliance-repair': [
+    'AC Service and Repair',
+    'Window AC Installation',
+    'Split AC Installation',
+    'Window AC Service',
+    'Split AC Service',
+    'Window AC Water Leakage',
+    'Split AC Water Leakage',
+    'AC Noise and Start Issue',
+    'Refrigerator Repair',
+    'Washing Machine Repair',
+    'Microwave Repair',
+    'LCD/LED TV Repair',
+    'Music System Repair',
+    'Induction Cooktop Repair',
+    'Iron Repair',
+    'Juicer Mixer Grinder Repair'
   ],
   other: [
     'Other'

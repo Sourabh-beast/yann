@@ -55,7 +55,39 @@ const servicesData = [
   // Driver Services (shared with guests)
   { id: 30, name: 'Full-Day Personal Driver', category: 'driver', price: 1000, duration: '10 hours included', rating: 4.9, reviews: 512, image: 'https://img3.exportersindia.com/product_images/bc-full/2020/4/6825337/personal-driver-hire-services-1587207037-5379171.jpg', description: 'Experienced personal driver for city travel (10 hours included). Additional hours billed at double rate.', driverConfig: { baseHours: 10, hourlyRate: 100, overtimeMultiplier: 2 }, noPartner: true },
   { id: 31, name: 'Outstation Driving Service', category: 'driver', price: 1600, duration: '12 hours included', rating: 4.8, reviews: 341, image: 'https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcSU7Cv46ra4TewB-zaeZSKaOcOoDQ92Viqhw0eRUpNvttweH1eY24iDrRp03t9H0AhVFF8&usqp=CAU', description: 'Highway-ready driver for weekend getaways or business travel outside the city. Includes night-halt readiness.', driverConfig: { baseHours: 12, hourlyRate: 130, overtimeMultiplier: 1.75 }, noPartner: true },
+
+  // Electrical Services
+  { id: 42, name: 'Light Fitting', category: 'electrical', price: 499, duration: '45-60 mins', rating: 4.7, reviews: 184, image: 'https://images.unsplash.com/photo-1466611653911-95081537e5b7?w=400&h=300&fit=crop', description: 'Installation and replacement of tube lights, bulbs, panels, and decorative fittings.' },
+  { id: 43, name: 'Fan Fitting', category: 'electrical', price: 599, duration: '45-75 mins', rating: 4.6, reviews: 141, image: 'https://images.unsplash.com/photo-1484154218962-a197022b5858?w=400&h=300&fit=crop', description: 'Ceiling or wall fan fitting with alignment and safety checks.' },
+  { id: 44, name: 'Fan Repair', category: 'electrical', price: 699, duration: '60-90 mins', rating: 4.6, reviews: 123, image: 'https://images.unsplash.com/photo-1582719478250-c89cae4dc85b?w=400&h=300&fit=crop', description: 'Repair for fan noise, speed fluctuation, capacitor, or motor-related issues.' },
+  { id: 45, name: 'Switch and Socket Repair', category: 'electrical', price: 549, duration: '30-60 mins', rating: 4.7, reviews: 199, image: 'https://images.unsplash.com/photo-1558618666-fcd25c85cd64?w=400&h=300&fit=crop', description: 'Fixing damaged switches, sockets, and loose board connections.' },
+  { id: 46, name: 'Short Circuit Troubleshooting', category: 'electrical', price: 899, duration: '60-120 mins', rating: 4.8, reviews: 207, image: 'https://images.unsplash.com/photo-1555963966-b7ae5404b6ed?w=400&h=300&fit=crop', description: 'Diagnosis and quick resolution of trip, spark, and short-circuit issues.' },
+  { id: 47, name: 'MCB and Fuse Repair', category: 'electrical', price: 799, duration: '45-90 mins', rating: 4.6, reviews: 98, image: 'https://images.unsplash.com/photo-1517142089942-ba376ce32a2e?w=400&h=300&fit=crop', description: 'MCB, fuse, and small distribution-board troubleshooting and replacement.' },
+  { id: 48, name: 'Wiring and Rewiring', category: 'electrical', price: 1499, duration: '2-4 hours', rating: 4.7, reviews: 86, image: 'https://images.unsplash.com/photo-1504328345606-18bbc8c9d7d1?w=400&h=300&fit=crop', description: 'Partial or full room rewiring for safer and reliable power distribution.' },
+  { id: 49, name: 'Water Pump Repair', category: 'electrical', price: 999, duration: '1-2 hours', rating: 4.5, reviews: 77, image: 'https://images.unsplash.com/photo-1603791440384-56cd371ee9a7?w=400&h=300&fit=crop', description: 'Repair of domestic water pump electrical faults and startup issues.' },
+  { id: 50, name: 'Starter Repair', category: 'electrical', price: 899, duration: '60-120 mins', rating: 4.5, reviews: 64, image: 'https://images.unsplash.com/photo-1518770660439-4636190af475?w=400&h=300&fit=crop', description: 'Starter panel and control circuit repair for motors and pumps.' },
+  { id: 51, name: 'Cooler Repair', category: 'electrical', price: 799, duration: '1-2 hours', rating: 4.6, reviews: 92, image: 'https://images.unsplash.com/photo-1529167758481-83f550bb49b3?w=400&h=300&fit=crop', description: 'Cooler motor, pump, and electrical line fault repair at home.' },
+
+  // Home Appliance Repair
+  { id: 52, name: 'AC Service and Repair', category: 'appliance-repair', price: 799, duration: '1-2 hours', rating: 4.8, reviews: 312, image: 'https://images.unsplash.com/photo-1556909114-4f56f4b96e38?w=400&h=300&fit=crop', description: 'General AC servicing and fault repair for efficient cooling.' },
+  { id: 53, name: 'Window AC Installation', category: 'appliance-repair', price: 1499, duration: '2-3 hours', rating: 4.6, reviews: 88, image: 'https://images.unsplash.com/photo-1493666438817-866a91353ca9?w=400&h=300&fit=crop', description: 'Professional window AC installation with stability and safety checks.' },
+  { id: 54, name: 'Split AC Installation', category: 'appliance-repair', price: 1899, duration: '2-4 hours', rating: 4.7, reviews: 171, image: 'https://images.unsplash.com/photo-1600566752355-35792bedcfea?w=400&h=300&fit=crop', description: 'Split AC installation with indoor-outdoor unit setup and testing.' },
+  { id: 55, name: 'Window AC Service', category: 'appliance-repair', price: 699, duration: '60-90 mins', rating: 4.5, reviews: 73, image: 'https://images.unsplash.com/photo-1582719478250-c89cae4dc85b?w=400&h=300&fit=crop', description: 'Routine cleaning and performance service for window AC units.' },
+  { id: 56, name: 'Split AC Service', category: 'appliance-repair', price: 749, duration: '60-90 mins', rating: 4.6, reviews: 138, image: 'https://images.unsplash.com/photo-1600210492486-724fe5c67fb0?w=400&h=300&fit=crop', description: 'Deep split AC cleaning and seasonal service for better cooling.' },
+  { id: 57, name: 'Window AC Water Leakage', category: 'appliance-repair', price: 899, duration: '1-2 hours', rating: 4.5, reviews: 54, image: 'https://images.unsplash.com/photo-1552664730-d307ca884978?w=400&h=300&fit=crop', description: 'Leakage diagnosis and drain correction for window AC.' },
+  { id: 58, name: 'Split AC Water Leakage', category: 'appliance-repair', price: 949, duration: '1-2 hours', rating: 4.5, reviews: 62, image: 'https://images.unsplash.com/photo-1600585154526-990dced4db0d?w=400&h=300&fit=crop', description: 'Indoor leakage and drain line issue repair for split AC.' },
+  { id: 59, name: 'AC Noise and Start Issue', category: 'appliance-repair', price: 999, duration: '1-2 hours', rating: 4.6, reviews: 81, image: 'https://images.unsplash.com/photo-1513364776144-60967b0f800f?w=400&h=300&fit=crop', description: 'Compressor/startup/noise issue diagnostics and repair.' },
+  { id: 60, name: 'Refrigerator Repair', category: 'appliance-repair', price: 899, duration: '1-2 hours', rating: 4.7, reviews: 204, image: 'https://images.unsplash.com/photo-1584568694244-14fbdf83bd30?w=400&h=300&fit=crop', description: 'Cooling, thermostat, and electrical repairs for refrigerators.' },
+  { id: 61, name: 'Washing Machine Repair', category: 'appliance-repair', price: 999, duration: '1-2 hours', rating: 4.7, reviews: 179, image: 'https://images.unsplash.com/photo-1626806787461-102c1bfaaea1?w=400&h=300&fit=crop', description: 'Motor, drum, and drainage issue repair for washing machines.' },
+  { id: 62, name: 'Microwave Repair', category: 'appliance-repair', price: 799, duration: '45-90 mins', rating: 4.5, reviews: 66, image: 'https://images.unsplash.com/photo-1574269909862-7e1d70bb8078?w=400&h=300&fit=crop', description: 'Microwave not heating or panel issue troubleshooting and repair.' },
+  { id: 63, name: 'LCD/LED TV Repair', category: 'appliance-repair', price: 1199, duration: '1-2 hours', rating: 4.6, reviews: 103, image: 'https://images.unsplash.com/photo-1593784991095-a205069470b6?w=400&h=300&fit=crop', description: 'Display, power, and audio issue repair for LCD/LED TVs.' },
+  { id: 64, name: 'Music System Repair', category: 'appliance-repair', price: 899, duration: '1-2 hours', rating: 4.4, reviews: 47, image: 'https://images.unsplash.com/photo-1511379938547-c1f69419868d?w=400&h=300&fit=crop', description: 'Speaker, amplifier, and power board diagnosis and repair.' },
+  { id: 65, name: 'Induction Cooktop Repair', category: 'appliance-repair', price: 699, duration: '45-90 mins', rating: 4.5, reviews: 58, image: 'https://images.unsplash.com/photo-1556911220-bff31c812dba?w=400&h=300&fit=crop', description: 'Induction not heating or display issue repair.' },
+  { id: 66, name: 'Iron Repair', category: 'appliance-repair', price: 399, duration: '30-45 mins', rating: 4.3, reviews: 39, image: 'https://images.unsplash.com/photo-1582735689369-4fe89db7114c?w=400&h=300&fit=crop', description: 'Electric iron heating, switch, and cable related repairs.' },
+  { id: 67, name: 'Juicer Mixer Grinder Repair', category: 'appliance-repair', price: 599, duration: '45-75 mins', rating: 4.4, reviews: 71, image: 'https://images.unsplash.com/photo-1570222094114-d054a817e56b?w=400&h=300&fit=crop', description: 'JMG motor, jar lock, and blade assembly repair services.' },
 ];
+
+const ACTIVE_BOOKABLE_CATEGORIES = ['driver', 'pujari', 'electrical', 'appliance-repair'];
 
 const currency = new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 });
 const normalizeServiceName = (name = '') => name.trim().toLowerCase();
@@ -1502,7 +1534,7 @@ const ServiceCard = ({ service, onBook, isFavorite, onToggleFavorite, startingPr
   const [localQuote, setLocalQuote] = useState(null);
   const [localProviderCount, setLocalProviderCount] = useState(0);
   const [fetchAttempted, setFetchAttempted] = useState(false);
-  const isActive = service.category === 'driver' || service.category === 'pujari';
+  const isActive = ACTIVE_BOOKABLE_CATEGORIES.includes(service.category);
 
   useEffect(() => {
     if (!isActive || fetchAttempted) return;
@@ -1782,7 +1814,7 @@ export default function MyServicesPage() {
     const activeServices = [];
     const inactiveServices = [];
     sorted.forEach(service => {
-      if (service.category === 'driver' || service.category === 'pujari') {
+      if (ACTIVE_BOOKABLE_CATEGORIES.includes(service.category)) {
         activeServices.push(service);
       } else {
         inactiveServices.push(service);
@@ -1802,6 +1834,8 @@ export default function MyServicesPage() {
     { id: 'carpet', name: 'Carpet & Upholstery', count: servicesData.filter(s => s.category === 'carpet').length, icon: Star },
     { id: 'window', name: 'Window Cleaning', count: servicesData.filter(s => s.category === 'window').length, icon: Sparkles },
     { id: 'move', name: 'Move In/Out', count: servicesData.filter(s => s.category === 'move').length, icon: Award },
+    { id: 'electrical', name: 'Electrical Services', count: servicesData.filter(s => s.category === 'electrical').length, icon: Zap },
+    { id: 'appliance-repair', name: 'Home Appliance Repair', count: servicesData.filter(s => s.category === 'appliance-repair').length, icon: Briefcase },
     { id: 'pujari', name: 'Pujari Services', count: servicesData.filter(s => s.category === 'pujari').length, icon: Sparkles },
     { id: 'driver', name: 'Driver Services', count: servicesData.filter(s => s.category === 'driver').length, icon: Car },
     { id: 'specialty', name: 'Specialty Services', count: servicesData.filter(s => s.category === 'specialty').length, icon: Zap },
