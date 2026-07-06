@@ -6,7 +6,11 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 const nextConfig = {
-    // output: 'export', // Reverted: API routes require dynamic server/serverless (not static export)
+    // NOTE: do not set output to the s-t-a-t-i-c e-x-p-o-r-t value here (even
+    // commented out) - some hosting build tools (e.g. Railway/Railpack) scan
+    // this file as plain text for that literal string to decide whether to
+    // serve a static export instead of running the Next.js server, and don't
+    // distinguish a comment from active config. API routes need the server.
     // trailingSlash: true, // Optional
     images: {
         // unoptimized: true, // Only needed for static export
