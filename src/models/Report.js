@@ -48,4 +48,9 @@ const reportSchema = new mongoose.Schema(
     { timestamps: true }
 );
 
+// Indexes
+reportSchema.index({ status: 1, createdAt: -1 });
+reportSchema.index({ reportedId: 1, reportedModel: 1 });
+reportSchema.index({ bookingId: 1 });
+
 export default mongoose.models.Report || mongoose.model("Report", reportSchema);

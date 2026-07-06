@@ -6,6 +6,7 @@ import Review from '@/models/Review';
 import Booking from '@/models/Booking';
 import ServiceProvider from '@/models/ServiceProvider';
 import Homeowner from '@/models/Homeowner';
+import { validateInput, reviewCreateSchema } from '@/lib/validation';
 
 const HOMEOWNER_COOKIE = 'yann_session';
 
@@ -63,22 +64,16 @@ export async function POST(request) {
         }
 
         const body = await request.json();
-        const { bookingId, rating, comment, photos } = body;
 
-        // Validation
-        if (!bookingId || !rating) {
+        const validation = validateInput(body, reviewCreateSchema);
+        if (!validation.success) {
             return NextResponse.json(
-                { success: false, message: 'Booking ID and rating are required' },
+                { success: false, message: validation.message || 'Booking ID and a rating between 1 and 5 are required', errors: validation.errors },
                 { status: 400 }
             );
         }
 
-        if (rating < 1 || rating > 5) {
-            return NextResponse.json(
-                { success: false, message: 'Rating must be between 1 and 5' },
-                { status: 400 }
-            );
-        }
+        const { bookingId, rating, comment, photos } = validation.data;
 
         // Find the booking
         const booking = await Booking.findById(bookingId);
@@ -123,7 +118,7 @@ export async function POST(request) {
         }
 
         // Get homeowner details
-        const homeowner = await Homeowner.findById(decoded.id);
+        const homeowner = await Homeowner.findById(decoded.id).lean();
 
         // Create review
         const review = await Review.create({
@@ -148,12 +143,15 @@ export async function POST(request) {
         // Update provider's rating
         const provider = await ServiceProvider.findById(booking.assignedProvider);
         if (provider) {
-            const reviews = await Review.find({ provider: provider._id, status: 'approved' });
-            const totalRating = reviews.reduce((sum, r) => sum + r.rating, 0);
-            const avgRating = totalRating / reviews.length;
+            // Compute avg/count via aggregation instead of loading every review
+            // document into memory (was unbounded Review.find + JS reduce).
+            const [ratingAgg] = await Review.aggregate([
+                { $match: { provider: provider._id, status: 'approved' } },
+                { $group: { _id: null, avgRating: { $avg: '$rating' }, count: { $sum: 1 } } }
+            ]).option({ maxTimeMS: 5000 });
 
-            provider.rating = Math.round(avgRating * 10) / 10; // Round to 1 decimal
-            provider.totalReviews = reviews.length;
+            provider.rating = Math.round((ratingAgg?.avgRating || 0) * 10) / 10; // Round to 1 decimal
+            provider.totalReviews = ratingAgg?.count || 0;
             await provider.save();
 
             console.log(`Updated provider ${provider.name} rating: ${provider.rating} (${provider.totalReviews} reviews)`);

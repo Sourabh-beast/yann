@@ -76,7 +76,10 @@ export async function GET() {
     return homeowner;
   }
 
-  const requests = await ResidentRequest.find({ homeowner: homeowner._id }).sort({ createdAt: -1 });
+  const requests = await ResidentRequest.find({ homeowner: homeowner._id })
+    .sort({ createdAt: -1 })
+    .limit(200)
+    .lean();
 
   return NextResponse.json({
     success: true,

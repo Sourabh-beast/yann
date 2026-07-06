@@ -98,6 +98,31 @@ export const otpSchema = z.object({
 });
 
 /**
+ * Review creation schema - mirrors the bounds already enforced manually in
+ * the route (rating 1-5), so this doesn't reject anything that previously passed.
+ */
+export const reviewCreateSchema = z.object({
+    bookingId: z.string().min(1),
+    // z.coerce so a numeric-string rating (e.g. "5") still passes, matching
+    // the previous manual check's `<`/`>` comparisons which coerced too.
+    rating: z.coerce.number().min(1).max(5),
+    comment: z.string().max(2000).optional().default(''),
+    photos: z.array(z.string()).optional()
+}).passthrough();
+
+/**
+ * Call request schemas
+ */
+export const callRequestCreateSchema = z.object({
+    phoneNumber: z.string().min(1).max(20)
+}).passthrough();
+
+export const callRequestUpdateSchema = z.object({
+    id: objectIdSchema,
+    status: z.enum(['pending', 'called', 'resolved', 'cancelled'])
+}).passthrough();
+
+/**
  * Provider profile update schema
  */
 export const providerProfileSchema = z.object({

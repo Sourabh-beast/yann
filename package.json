@@ -22,6 +22,7 @@
     "mongoose": "^8.18.2",
     "next": "15.5.9",
     "nodemailer": "^7.0.9",
+    "pino": "^10.3.1",
     "railway": "^2.0.17",
     "razorpay": "^2.9.6",
     "react": "19.1.0",

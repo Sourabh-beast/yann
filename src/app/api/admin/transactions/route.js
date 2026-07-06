@@ -43,15 +43,32 @@ export async function GET(request) {
       .limit(limit)
       .populate('customerId', 'name email phone')
       .populate('providerId', 'name email phone')
-      .populate('bookingId', 'serviceName totalPrice status');
+      .populate('bookingId', 'serviceName totalPrice status')
+      .lean();
 
-    // Calculate totals
-    const allTransactions = await Transaction.find(query);
+    // Calculate totals via aggregation instead of loading every matching
+    // transaction into memory just to sum/filter/count in JS.
+    const [totalsAgg] = await Transaction.aggregate([
+      { $match: query },
+      {
+        $group: {
+          _id: null,
+          totalAmount: { $sum: { $ifNull: ['$amount', 0] } },
+          totalCommission: { $sum: { $ifNull: ['$commissionAmount', 0] } },
+          totalRefunds: {
+            $sum: { $cond: [{ $eq: ['$type', 'refund'] }, { $ifNull: ['$amount', 0] }, 0] }
+          },
+          totalDisputed: {
+            $sum: { $cond: [{ $eq: ['$dispute.isDisputed', true] }, 1, 0] }
+          }
+        }
+      }
+    ]).option({ maxTimeMS: 5000 });
     const totals = {
-      totalAmount: allTransactions.reduce((sum, t) => sum + (t.amount || 0), 0),
-      totalCommission: allTransactions.reduce((sum, t) => sum + (t.commissionAmount || 0), 0),
-      totalRefunds: allTransactions.filter(t => t.type === 'refund').reduce((sum, t) => sum + (t.amount || 0), 0),
-      totalDisputed: allTransactions.filter(t => t.dispute?.isDisputed).length
+      totalAmount: totalsAgg?.totalAmount || 0,
+      totalCommission: totalsAgg?.totalCommission || 0,
+      totalRefunds: totalsAgg?.totalRefunds || 0,
+      totalDisputed: totalsAgg?.totalDisputed || 0
     };
 
     return NextResponse.json({

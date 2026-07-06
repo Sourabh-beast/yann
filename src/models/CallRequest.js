@@ -20,4 +20,8 @@ const callRequestSchema = new mongoose.Schema(
     { timestamps: true }
 );
 
+// Indexes
+callRequestSchema.index({ status: 1, createdAt: -1 });
+callRequestSchema.index({ phoneNumber: 1 });
+
 export default mongoose.models.CallRequest || mongoose.model("CallRequest", callRequestSchema);

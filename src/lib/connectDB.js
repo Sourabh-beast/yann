@@ -1,26 +1,48 @@
 import mongoose from "mongoose";
+import logger from "./logger";
 
-let isConnected = false; // global connection flag
+// Cache the connection promise on `global` so it survives serverless module
+// reuse across warm invocations, and so concurrent cold-start requests await
+// the same in-flight connect() instead of racing to open separate ones.
+let cached = global.mongoose;
+
+if (!cached) {
+  cached = global.mongoose = { conn: null, promise: null };
+}
 
 const connectDB = async () => {
-  if (isConnected) {
-    console.log("✅ MongoDB already connected");
-    return;
+  if (cached.conn) {
+    return cached.conn;
+  }
+
+  if (!cached.promise) {
+    const opts = {
+      dbName: "YannDB",
+      bufferCommands: false,
+      // Small per-instance pool: Vercel can scale to many concurrent function
+      // instances, each holding its own pool, so this must stay well under
+      // the Atlas tier's total connection ceiling (e.g. ~1500 on M10).
+      maxPoolSize: 5,
+      maxIdleTimeMS: 10000,
+      serverSelectionTimeoutMS: 10000,
+      socketTimeoutMS: 45000,
+    };
+
+    cached.promise = mongoose.connect(process.env.MONGODB_URI, opts).then((mongooseInstance) => {
+      logger.info({ host: mongooseInstance.connection.host }, "MongoDB connected");
+      return mongooseInstance;
+    });
   }
 
   try {
-    const conn = await mongoose.connect(process.env.MONGODB_URI, {
-      dbName: "YannDB", // optional: replace with your actual DB name
-      // Note: useNewUrlParser and useUnifiedTopology are deprecated in MongoDB Driver 4.0+
-      // These options are no longer needed and have no effect
-    });
-
-    isConnected = true;
-    console.log("✅ MongoDB connected:", conn.connection.host);
+    cached.conn = await cached.promise;
   } catch (error) {
-    console.error("❌ MongoDB connection error:", error);
+    cached.promise = null;
+    logger.error({ err: error }, "MongoDB connection error");
     throw new Error("Failed to connect to MongoDB");
   }
+
+  return cached.conn;
 };
 
 export default connectDB;

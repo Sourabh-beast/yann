@@ -31,97 +31,91 @@ export async function GET(req) {
             .limit(100)
             .lean();
 
-        // Enrich with provider details and booking stats
-        const enrichedWithdrawals = await Promise.all(
-          withdrawals.map(async (withdrawal) => {
-            // Get provider details
-            const provider = await ServiceProvider.findById(withdrawal.providerId)
-              .select('name phone email wallet services rating totalJobs documents')
-              .lean();
+        // Batch-fetch providers and booking stats for all withdrawals in this
+        // page instead of per-withdrawal queries (was up to 5 queries x 100
+        // withdrawals = 500 queries per request).
+        const rawProviderIds = withdrawals.map((w) => w.providerId).filter(Boolean);
+        const providerIdStrings = rawProviderIds.map((id) => (id.toString ? id.toString() : String(id)));
+        // Booking.providerId has been observed stored as both ObjectId and string
+        // across records, so match both forms (mirrors the original per-item $or).
+        const matchProviderIds = [...rawProviderIds, ...providerIdStrings];
 
-            if (!provider) {
-              return { ...withdrawal, provider: null, bookingStats: null };
-            }
-
-            // Get provider's booking statistics
-            const providerIdForQuery = withdrawal.providerId.toString ? withdrawal.providerId.toString() : withdrawal.providerId;
-            
-            const [totalBookings, completedBookings, totalEarnings, recentBookings] = await Promise.all([
-              Booking.countDocuments({ 
-                $or: [
-                  { providerId: withdrawal.providerId },
-                  { providerId: providerIdForQuery }
-                ]
-              }),
-              Booking.countDocuments({ 
-                $or: [
-                  { providerId: withdrawal.providerId, status: 'completed' },
-                  { providerId: providerIdForQuery, status: 'completed' }
-                ]
-              }),
-              Booking.aggregate([
-                { 
-                  $match: { 
-                    $or: [
-                      { providerId: withdrawal.providerId, status: 'completed' },
-                      { providerId: providerIdForQuery, status: 'completed' }
-                    ]
-                  } 
+        const [providers, bookingStatsAgg] = await Promise.all([
+          ServiceProvider.find({ _id: { $in: rawProviderIds } })
+            .select('name phone email wallet services rating totalJobs documents')
+            .lean(),
+          Booking.aggregate([
+            { $match: { providerId: { $in: matchProviderIds } } },
+            // Normalize providerId to string before grouping so the same
+            // provider's bookings aren't split across ObjectId/string variants.
+            { $addFields: { providerIdStr: { $toString: '$providerId' } } },
+            { $sort: { createdAt: -1 } },
+            {
+              $group: {
+                _id: '$providerIdStr',
+                totalBookings: { $sum: 1 },
+                completedBookings: {
+                  $sum: { $cond: [{ $eq: ['$status', 'completed'] }, 1, 0] },
                 },
-                { $group: { _id: null, total: { $sum: '$payment.amount' } } }
-              ]),
-              Booking.find({ 
-                $or: [
-                  { providerId: withdrawal.providerId },
-                  { providerId: providerIdForQuery }
-                ]
-              })
-                .sort({ createdAt: -1 })
-                .limit(5)
-                .select('serviceType status payment.amount createdAt completedAt')
-                .lean()
-            ]);
+                totalEarnings: {
+                  $sum: { $cond: [{ $eq: ['$status', 'completed'] }, '$payment.amount', 0] },
+                },
+                recentBookings: {
+                  $push: {
+                    serviceType: '$serviceType',
+                    status: '$status',
+                    payment: { amount: '$payment.amount' },
+                    createdAt: '$createdAt',
+                    completedAt: '$completedAt',
+                  },
+                },
+              },
+            },
+            { $project: { totalBookings: 1, completedBookings: 1, totalEarnings: 1, recentBookings: { $slice: ['$recentBookings', 5] } } },
+          ]).option({ maxTimeMS: 5000 }),
+        ]);
 
-            const enrichedData = {
-              ...withdrawal,
-              provider: {
-                _id: provider._id,
-                name: provider.name,
-                phone: provider.phone,
-                email: provider.email,
-                currentBalance: provider.wallet?.balance || 0,
-                rating: provider.rating,
-                totalJobs: provider.totalJobs,
-                services: provider.services,
-                bankDetails: provider.documents?.bankDetails
-                  ? {
-                      accountNumber: `****${provider.documents.bankDetails.accountNumber.slice(-4)}`,
-                      ifscCode: provider.documents.bankDetails.ifscCode,
-                      bankName: provider.documents.bankDetails.bankName,
-                      fullAccountNumber: provider.documents.bankDetails.accountNumber, // For admin
-                    }
-                  : null,
-              },
-              bookingStats: {
-                totalBookings,
-                completedBookings,
-                totalEarnings: totalEarnings[0]?.total || 0,
-                recentBookings,
-              },
-            };
-            
-            console.log('🔍 Backend withdrawal data:', {
-              _id: withdrawal._id,
-              amount: withdrawal.amount,
-              commissionAmount: withdrawal.commissionAmount,
-              providerAmount: withdrawal.providerAmount,
-              commissionPercentage: withdrawal.commissionPercentage,
-              withdrawalDetails: withdrawal.withdrawalDetails
-            });
-            
-            return enrichedData;
-          })
-        );
+        const providerById = new Map(providers.map((p) => [p._id.toString(), p]));
+        const statsByProviderId = new Map(bookingStatsAgg.map((s) => [s._id, s]));
+
+        const enrichedWithdrawals = withdrawals.map((withdrawal) => {
+          const providerIdStr = withdrawal.providerId?.toString ? withdrawal.providerId.toString() : String(withdrawal.providerId);
+          const provider = providerById.get(providerIdStr);
+
+          if (!provider) {
+            return { ...withdrawal, provider: null, bookingStats: null };
+          }
+
+          const stats = statsByProviderId.get(providerIdStr);
+
+          return {
+            ...withdrawal,
+            provider: {
+              _id: provider._id,
+              name: provider.name,
+              phone: provider.phone,
+              email: provider.email,
+              currentBalance: provider.wallet?.balance || 0,
+              rating: provider.rating,
+              totalJobs: provider.totalJobs,
+              services: provider.services,
+              bankDetails: provider.documents?.bankDetails
+                ? {
+                    accountNumber: `****${provider.documents.bankDetails.accountNumber.slice(-4)}`,
+                    ifscCode: provider.documents.bankDetails.ifscCode,
+                    bankName: provider.documents.bankDetails.bankName,
+                    fullAccountNumber: provider.documents.bankDetails.accountNumber, // For admin
+                  }
+                : null,
+            },
+            bookingStats: {
+              totalBookings: stats?.totalBookings || 0,
+              completedBookings: stats?.completedBookings || 0,
+              totalEarnings: stats?.totalEarnings || 0,
+              recentBookings: stats?.recentBookings || [],
+            },
+          };
+        });
 
         return NextResponse.json({
             success: true,

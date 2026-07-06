@@ -8,6 +8,7 @@ import ServiceProvider from "@/models/ServiceProvider";
 import Homeowner from "@/models/Homeowner";
 import { verifyOTPViaMSG91, detectInputType, formatPhoneNumber } from "@/lib/msg91";
 import { isTestUser, getTestOTP, isTestMode, getTestUser } from "@/config/testUsers";
+import { applyRedisRateLimit, redisAuthRateLimiter } from "@/lib/redisRateLimiter";
 
 const MAX_ATTEMPTS = 5;
 const BLOCK_DURATION_MS = 15 * 60 * 1000;
@@ -58,6 +59,15 @@ const sanitizeHomeowner = (homeowner) => ({
 export async function POST(req) {
   try {
     await connectDB();
+
+    // Rate limit OTP verification attempts to prevent brute-forcing the OTP
+    const rateLimitResult = await applyRedisRateLimit(req, redisAuthRateLimiter);
+    if (!rateLimitResult.allowed) {
+      return NextResponse.json(
+        { success: false, message: rateLimitResult.message },
+        { status: 429, headers: { 'Retry-After': rateLimitResult.retryAfter.toString() } }
+      );
+    }
 
     let payload;
     try {

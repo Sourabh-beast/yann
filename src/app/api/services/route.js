@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import connectDB from '@/lib/connectDB';
 import Service from '@/models/Service';
+import { getOrSetCache } from '@/lib/cache';
 
 const DEFAULT_MAX_BY_CATEGORY = {
   driver: 2000,
@@ -746,25 +747,56 @@ const STATIC_SERVICES = [
  * Fetch all services from MongoDB
  * Query params: category (optional)
  */
-// Simple in-memory cache
-let cache = {
-  data: null,
-  timestamp: 0
-};
-const CACHE_TTL = 30 * 60 * 1000; // 30 minutes (Services rarely change)
+const SERVICES_CACHE_KEY = 'cache:services:all';
+const SERVICES_CACHE_TTL_SECONDS = 30 * 60; // 30 minutes (Services rarely change)
 
 export async function GET(request) {
   try {
     const { searchParams } = new URL(request.url);
     const category = searchParams.get('category');
 
-    // Check cache (only for full list without filters, to keep it simple)
-    const now = Date.now();
-    if (!category && cache.data && (now - cache.timestamp < CACHE_TTL)) {
+    // Cache only the full unfiltered list (mirrors the prior in-memory cache's
+    // scope), now backed by Redis so the cache is shared across serverless
+    // instances instead of being per-instance.
+    if (!category) {
+      const mappedServices = await getOrSetCache(SERVICES_CACHE_KEY, SERVICES_CACHE_TTL_SECONDS, async () => {
+        await connectDB();
+        const services = await Service.find({ isActive: { $ne: false } })
+          .sort({ order: 1, popular: -1, createdAt: -1 })
+          .select('-__v')
+          .lean();
+
+        if (services.length === 0) return null; // don't cache the empty/fallback state
+
+        return services.map(service => ({
+          id: service._id.toString(),
+          title: service.title,
+          description: service.description,
+          category: service.category,
+          price: service.price,
+          basePrice: service.basePrice || 0,
+          minPrice: service.minPrice || 0,
+          maxPrice: service.maxPrice || DEFAULT_MAX_BY_SERVICE[service.title] || DEFAULT_MAX_BY_CATEGORY[service.category] || 0,
+          experiencePriceLimits: Array.isArray(service.experiencePriceLimits) && service.experiencePriceLimits.length > 0
+            ? service.experiencePriceLimits
+            : buildDefaultExperienceLimits(service.category, service.title),
+          features: service.features || [],
+          icon: service.icon || '🏠',
+          popular: service.popular || false,
+        }));
+      });
+
+      if (mappedServices === null) {
+        console.log('No services in database, returning static fallback');
+        return NextResponse.json({
+          success: true,
+          data: STATIC_SERVICES.map(applyDefaultLimits),
+        });
+      }
+
       return NextResponse.json({
         success: true,
-        data: cache.data,
-        cached: true
+        data: mappedServices,
       }, {
         headers: {
           'Cache-Control': 'public, s-maxage=1800, stale-while-revalidate=3600',
@@ -775,25 +807,17 @@ export async function GET(request) {
 
     await connectDB();
 
-    // Build query - only active services
-    const query = { isActive: { $ne: false } };
-    if (category) {
-      query.category = category;
-    }
+    // Category-filtered path: not cached (mirrors prior behavior)
+    const query = { isActive: { $ne: false }, category };
 
-    // Get services from database
     const services = await Service.find(query)
       .sort({ order: 1, popular: -1, createdAt: -1 })
       .select('-__v')
       .lean();
 
-    // If no services in database, return static services as fallback
     if (services.length === 0) {
       console.log('No services in database, returning static fallback');
-      let staticData = STATIC_SERVICES;
-      if (category) {
-        staticData = staticData.filter(s => s.category === category);
-      }
+      const staticData = STATIC_SERVICES.filter(s => s.category === category);
       return NextResponse.json({
         success: true,
         data: staticData.map(applyDefaultLimits),
@@ -816,14 +840,6 @@ export async function GET(request) {
       icon: service.icon || '🏠',
       popular: service.popular || false,
     }));
-
-    // Update cache if no filter
-    if (!category) {
-      cache = {
-        data: mappedServices,
-        timestamp: Date.now()
-      };
-    }
 
     return NextResponse.json({
       success: true,

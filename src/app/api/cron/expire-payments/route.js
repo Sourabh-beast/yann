@@ -18,7 +18,7 @@ export async function GET(request) {
       status: 'pending_payment',
       'paymentTimer.expiresAt': { $lt: now },
       'paymentTimer.timedOut': { $ne: true }
-    }).populate('customerId', 'name email pushToken');
+    }).populate('customerId', 'name email pushToken').lean();
 
     if (!expiredBookings || expiredBookings.length === 0) {
       return NextResponse.json({
@@ -28,21 +28,31 @@ export async function GET(request) {
       });
     }
 
-    let cancelledCount = 0;
-    const results = [];
+    // Bulk-cancel all expired bookings in one write (was one .save() per
+    // booking, sequentially). Booking has no pre-save hooks, so this is
+    // equivalent. Notifications are best-effort side effects, so they're
+    // fired in parallel below rather than gating/blocking the cancellation.
+    const expiredIds = expiredBookings.map((b) => b._id);
+    await Booking.updateMany(
+      { _id: { $in: expiredIds } },
+      { $set: { status: 'cancelled', 'paymentTimer.timedOut': true } }
+    );
 
-    for (const booking of expiredBookings) {
-      try {
-        // Mark booking as cancelled
-        booking.status = 'cancelled';
-        booking.paymentTimer.timedOut = true;
-        await booking.save();
+    const cancelledCount = expiredBookings.length;
+    const results = expiredBookings.map((booking) => ({
+      bookingId: booking._id.toString(),
+      serviceName: booking.serviceName,
+      status: 'cancelled',
+      reason: 'payment_timeout'
+    }));
 
-        cancelledCount++;
-
-        // Notify customer
-        if (booking.customerId?.pushToken) {
-          await createAndSendNotification({
+    // Notify customers in parallel; each failure is caught independently and
+    // does not affect the cancellation (which already happened above).
+    await Promise.allSettled(
+      expiredBookings
+        .filter((booking) => booking.customerId?.pushToken)
+        .map((booking) =>
+          createAndSendNotification({
             title: '❌ Booking Cancelled',
             message: `Your ${booking.serviceName} booking was cancelled due to payment timeout.`,
             recipientId: booking.customerId._id.toString(),
@@ -55,26 +65,11 @@ export async function GET(request) {
               reason: 'payment_timeout'
             },
             bookingId: booking._id.toString()
-          });
-        }
-
-        results.push({
-          bookingId: booking._id.toString(),
-          serviceName: booking.serviceName,
-          status: 'cancelled',
-          reason: 'payment_timeout'
-        });
-
-        console.log(`⏰ Auto-cancelled booking ${booking._id} - payment timeout`);
-      } catch (error) {
-        console.error(`Failed to cancel booking ${booking._id}:`, error);
-        results.push({
-          bookingId: booking._id.toString(),
-          status: 'failed',
-          error: error.message
-        });
-      }
-    }
+          }).catch((error) => {
+            console.error(`Failed to notify customer for booking ${booking._id}:`, error);
+          })
+        )
+    );
 
     console.log(`✅ Expired ${cancelledCount} bookings with payment timeout`);
 

@@ -3,7 +3,30 @@ import connectDB from '@/lib/connectDB';
 import Notification from '@/models/Notification';
 import Homeowner from '@/models/Homeowner';
 import ServiceProvider from '@/models/ServiceProvider';
-import { sendPushNotification } from '@/lib/sendPushNotification';
+import { sendBulkPushNotifications } from '@/lib/sendPushNotification';
+
+// Broadcast `pushData`/title/message to a batch of push tokens using Expo's
+// chunked bulk API instead of one HTTP call per recipient, and return how
+// many sent successfully vs. failed (mirrors the previous per-token loop's
+// sentCount/failedCount semantics).
+async function broadcastToTokens(pushTokens, title, message, pushData) {
+  if (pushTokens.length === 0) return { sent: 0, failed: 0 };
+
+  const messages = pushTokens.map((pushToken) => ({
+    to: pushToken,
+    sound: 'default',
+    title,
+    body: message,
+    data: pushData,
+    priority: 'high',
+    channelId: pushData.channelId || 'default',
+  }));
+
+  const tickets = await sendBulkPushNotifications(messages);
+  const sent = tickets.filter((t) => t.status === 'ok').length;
+  const failed = pushTokens.length - sent;
+  return { sent, failed };
+}
 
 export async function GET(request) {
   try {
@@ -187,14 +210,9 @@ export async function POST(request) {
           pushToken: { $exists: true, $ne: null, $ne: '' }
         }).select('pushToken').lean();
 
-        for (const hw of homeowners) {
-          try {
-            const result = await sendPushNotification(hw.pushToken, title, message, pushData);
-            if (result) sentCount++; else failedCount++;
-          } catch (e) {
-            failedCount++;
-          }
-        }
+        const { sent, failed } = await broadcastToTokens(homeowners.map((hw) => hw.pushToken), title, message, pushData);
+        sentCount += sent;
+        failedCount += failed;
       }
 
       // Send to providers
@@ -205,14 +223,9 @@ export async function POST(request) {
           pushToken: { $exists: true, $ne: null, $ne: '' }
         }).select('pushToken').lean();
 
-        for (const prov of providers) {
-          try {
-            const result = await sendPushNotification(prov.pushToken, title, message, pushData);
-            if (result) sentCount++; else failedCount++;
-          } catch (e) {
-            failedCount++;
-          }
-        }
+        const { sent, failed } = await broadcastToTokens(providers.map((p) => p.pushToken), title, message, pushData);
+        sentCount += sent;
+        failedCount += failed;
       }
 
       notification.status = 'sent';
@@ -296,12 +309,9 @@ export async function PATCH(request) {
               pushToken: { $exists: true, $ne: null, $ne: '' }
             }).select('pushToken').lean();
 
-            for (const hw of homeowners) {
-              try {
-                const result = await sendPushNotification(hw.pushToken, notification.title, notification.message, pushData);
-                if (result) sentCount++; else failedCount++;
-              } catch (e) { failedCount++; }
-            }
+            const { sent, failed } = await broadcastToTokens(homeowners.map((hw) => hw.pushToken), notification.title, notification.message, pushData);
+            sentCount += sent;
+            failedCount += failed;
           }
 
           if (audience === 'all' || audience === 'providers') {
@@ -311,12 +321,9 @@ export async function PATCH(request) {
               pushToken: { $exists: true, $ne: null, $ne: '' }
             }).select('pushToken').lean();
 
-            for (const prov of providers) {
-              try {
-                const result = await sendPushNotification(prov.pushToken, notification.title, notification.message, pushData);
-                if (result) sentCount++; else failedCount++;
-              } catch (e) { failedCount++; }
-            }
+            const { sent, failed } = await broadcastToTokens(providers.map((p) => p.pushToken), notification.title, notification.message, pushData);
+            sentCount += sent;
+            failedCount += failed;
           }
 
           notification.status = 'sent';

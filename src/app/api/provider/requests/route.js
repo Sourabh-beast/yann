@@ -133,7 +133,9 @@ export async function GET(request) {
     const pendingBookings = await Booking.find(pendingQuery)
       .sort({ createdAt: -1 })
       .select('-providerResponses')
-      .populate('customerId', 'avatar');
+      .populate('customerId', 'avatar')
+      .limit(200)
+      .lean();
 
     console.log(`📢 Found ${pendingBookings.length} pending bookings for provider ${provider.name}`);
     // ... logging ...
@@ -145,15 +147,22 @@ export async function GET(request) {
     })
       .sort({ bookingDate: 1 })
       .populate('jobSession')
-      .populate('customerId', 'avatar');
+      .populate('customerId', 'avatar')
+      .limit(200)
+      .lean();
 
-    // Calculate earnings safely
+    // Calculate earnings safely. Only select the 3 fields actually used below
+    // (totalPrice/bookingDate/completedAt) instead of hydrating full documents.
+    // NOTE: intentionally NOT capped with .limit() -- these feed lifetime/monthly
+    // earnings totals, so truncating would silently understate a veteran
+    // provider's earnings. At larger scale this should move to incrementally
+    // maintained stats rather than recomputed-per-request aggregation (see SCALING.md).
     let completedBookings = [];
     try {
       completedBookings = await Booking.find({
         assignedProvider: provider._id,
         status: 'completed'
-      });
+      }).select('totalPrice bookingDate completedAt').lean();
     } catch (err) {
       console.error('Error fetching completed bookings for stats:', err);
     }

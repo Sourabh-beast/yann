@@ -27,13 +27,13 @@ const serviceProviderSchema = new mongoose.Schema({
     type: String,
     lowercase: true,
     trim: true,
-    sparse: true,
+    // sparse+unique index declared explicitly below via schema.index() -
+    // don't also set sparse here, it creates a second (duplicate) index.
     match: [/^\w+([.-]?\w+)*@\w+([.-]?\w+)*(\.\w{2,3})+$/, 'Please enter a valid email']
   },
   phone: {
     type: String,
     trim: true,
-    sparse: true,
     validate: {
       validator: (value) => !value || /^[0-9]{10}$/.test(value),
       message: 'Please enter a valid 10-digit phone number'

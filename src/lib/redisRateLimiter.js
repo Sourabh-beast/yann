@@ -7,6 +7,7 @@
 
 import Redis from 'ioredis';
 import { applyRateLimit as applyMemoryRateLimit, createRateLimiter } from './rateLimiter';
+import logger from './logger';
 
 let redis = null;
 let redisAvailable = false;
@@ -22,22 +23,41 @@ try {
 
         redis.on('connect', () => {
             redisAvailable = true;
-            console.log('✅ Redis connected for rate limiting');
+            logger.info('Redis connected for rate limiting/caching');
         });
 
         redis.on('error', (err) => {
             redisAvailable = false;
-            console.warn('⚠️ Redis error, falling back to in-memory rate limiting:', err.message);
+            // Loud on purpose: falling back to per-instance in-memory rate
+            // limiting silently would mean abuse protection quietly stops
+            // working under multi-instance serverless scale.
+            logger.error({ err }, 'Redis error, falling back to in-memory rate limiting');
         });
 
         // Attempt connection
-        redis.connect().catch(() => {
+        redis.connect().catch((err) => {
             redisAvailable = false;
-            console.warn('⚠️ Redis unavailable, using in-memory rate limiting');
+            logger.error({ err }, 'Redis unavailable, using in-memory rate limiting');
         });
+    } else if (process.env.NODE_ENV === 'production') {
+        // Loud on purpose: without REDIS_URL in production, rate limiting is
+        // effectively per-instance only and caching never engages.
+        logger.error('REDIS_URL is not set in production - rate limiting and caching are running in degraded (in-memory/no-op) mode');
     }
 } catch (error) {
-    console.warn('⚠️ Redis initialization failed, using in-memory rate limiting');
+    logger.error({ err: error }, 'Redis initialization failed, using in-memory rate limiting');
+}
+
+/**
+ * Shared accessors so other modules (e.g. the caching layer) can reuse this
+ * same Redis connection instead of opening a second one.
+ */
+export function getRedisClient() {
+    return redis;
+}
+
+export function isRedisAvailable() {
+    return redisAvailable;
 }
 
 /**
@@ -90,7 +110,7 @@ export async function applyRedisRateLimit(request, config) {
 
         return { allowed: true };
     } catch (error) {
-        console.error('Redis rate limit error:', error);
+        logger.error({ err: error }, 'Redis rate limit error, falling back to in-memory');
         // Fallback to in-memory on error
         return applyMemoryRateLimit(request, config);
     }
@@ -152,6 +172,20 @@ export const redisApiRateLimiter = createRedisRateLimiter({
     maxRequests: 100,
     windowMs: 60 * 1000,
     message: 'Too many requests. Please slow down.',
+});
+
+export const redisPaymentRateLimiter = createRedisRateLimiter({
+    name: 'payment',
+    maxRequests: 5,
+    windowMs: 60 * 1000,
+    message: 'Too many payment attempts. Please wait a moment.',
+});
+
+export const redisBookingRateLimiter = createRedisRateLimiter({
+    name: 'booking',
+    maxRequests: 20,
+    windowMs: 60 * 1000,
+    message: 'Too many booking requests. Please slow down.',
 });
 
 /**

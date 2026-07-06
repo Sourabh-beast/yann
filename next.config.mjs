@@ -47,6 +47,18 @@ const nextConfig = {
     async headers() {
         return [
             {
+                // Security headers on API responses. CSP is intentionally
+                // omitted here - it's primarily a browser/frontend concern
+                // and this pass is backend-only.
+                source: '/api/:path*',
+                headers: [
+                    { key: 'X-Content-Type-Options', value: 'nosniff' },
+                    { key: 'X-Frame-Options', value: 'DENY' },
+                    { key: 'Referrer-Policy', value: 'strict-origin-when-cross-origin' },
+                    { key: 'Strict-Transport-Security', value: 'max-age=31536000; includeSubDomains' },
+                ],
+            },
+            {
                 // Cache static assets (JS, CSS, images) for 1 year
                 source: '/:all*(svg|jpg|jpeg|png|gif|ico|webp|avif|js|css|woff|woff2)',
                 headers: [

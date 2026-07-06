@@ -1,6 +1,8 @@
+import { after } from 'next/server';
 import Notification from '@/models/Notification';
 import { sendPushNotification } from './sendPushNotification';
 import connectDB from './connectDB';
+import logger from './logger';
 
 /**
  * Creates a notification in the database and sends a push notification.
@@ -56,26 +58,35 @@ export async function createAndSendNotification({
 
     await notification.save();
 
-    // 2. Send Push Notification (Fire and Forget or Await based on preference, here we await to log)
+    // 2. Send push notification after the response is sent, not before.
+    // This is already best-effort (errors here were previously swallowed too -
+    // see catch below), so deferring it only removes its latency from the
+    // caller's response; it does not change delivery guarantees.
     if (pushToken) {
         // Ensure recipientId is in the data payload for frontend filtering
         const pushData = { ...data, recipientId, notificationId: notification._id.toString() };
-        
-        await sendPushNotification(pushToken, title, message, pushData);
-        
-        // Update stats (optional, but good for tracking)
-        await Notification.updateOne(
-            { _id: notification._id },
-            { $inc: { 'stats.sent': 1, 'stats.delivered': 1 } } // Assuming delivered if no error
-        );
+
+        after(async () => {
+            try {
+                await sendPushNotification(pushToken, title, message, pushData);
+
+                // Update stats (optional, but good for tracking)
+                await Notification.updateOne(
+                    { _id: notification._id },
+                    { $inc: { 'stats.sent': 1, 'stats.delivered': 1 } } // Assuming delivered if no error
+                );
+            } catch (deferredError) {
+                logger.error({ err: deferredError, notificationId: notification._id.toString() }, 'Deferred push send/stats update failed');
+            }
+        });
     } else {
-        console.log(`⚠️ No push token for user ${recipientId}, saved to DB only.`);
+        logger.info({ recipientId }, 'No push token for user, saved to DB only');
     }
 
     return notification;
 
   } catch (error) {
-    console.error('❌ Error in createAndSendNotification:', error);
+    logger.error({ err: error }, 'Error in createAndSendNotification');
     // Even if it fails, we don't want to crash the main flow, usually. 
     // But since this is a helper, the caller might handle it. 
     // We'll return null to indicate failure but suppress the throw to avoid blocking critical flows like "Start Job"

@@ -121,11 +121,15 @@ export async function GET(request) {
       query.status = statusFilter;
     }
 
-    // Get bookings assigned to this provider
+    // Get bookings assigned to this provider (capped: this is read-only history,
+    // not paginated by the client today, so bound the worst case instead of
+    // changing the response shape)
     const bookings = await Booking.find(query)
       .sort({ createdAt: -1 })
       .populate('customerId', 'name email phone')
-      .populate('jobSession'); // Populate job session details
+      .populate('jobSession') // Populate job session details
+      .limit(200)
+      .lean();
 
     console.log(`✅ Found ${bookings.length} bookings for provider ${provider.name}`);
 
@@ -135,7 +139,7 @@ export async function GET(request) {
       status: 'pending',
       assignedProvider: null,
       'providerResponses.providerId': { $ne: provider._id }
-    }).sort({ createdAt: -1 });
+    }).sort({ createdAt: -1 }).limit(200).lean();
 
     console.log(`📢 Found ${pendingRequests.length} pending requests for provider's services`);
 

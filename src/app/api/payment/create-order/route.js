@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import Razorpay from 'razorpay';
+import { applyRedisRateLimit, redisPaymentRateLimiter } from '@/lib/redisRateLimiter';
 
 // Lazy initialization function for Razorpay
 function getRazorpayInstance() {
@@ -14,6 +15,14 @@ function getRazorpayInstance() {
 
 export async function POST(request) {
   try {
+    const rateLimitResult = await applyRedisRateLimit(request, redisPaymentRateLimiter);
+    if (!rateLimitResult.allowed) {
+      return NextResponse.json(
+        { success: false, message: rateLimitResult.message },
+        { status: 429, headers: { 'Retry-After': rateLimitResult.retryAfter.toString() } }
+      );
+    }
+
     const body = await request.json();
     const { amount, customerName, customerPhone, customerEmail, serviceName, bookingId } = body;
 

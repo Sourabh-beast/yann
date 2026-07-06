@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import connectDB from '@/lib/connectDB';
 import Homeowner from '@/models/Homeowner';
 import Razorpay from 'razorpay';
+import { applyRedisRateLimit, redisWalletRateLimiter } from '@/lib/redisRateLimiter';
 
 // Lazy initialization function for Razorpay
 function getRazorpayInstance() {
@@ -24,6 +25,14 @@ export async function POST(req) {
     if (!userId) {
       console.error('❌ Missing user ID in headers');
       return NextResponse.json({ success: false, message: 'Unauthorized - User ID required' }, { status: 401 });
+    }
+
+    const rateLimitResult = await applyRedisRateLimit(req, redisWalletRateLimiter);
+    if (!rateLimitResult.allowed) {
+      return NextResponse.json(
+        { success: false, message: rateLimitResult.message },
+        { status: 429, headers: { 'Retry-After': rateLimitResult.retryAfter.toString() } }
+      );
     }
 
     const { amount } = await req.json();

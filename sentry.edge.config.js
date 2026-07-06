@@ -1,0 +1,4 @@
+// Runs once when the Edge runtime (middleware.js) starts (see src/instrumentation.js).
+// Reuses the existing init/scrubbing config in src/lib/sentry.js instead of
+// duplicating Sentry.init() options here.
+import '@/lib/sentry';

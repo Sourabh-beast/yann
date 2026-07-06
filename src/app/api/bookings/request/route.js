@@ -5,6 +5,7 @@ import ServiceProvider from '@/models/ServiceProvider';
 import Homeowner from '@/models/Homeowner';
 import { createAndSendNotification } from '@/lib/notificationHelper';
 import { sendPushNotification } from '@/lib/sendPushNotification';
+import { applyRedisRateLimit, redisBookingRateLimiter } from '@/lib/redisRateLimiter';
 
 // Request timeout duration in milliseconds (3 minutes)
 const REQUEST_TIMEOUT_MS = 3 * 60 * 1000;
@@ -110,6 +111,14 @@ export async function GET(request) {
 export async function POST(request) {
   try {
     await connectDB();
+
+    const rateLimitResult = await applyRedisRateLimit(request, redisBookingRateLimiter);
+    if (!rateLimitResult.allowed) {
+      return NextResponse.json(
+        { success: false, message: rateLimitResult.message },
+        { status: 429, headers: { 'Retry-After': rateLimitResult.retryAfter.toString() } }
+      );
+    }
 
     const { bookingId, providerId } = await request.json();
 

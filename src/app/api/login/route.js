@@ -3,10 +3,20 @@ import jwt from "jsonwebtoken";
 import connectDB from "@/lib/connectDB";
 import OTP from "@/models/Otp";
 import ServiceProvider from "@/models/ServiceProvider";
+import { applyRedisRateLimit, redisAuthRateLimiter } from "@/lib/redisRateLimiter";
 
 export async function POST(req) {
   try {
     await connectDB();
+
+    const rateLimitResult = await applyRedisRateLimit(req, redisAuthRateLimiter);
+    if (!rateLimitResult.allowed) {
+      return NextResponse.json(
+        { message: rateLimitResult.message },
+        { status: 429, headers: { 'Retry-After': rateLimitResult.retryAfter.toString() } }
+      );
+    }
+
     const { email, otp } = await req.json();
 
     const otpRecord = await OTP.findOne({ email });

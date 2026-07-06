@@ -1,21 +1,23 @@
 import { NextResponse } from 'next/server';
 import connectDB from '@/lib/connectDB';
 import CallRequest from '@/models/CallRequest';
+import { validateInput, callRequestCreateSchema, callRequestUpdateSchema } from '@/lib/validation';
 
 export async function POST(request) {
     try {
         await connectDB();
-        const { phoneNumber } = await request.json();
+        const body = await request.json();
 
-        if (!phoneNumber) {
+        const validation = validateInput(body, callRequestCreateSchema);
+        if (!validation.success) {
             return NextResponse.json(
-                { success: false, message: 'Phone number is required' },
+                { success: false, message: validation.message || 'Phone number is required', errors: validation.errors },
                 { status: 400 }
             );
         }
 
         const callRequest = await CallRequest.create({
-            phoneNumber
+            phoneNumber: validation.data.phoneNumber
         });
 
         return NextResponse.json({
@@ -55,18 +57,19 @@ export async function GET() {
 export async function PATCH(request) {
     try {
         await connectDB();
-        const { id, status } = await request.json();
+        const body = await request.json();
 
-        if (!id || !status) {
+        const validation = validateInput(body, callRequestUpdateSchema);
+        if (!validation.success) {
             return NextResponse.json(
-                { success: false, message: 'ID and Status are required' },
+                { success: false, message: validation.message || 'ID and Status are required', errors: validation.errors },
                 { status: 400 }
             );
         }
 
         const updatedRequest = await CallRequest.findByIdAndUpdate(
-            id,
-            { status },
+            validation.data.id,
+            { status: validation.data.status },
             { new: true }
         );
 

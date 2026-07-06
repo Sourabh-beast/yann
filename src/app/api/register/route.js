@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import ServiceProvider from "@/models/ServiceProvider";
 import Service from "@/models/Service";
 import connectDB from "@/lib/connectDB";
+import { applyRedisRateLimit, redisAuthRateLimiter } from "@/lib/redisRateLimiter";
 
 // Increase body size limit to 10MB to support base64 license images
 export const maxDuration = 30;
@@ -182,6 +183,14 @@ const escapeRegex = (value = '') => value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
 
 export async function POST(req) {
   try {
+    const rateLimitResult = await applyRedisRateLimit(req, redisAuthRateLimiter);
+    if (!rateLimitResult.allowed) {
+      return NextResponse.json(
+        { success: false, message: rateLimitResult.message },
+        { status: 429, headers: { 'Retry-After': rateLimitResult.retryAfter.toString() } }
+      );
+    }
+
     // Connect to database with timeout
     await Promise.race([
       connectDB(),

@@ -13,7 +13,7 @@ import {
   detectInputType
 } from "@/lib/msg91";
 import { isTestUser, getTestOTP, isTestMode, getTestUser } from "@/config/testUsers";
-import { applyRateLimit, otpRateLimiter } from "@/lib/rateLimiter";
+import { applyRedisRateLimit, redisOtpRateLimiter } from "@/lib/redisRateLimiter";
 
 const OTP_EXPIRY_MS = 10 * 60 * 1000;
 const MIN_RESEND_INTERVAL_MS = 60 * 1000;
@@ -157,8 +157,9 @@ export async function POST(req) {
   try {
     await connectDB();
 
-    // Apply rate limiting to prevent OTP abuse
-    const rateLimitResult = applyRateLimit(req, otpRateLimiter);
+    // Apply rate limiting to prevent OTP abuse (Redis-backed so it's enforced
+    // consistently across all serverless instances, not just per-instance)
+    const rateLimitResult = await applyRedisRateLimit(req, redisOtpRateLimiter);
     if (!rateLimitResult.allowed) {
       return NextResponse.json(
         { success: false, message: rateLimitResult.message },

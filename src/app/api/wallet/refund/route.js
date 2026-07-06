@@ -24,25 +24,22 @@ export async function GET(req) {
       status: 'completed',
       createdAt: { $gte: oneDayAgo },
       refunded: { $ne: true } // Not already refunded
-    });
+    }).lean();
 
-    // Check which transactions don't have corresponding bookings
-    const refundableTransactions = [];
-    
-    for (const transaction of failedTransactions) {
-      if (transaction.bookingId) {
-        const booking = await Booking.findById(transaction.bookingId);
-        if (!booking) {
-          // Booking doesn't exist - this is a failed transaction
-          refundableTransactions.push({
-            transactionId: transaction._id,
-            amount: transaction.amount,
-            description: transaction.description,
-            createdAt: transaction.createdAt
-          });
-        }
-      }
-    }
+    // Batch-check which transactions don't have corresponding bookings
+    // (was one Booking.findById per transaction, sequentially awaited)
+    const bookingIds = failedTransactions.map((t) => t.bookingId).filter(Boolean);
+    const existingBookings = await Booking.find({ _id: { $in: bookingIds } }).select('_id').lean();
+    const existingBookingIds = new Set(existingBookings.map((b) => b._id.toString()));
+
+    const refundableTransactions = failedTransactions
+      .filter((t) => t.bookingId && !existingBookingIds.has(t.bookingId.toString()))
+      .map((transaction) => ({
+        transactionId: transaction._id,
+        amount: transaction.amount,
+        description: transaction.description,
+        createdAt: transaction.createdAt
+      }));
 
     return NextResponse.json({
       success: true,
@@ -80,21 +77,18 @@ export async function POST(req) {
       status: 'completed',
       createdAt: { $gte: oneDayAgo },
       refunded: { $ne: true }
-    });
+    }).lean();
 
-    let totalRefundAmount = 0;
-    const refundedTransactionIds = [];
+    // Batch-check which transactions are refundable (was sequential findById per transaction)
+    const bookingIds = failedTransactions.map((t) => t.bookingId).filter(Boolean);
+    const existingBookings = await Booking.find({ _id: { $in: bookingIds } }).select('_id').lean();
+    const existingBookingIds = new Set(existingBookings.map((b) => b._id.toString()));
 
-    // Validate each transaction and calculate total refund
-    for (const transaction of failedTransactions) {
-      if (transaction.bookingId) {
-        const booking = await Booking.findById(transaction.bookingId);
-        if (!booking) {
-          totalRefundAmount += transaction.amount;
-          refundedTransactionIds.push(transaction._id);
-        }
-      }
-    }
+    const refundable = failedTransactions.filter(
+      (t) => t.bookingId && !existingBookingIds.has(t.bookingId.toString())
+    );
+    const totalRefundAmount = refundable.reduce((sum, t) => sum + t.amount, 0);
+    const refundedTransactionIds = refundable.map((t) => t._id);
 
     if (totalRefundAmount === 0) {
       return NextResponse.json({

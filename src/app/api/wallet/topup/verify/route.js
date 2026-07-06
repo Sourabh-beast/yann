@@ -4,6 +4,7 @@ import Homeowner from '@/models/Homeowner';
 import Transaction from '@/models/Transaction';
 import crypto from 'crypto';
 import Razorpay from 'razorpay';
+import { applyRedisRateLimit, redisWalletRateLimiter } from '@/lib/redisRateLimiter';
 
 // Lazy initialization function for Razorpay
 function getRazorpayInstance() {
@@ -23,6 +24,14 @@ export async function POST(req) {
     
     if (!userId) {
       return NextResponse.json({ success: false, message: 'Unauthorized' }, { status: 401 });
+    }
+
+    const rateLimitResult = await applyRedisRateLimit(req, redisWalletRateLimiter);
+    if (!rateLimitResult.allowed) {
+      return NextResponse.json(
+        { success: false, message: rateLimitResult.message },
+        { status: 429, headers: { 'Retry-After': rateLimitResult.retryAfter.toString() } }
+      );
     }
 
     const { razorpay_order_id, razorpay_payment_id, razorpay_signature } = await req.json();
