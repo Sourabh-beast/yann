@@ -6,8 +6,24 @@
  */
 
 import Redis from 'ioredis';
-import { applyRateLimit as applyMemoryRateLimit, createRateLimiter } from './rateLimiter';
+import { createRateLimiter } from './rateLimiter';
 import logger from './logger';
+
+// In-memory rate limiter, keyed by config name, built lazily from the same
+// {maxRequests, windowMs, message} shape used by the Redis limiter configs -
+// so the in-memory fallback here shares the request-counting logic in
+// rateLimiter.js instead of trying to call a limiter function that was never
+// created from this config object.
+const memoryLimiterCache = new Map();
+function applyMemoryRateLimit(request, config) {
+    const cacheKey = config.name || 'default';
+    let limiter = memoryLimiterCache.get(cacheKey);
+    if (!limiter) {
+        limiter = createRateLimiter(config);
+        memoryLimiterCache.set(cacheKey, limiter);
+    }
+    return limiter(request);
+}
 
 let redis = null;
 let redisAvailable = false;

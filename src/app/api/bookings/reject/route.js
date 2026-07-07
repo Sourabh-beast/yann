@@ -72,9 +72,15 @@ export async function POST(request) {
           if (booking.walletPaymentStage === 'initial_25_held') {
             // Refund only the 25% that was held in escrow
             const refundAmount = booking.escrowDetails?.initialAmount || booking.totalPrice * 0.25;
+            // Restore to the same bucket it was debited from, so refunding a
+            // cancelled booking can't be used to launder capped bonus credit
+            // into fully-spendable real balance
+            const bonusRefund = Math.min(booking.escrowDetails?.initialBonusUsed || 0, refundAmount);
+            const realRefund = refundAmount - bonusRefund;
 
             // Add back to customer's wallet
-            homeowner.wallet.balance = customerBalanceBefore + refundAmount;
+            homeowner.wallet.balance = customerBalanceBefore + realRefund;
+            homeowner.wallet.bonusBalance = (homeowner.wallet.bonusBalance || 0) + bonusRefund;
             await homeowner.save();
 
             // Update booking escrow status
@@ -91,6 +97,7 @@ export async function POST(request) {
               amount: refundAmount,
               balanceBefore: customerBalanceBefore,
               balanceAfter: homeowner.wallet.balance,
+              walletBreakdown: { bonusUsed: bonusRefund, realUsed: realRefund },
               escrowStatus: 'refunded',
               paymentStage: 'initial_25',
               description: `25% booking deposit refunded (₹${refundAmount}) - Provider rejected`,
@@ -101,7 +108,7 @@ export async function POST(request) {
               serviceCategory: booking.serviceCategory
             });
 
-            console.log(`💰 ESCROW REFUNDED (25%): Returned ₹${refundAmount} to customer ${homeowner.name}'s wallet`);
+            console.log(`💰 ESCROW REFUNDED (25%): Returned ₹${refundAmount} to customer ${homeowner.name}'s wallet (bonus: ₹${bonusRefund}, real: ₹${realRefund})`);
           }
           // LEGACY: Handle old full-amount escrow bookings (backward compatibility)
           else if (booking.paymentStatus === 'paid' && !booking.walletPaymentStage) {

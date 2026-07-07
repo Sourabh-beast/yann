@@ -208,9 +208,9 @@ async function handleProfileUpdate(request) {
       if (hasDriverService) {
         // Fallback to existing if not provided in body
         const driverDetails = body.driverServiceDetails || provider.driverServiceDetails || {};
-        if (!driverDetails.licenseFrontImage || !driverDetails.licenseBackImage) {
+        if (!driverDetails.licenseFrontImage || !driverDetails.licenseBackImage || !driverDetails.policeVerificationDoc) {
           return NextResponse.json(
-            { success: false, message: "Both front and back photos of the driving license are required." },
+            { success: false, message: "Driving license front/back photos and police verification document are all required." },
             { status: 400 }
           );
         }

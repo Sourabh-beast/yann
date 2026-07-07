@@ -6,6 +6,7 @@ import Transaction from '@/models/Transaction';
 import PlatformSettings from '@/models/PlatformSettings';
 import { createAndSendNotification } from '@/lib/notificationHelper';
 import ServiceProvider from '@/models/ServiceProvider';
+import { computeWalletDebit } from '@/lib/referral';
 
 /**
  * POST /api/bookings/pay-with-wallet
@@ -64,10 +65,12 @@ export async function POST(req) {
 
     // Get platform settings for initial payment percentage
     let initialPercentage = 25; // Default to 25%
+    let bonusSpendCapPercent = 20;
     try {
       const settings = await PlatformSettings.getSettings();
       console.log('📦 Settings walletPayment:', settings?.walletPayment);
       initialPercentage = settings?.walletPayment?.initialBookingPercentage || 25;
+      bonusSpendCapPercent = settings?.referral?.bonusSpendCapPercent ?? 20;
     } catch (settingsError) {
       console.warn('⚠️ Could not load platform settings, using default 25%:', settingsError.message);
     }
@@ -83,21 +86,25 @@ export async function POST(req) {
     console.log(`   Completion Amount (75%): ₹${completionAmount}`);
 
     const currentBalance = user.wallet?.balance || 0;
+    const currentBonusBalance = user.wallet?.bonusBalance || 0;
 
-    console.log('💳 Current wallet balance:', currentBalance);
+    console.log('💳 Current wallet balance:', currentBalance, '| bonus:', currentBonusBalance);
 
-    // Check sufficient balance for initial amount only (25%)
-    if (currentBalance < initialAmount) {
+    // Split the initial (25%) charge between bonusBalance (capped) and real balance
+    const walletDebit = computeWalletDebit({ homeowner: user, amountDue: initialAmount, capPercent: bonusSpendCapPercent });
+
+    if (!walletDebit.sufficient) {
       console.error('❌ Insufficient balance for initial payment:', {
         required: initialAmount,
-        available: currentBalance,
+        availableReal: currentBalance,
+        availableBonus: currentBonusBalance,
         totalBooking: totalPrice
       });
       return NextResponse.json({
         success: false,
         message: `Insufficient wallet balance. You need ₹${initialAmount} (${initialPercentage}% of ₹${totalPrice}) to book this service.`,
         required: initialAmount,
-        available: currentBalance,
+        available: currentBalance + currentBonusBalance,
         totalPrice: totalPrice,
         initialPercentage: initialPercentage
       }, { status: 400 });
@@ -109,17 +116,22 @@ export async function POST(req) {
 
     let booking;
     const balanceBefore = currentBalance;
-    const balanceAfter = currentBalance - initialAmount; // Only deduct 25%
+    const balanceAfter = currentBalance - walletDebit.realToUse;
+    const { bonusToUse } = walletDebit;
 
     try {
       // Deduct 25% from wallet (ESCROW: held until provider accepts/rejects)
+      // - split between bonusBalance (spend-capped) and the real balance
       user.wallet.balance = balanceAfter;
+      user.wallet.bonusBalance = currentBonusBalance - bonusToUse;
       await user.save({ session });
 
       console.log('✅ Wallet debited (25% held in escrow):', {
         before: balanceBefore,
         after: balanceAfter,
-        escrowAmount: initialAmount
+        escrowAmount: initialAmount,
+        bonusUsed: bonusToUse,
+        realUsed: walletDebit.realToUse
       });
 
       // Convert bookingDate string to Date object if needed
@@ -140,7 +152,8 @@ export async function POST(req) {
           initialPaidAt: new Date(),
           initialReleasedAt: null,
           initialRefundedAt: null,
-          completionPaidAt: null
+          completionPaidAt: null,
+          initialBonusUsed: bonusToUse
         }
       }], { session });
 
@@ -158,6 +171,7 @@ export async function POST(req) {
         amount: initialAmount,
         balanceBefore,
         balanceAfter,
+        walletBreakdown: { bonusUsed: bonusToUse, realUsed: walletDebit.realToUse },
         escrowStatus: 'held',
         paymentStage: 'initial_25',
         description: `${initialPercentage}% booking deposit held in escrow (₹${initialAmount} of ₹${totalPrice})`,

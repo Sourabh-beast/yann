@@ -3,6 +3,7 @@ import connectDB from '@/lib/connectDB';
 import Homeowner from '@/models/Homeowner';
 import ServiceProvider from '@/models/ServiceProvider';
 import Transaction from '@/models/Transaction';
+import PlatformSettings from '@/models/PlatformSettings';
 
 export async function GET(req) {
   try {
@@ -113,10 +114,30 @@ export async function GET(req) {
       };
     });
 
+    let bonusSpendCapPercent = 20;
+    let maxBonusUsable = 0;
+    if (userType === 'homeowner') {
+      try {
+        const settings = await PlatformSettings.getSettings();
+        bonusSpendCapPercent = settings?.referral?.bonusSpendCapPercent ?? 20;
+      } catch (settingsError) {
+        console.warn('Could not load referral settings for wallet response:', settingsError.message);
+      }
+      const bonusGranted = user.wallet?.bonusBalanceGranted || 0;
+      const bonusBalance = user.wallet?.bonusBalance || 0;
+      maxBonusUsable = Math.min(bonusBalance, Math.floor(bonusGranted * (bonusSpendCapPercent / 100)));
+    }
+
     return NextResponse.json({
       success: true,
       data: {
         balance: user.wallet?.balance || 0,
+        ...(userType === 'homeowner' && {
+          bonusBalance: user.wallet?.bonusBalance || 0,
+          bonusSpendCapPercent,
+          // Precomputed: max bonus credit usable in a single upcoming payment
+          maxBonusUsable
+        }),
         currency: user.wallet?.currency || 'INR',
         transactions: processedTransactions,
         userType,

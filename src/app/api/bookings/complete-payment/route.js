@@ -5,7 +5,9 @@ import ServiceProvider from '@/models/ServiceProvider';
 import Booking from '@/models/Booking';
 import Transaction from '@/models/Transaction';
 import Notification from '@/models/Notification';
+import PlatformSettings from '@/models/PlatformSettings';
 import { createAndSendNotification } from '@/lib/notificationHelper';
+import { computeWalletDebit } from '@/lib/referral';
 
 /**
  * POST /api/bookings/complete-payment
@@ -110,19 +112,29 @@ export async function POST(req) {
         // Calculate completion amount (75%)
         const completionAmount = booking.escrowDetails?.completionAmount || (booking.totalPrice * 0.75);
         const userBalance = user.wallet?.balance || 0;
+        const userBonusBalance = user.wallet?.bonusBalance || 0;
 
         console.log('💳 Completion payment request:');
-        console.log(`   User balance: ₹${userBalance}`);
+        console.log(`   User balance: ₹${userBalance} | bonus: ₹${userBonusBalance}`);
         console.log(`   Completion amount (75%): ₹${completionAmount}`);
 
-        // Check sufficient balance
-        if (userBalance < completionAmount) {
+        let bonusSpendCapPercent = 20;
+        try {
+            const settings = await PlatformSettings.getSettings();
+            bonusSpendCapPercent = settings?.referral?.bonusSpendCapPercent ?? 20;
+        } catch (settingsError) {
+            console.warn('⚠️ Could not load referral settings, using default 20% cap:', settingsError.message);
+        }
+
+        // Check sufficient balance (real balance + spend-capped bonus balance)
+        const walletDebit = computeWalletDebit({ homeowner: user, amountDue: completionAmount, capPercent: bonusSpendCapPercent });
+        if (!walletDebit.sufficient) {
             return NextResponse.json({
                 success: false,
                 message: `Insufficient wallet balance. You need ₹${completionAmount} to complete this payment.`,
                 required: completionAmount,
-                available: userBalance,
-                shortfall: completionAmount - userBalance
+                available: userBalance + userBonusBalance,
+                shortfall: completionAmount - (userBalance + userBonusBalance)
             }, { status: 400 });
         }
 
@@ -132,12 +144,13 @@ export async function POST(req) {
 
         try {
             const userBalanceBefore = userBalance;
-            const userBalanceAfter = userBalance - completionAmount;
+            const userBalanceAfter = userBalance - walletDebit.realToUse;
             const providerBalanceBefore = provider.wallet?.balance || 0;
             const providerBalanceAfter = providerBalanceBefore + completionAmount;
 
-            // Deduct from user wallet
+            // Deduct from user wallet - split between bonusBalance (capped) and real balance
             user.wallet.balance = userBalanceAfter;
+            user.wallet.bonusBalance = userBonusBalance - walletDebit.bonusToUse;
             await user.save({ session });
 
             // Initialize provider wallet if not exists
@@ -155,6 +168,7 @@ export async function POST(req) {
             booking.paymentStatus = 'paid';
             booking.escrowDetails.completionPaidAt = new Date();
             booking.escrowDetails.isCompletionPaid = true;  // Mark completion payment as done
+            booking.escrowDetails.completionBonusUsed = walletDebit.bonusToUse;
             await booking.save({ session });
 
             // Create user debit transaction
@@ -165,6 +179,7 @@ export async function POST(req) {
                 amount: completionAmount,
                 balanceBefore: userBalanceBefore,
                 balanceAfter: userBalanceAfter,
+                walletBreakdown: { bonusUsed: walletDebit.bonusToUse, realUsed: walletDebit.realToUse },
                 paymentStage: 'completion_75',
                 description: `75% completion payment for ${booking.serviceName}`,
                 status: 'completed',
@@ -268,7 +283,7 @@ export async function POST(req) {
             message: 'Completion payment successful! Full booking amount has been paid.',
             payment: {
                 amount: completionAmount,
-                newBalance: user.wallet.balance - completionAmount,
+                newBalance: user.wallet.balance,
                 bookingId: booking._id,
                 serviceName: booking.serviceName,
                 totalPaid: booking.totalPrice

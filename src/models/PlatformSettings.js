@@ -167,20 +167,30 @@ const platformSettingsSchema = new mongoose.Schema({
     }
   },
 
-  // Referral Program
+  // Referral Program (homeowners only)
   referral: {
     enabled: {
       type: Boolean,
       default: true
     },
-    referrerReward: {
+    // Credited to the new (referee) homeowner's bonusBalance immediately on signup
+    refereeSignupBonus: {
       type: Number,
-      default: 100
+      default: 200
     },
-    refereeDiscount: {
+    // Credited to the referrer's real, fully-spendable wallet.balance
+    referrerBonus: {
       type: Number,
       default: 50
     },
+    // Max % of bonusBalanceGranted that can be used to cover a single wallet payment
+    bonusSpendCapPercent: {
+      type: Number,
+      default: 20,
+      min: 1,
+      max: 100
+    },
+    // Max number of successful referrals that earn a referrer bonus (0 = unlimited)
     maxReferrals: {
       type: Number,
       default: 10

@@ -230,9 +230,9 @@ export async function POST(req) {
 
     if (hasDriverService) {
       const driverDetails = body.driverServiceDetails || {};
-      if (!driverDetails.licenseFrontImage || !driverDetails.licenseBackImage) {
+      if (!driverDetails.licenseFrontImage || !driverDetails.licenseBackImage || !driverDetails.policeVerificationDoc) {
         return NextResponse.json(
-          { success: false, message: "Both front and back photos of the driving license are required." },
+          { success: false, message: "Driving license front/back photos and police verification document are all required." },
           { status: 400 }
         );
       }

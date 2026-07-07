@@ -32,6 +32,8 @@ const notificationSchema = new mongoose.Schema({
       // Service management
       'service_approved',
       'service_rejected',
+      // Referral program
+      'referral_success',
       // General
       'general'
     ],

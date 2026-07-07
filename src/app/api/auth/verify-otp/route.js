@@ -9,6 +9,7 @@ import Homeowner from "@/models/Homeowner";
 import { verifyOTPViaMSG91, detectInputType, formatPhoneNumber } from "@/lib/msg91";
 import { isTestUser, getTestOTP, isTestMode, getTestUser } from "@/config/testUsers";
 import { applyRedisRateLimit, redisAuthRateLimiter } from "@/lib/redisRateLimiter";
+import { generateReferralCode, applyReferral, ReferralError } from "@/lib/referral";
 
 const MAX_ATTEMPTS = 5;
 const BLOCK_DURATION_MS = 15 * 60 * 1000;
@@ -255,12 +256,15 @@ export async function POST(req) {
       }
 
       if (!provider) {
-        if (isTestUser(rawIdentifier)) {
+        const testUser = isTestUser(rawIdentifier) ? getTestUser(rawIdentifier) : null;
+
+        // blankSlate test numbers must go through real registration (POST /register)
+        // instead of being auto-created here - lets a reset script wipe the DB record
+        // and force registration again, rather than OTP login silently recreating a
+        // bare-bones account.
+        if (testUser && !testUser.blankSlate) {
           // Auto-create test provider
           try {
-            const testUser = getTestUser(rawIdentifier);
-            if (!testUser) throw new Error("Test user not found in config");
-
             provider = await ServiceProvider.create({
               name: testUser.name,
               email: testUser.email,
@@ -278,7 +282,7 @@ export async function POST(req) {
           }
         } else {
           await Otp.deleteMany(otpQuery);
-          return NextResponse.json({ success: false, message: "User not found" }, { status: 404 });
+          return NextResponse.json({ success: false, message: "Provider not found. Please complete registration first." }, { status: 404 });
         }
       }
 
@@ -329,12 +333,14 @@ export async function POST(req) {
 
     if (!homeowner) {
       if (intent !== "signup") {
-        if (isTestUser(rawIdentifier)) {
+        const testUser = isTestUser(rawIdentifier) ? getTestUser(rawIdentifier) : null;
+
+        // blankSlate test numbers must go through the real Sign Up flow instead of
+        // being auto-created here - lets a reset script wipe the DB record and force
+        // signup again, rather than "Login" silently recreating a bare-bones account.
+        if (testUser && !testUser.blankSlate) {
           // Auto-create test homeowner for login intent
           try {
-            const testUser = getTestUser(rawIdentifier);
-            if (!testUser) throw new Error("Test user not found in config");
-
             homeowner = await Homeowner.create({
               name: testUser.name,
               email: testUser.email,
@@ -347,7 +353,7 @@ export async function POST(req) {
           }
         } else {
           await Otp.deleteMany(otpQuery);
-          return NextResponse.json({ success: false, message: "Resident account not found" }, { status: 404 });
+          return NextResponse.json({ success: false, message: "Resident account not found. Please sign up." }, { status: 404 });
         }
       }
 
@@ -363,6 +369,7 @@ export async function POST(req) {
         const homeownerData = {
           name: nameFromMetadata.trim(),
           preferences: Array.isArray(otpDoc.metadata?.preferences) ? otpDoc.metadata.preferences : [],
+          referralCode: await generateReferralCode(nameFromMetadata),
         };
 
         if (isPhoneLogin) {
@@ -414,6 +421,17 @@ export async function POST(req) {
             }
           } else {
             throw createError;
+          }
+        }
+
+        // Best-effort: apply a referral code entered at signup. Never block
+        // account creation on this - an invalid/expired code just skips the bonus.
+        if (homeowner && otpDoc.metadata?.referralCode) {
+          try {
+            await applyReferral({ refereeId: homeowner._id, code: otpDoc.metadata.referralCode });
+          } catch (referralError) {
+            const reason = referralError instanceof ReferralError ? referralError.message : 'Unexpected error';
+            console.warn('⚠️ Referral code apply failed at signup (non-blocking):', reason);
           }
         }
       } // End of second !homeowner check

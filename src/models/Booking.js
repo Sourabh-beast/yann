@@ -142,7 +142,11 @@ const bookingSchema = new mongoose.Schema({
     initialRefundedAt: { type: Date, default: null },   // When 25% was refunded (if rejected)
     completionPaidAt: { type: Date, default: null },    // When 75% was paid
     isInitialPaid: { type: Boolean, default: false },   // Flag for initial 25% payment
-    isCompletionPaid: { type: Boolean, default: false } // Flag for completion 75% payment
+    isCompletionPaid: { type: Boolean, default: false }, // Flag for completion 75% payment
+    // Referral bonusBalance portion of each wallet payment stage, so refunds/cancellations
+    // can restore the correct amount back to bonusBalance vs the real wallet balance
+    initialBonusUsed: { type: Number, default: 0 },
+    completionBonusUsed: { type: Number, default: 0 }
   },
 
   // Billing Type (for non-pujari services)

@@ -4,7 +4,9 @@ import Booking from '@/models/Booking';
 import Homeowner from '@/models/Homeowner';
 import ServiceProvider from '@/models/ServiceProvider';
 import Transaction from '@/models/Transaction';
+import PlatformSettings from '@/models/PlatformSettings';
 import { createAndSendNotification } from '@/lib/notificationHelper';
+import { computeWalletDebit } from '@/lib/referral';
 
 /**
  * POST /api/bookings/pay-initial
@@ -81,20 +83,31 @@ export async function POST(req) {
                 );
             }
 
-            // Check wallet balance
+            // Check wallet balance (real balance + spend-capped bonus balance)
             const walletBalance = customer.wallet?.balance || 0;
-            if (walletBalance < initialAmount) {
+            const bonusBalance = customer.wallet?.bonusBalance || 0;
+            let bonusSpendCapPercent = 20;
+            try {
+                const settings = await PlatformSettings.getSettings();
+                bonusSpendCapPercent = settings?.referral?.bonusSpendCapPercent ?? 20;
+            } catch (settingsError) {
+                console.warn('⚠️ Could not load referral settings, using default 20% cap:', settingsError.message);
+            }
+
+            const walletDebit = computeWalletDebit({ homeowner: customer, amountDue: initialAmount, capPercent: bonusSpendCapPercent });
+            if (!walletDebit.sufficient) {
                 return NextResponse.json(
                     {
                         success: false,
-                        message: `Insufficient wallet balance. Required: ₹${initialAmount}, Available: ₹${walletBalance}`
+                        message: `Insufficient wallet balance. Required: ₹${initialAmount}, Available: ₹${walletBalance + bonusBalance}`
                     },
                     { status: 400 }
                 );
             }
 
-            // Deduct from customer wallet
-            customer.wallet.balance -= initialAmount;
+            // Deduct from customer wallet - split between bonusBalance (capped) and real balance
+            customer.wallet.balance -= walletDebit.realToUse;
+            customer.wallet.bonusBalance = bonusBalance - walletDebit.bonusToUse;
 
             await customer.save();
 
@@ -123,7 +136,8 @@ export async function POST(req) {
                 totalHeldInEscrow: initialAmount,
                 initialPaidAt: new Date(),
                 initialReleasedAt: null,
-                completionPaidAt: null
+                completionPaidAt: null,
+                initialBonusUsed: walletDebit.bonusToUse
             };
 
             booking.walletPaymentStage = 'initial_25_held';
@@ -146,6 +160,7 @@ export async function POST(req) {
                 bookingId: booking._id,
                 status: 'held_in_escrow',
                 description: `Initial payment (25%) for ${booking.serviceName}`,
+                walletBreakdown: { bonusUsed: walletDebit.bonusToUse, realUsed: walletDebit.realToUse },
                 metadata: {
                     bookingId: booking._id.toString(),
                     serviceName: booking.serviceName,

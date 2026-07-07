@@ -220,23 +220,23 @@ export async function POST(req) {
       if (isPhoneLogin) {
         user = await ServiceProvider.findOne({ phone: phone });
         if (!user) {
-          if (isTestUser(rawIdentifier)) {
+          const testUser = isTestUser(rawIdentifier) ? getTestUser(rawIdentifier) : null;
+          if (testUser && !testUser.blankSlate) {
             // Allow test user to proceed
-            const testUser = getTestUser(rawIdentifier);
-            recipientName = testUser ? testUser.name : "Test Provider";
+            recipientName = testUser.name;
           } else {
-            return NextResponse.json({ success: false, message: "Phone number not registered as a partner" }, { status: 404 });
+            return NextResponse.json({ success: false, message: "Phone number not registered as a partner. Please complete registration first." }, { status: 404 });
           }
         }
       } else {
         user = await ServiceProvider.findOne({ email });
         if (!user) {
-          if (isTestUser(rawIdentifier)) {
+          const testUser = isTestUser(rawIdentifier) ? getTestUser(rawIdentifier) : null;
+          if (testUser && !testUser.blankSlate) {
             // Allow test user to proceed
-            const testUser = getTestUser(rawIdentifier);
-            recipientName = testUser ? testUser.name : "Test Provider";
+            recipientName = testUser.name;
           } else {
-            return NextResponse.json({ success: false, message: "Email not registered as a partner" }, { status: 404 });
+            return NextResponse.json({ success: false, message: "Email not registered as a partner. Please complete registration first." }, { status: 404 });
           }
         }
       }
@@ -254,14 +254,14 @@ export async function POST(req) {
 
         if (intent === "login") {
           if (!homeowner) {
-            if (isTestUser(rawIdentifier)) {
+            const testUser = isTestUser(rawIdentifier) ? getTestUser(rawIdentifier) : null;
+            if (testUser && !testUser.blankSlate) {
               // Allow test user to proceed
-              const testUser = getTestUser(rawIdentifier);
-              recipientName = testUser ? testUser.name : "Test Resident";
+              recipientName = testUser.name;
             } else {
               return NextResponse.json({
                 success: false,
-                message: "We could not find a resident account with this phone number"
+                message: "We could not find a resident account with this phone number. Please sign up."
               }, { status: 404 });
             }
           }
@@ -290,14 +290,14 @@ export async function POST(req) {
 
         if (intent === "login") {
           if (!homeowner) {
-            if (isTestUser(rawIdentifier)) {
+            const testUser = isTestUser(rawIdentifier) ? getTestUser(rawIdentifier) : null;
+            if (testUser && !testUser.blankSlate) {
               // Allow test user to proceed
-              const testUser = getTestUser(rawIdentifier);
-              recipientName = testUser ? testUser.name : "Test Resident";
+              recipientName = testUser.name;
             } else {
               return NextResponse.json({
                 success: false,
-                message: "We could not find a resident account with this email"
+                message: "We could not find a resident account with this email. Please sign up."
               }, { status: 404 });
             }
           }

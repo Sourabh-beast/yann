@@ -22,7 +22,9 @@ const transactionSchema = new mongoose.Schema({
       // Withdrawal types
       'withdrawal_request',  // Partner withdrawal request
       'withdrawal_completed',// Partner withdrawal completed
-      'withdrawal_rejected'  // Partner withdrawal rejected
+      'withdrawal_rejected', // Partner withdrawal rejected
+      // Referral program
+      'referral_bonus'       // Bonus credited to referrer or referee
     ],
     required: true
   },
@@ -149,6 +151,13 @@ const transactionSchema = new mongoose.Schema({
   balanceBefore: Number,
   balanceAfter: Number,
   description: String,
+
+  // Splits how much of a wallet debit came from bonusBalance vs the real balance
+  // (or, for a 'referral_bonus' credit, which bucket was credited)
+  walletBreakdown: {
+    bonusUsed: { type: Number, default: 0 },
+    realUsed: { type: Number, default: 0 }
+  },
 
   // Metadata
   notes: String,

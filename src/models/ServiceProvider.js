@@ -196,6 +196,10 @@ const serviceProviderSchema = new mongoose.Schema({
     licenseBackImage: {
       type: String,
       default: null
+    },
+    policeVerificationDoc: {
+      type: String,
+      default: null
     }
   },
 

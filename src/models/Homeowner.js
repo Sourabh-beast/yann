@@ -81,9 +81,49 @@ const homeownerSchema = new mongoose.Schema(
         default: 0,
         min: 0,
       },
+      // Referral/promotional credit - spend-capped, tracked separately from real balance
+      bonusBalance: {
+        type: Number,
+        default: 0,
+        min: 0,
+      },
+      // Lifetime total ever credited to bonusBalance - fixed reference used to compute
+      // the per-transaction spend cap so the cap doesn't shrink as bonusBalance is spent
+      bonusBalanceGranted: {
+        type: Number,
+        default: 0,
+        min: 0,
+      },
       currency: {
         type: String,
         default: 'INR',
+      },
+    },
+    // Referral system (homeowners only)
+    // Uniqueness enforced via the sparse index declared below with the other indexes
+    referralCode: {
+      type: String,
+      uppercase: true,
+      trim: true,
+    },
+    referredBy: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'Homeowner',
+      default: null,
+    },
+    // Set once a referral code has been successfully applied - blocks re-applying another code
+    referralCodeAppliedAt: {
+      type: Date,
+      default: null,
+    },
+    referralStats: {
+      totalReferred: {
+        type: Number,
+        default: 0,
+      },
+      totalReferralEarnings: {
+        type: Number,
+        default: 0,
       },
     },
     // Aadhaar Verification (Meon DigiLocker)
@@ -179,6 +219,7 @@ const homeownerSchema = new mongoose.Schema(
 // Run this in MongoDB shell: db.homeowners.dropIndex("email_1"); db.homeowners.dropIndex("phone_1");
 homeownerSchema.index({ email: 1 }, { unique: true, sparse: true });
 homeownerSchema.index({ phone: 1 }, { unique: true, sparse: true });
+homeownerSchema.index({ referralCode: 1 }, { unique: true, sparse: true });
 
 // Ensure at least one of email or phone is present
 homeownerSchema.pre('validate', function (next) {
