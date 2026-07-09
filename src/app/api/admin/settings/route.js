@@ -3,12 +3,16 @@ import connectDB from '@/lib/connectDB';
 import Admin from '@/models/Admin';
 import PlatformSettings from '@/models/PlatformSettings';
 import AuditLog from '@/models/AuditLog';
+import { requireAdmin } from '@/lib/authMiddleware';
 
 // GET - Fetch admins list or platform settings
 export async function GET(request) {
   try {
+    const auth = requireAdmin(request);
+    if (!auth.authorized) return auth.response;
+
     await connectDB();
-    
+
     const { searchParams } = new URL(request.url);
     const type = searchParams.get('type') || 'admins';
     
@@ -75,8 +79,11 @@ export async function GET(request) {
 // POST - Create new admin
 export async function POST(request) {
   try {
+    const auth = requireAdmin(request);
+    if (!auth.authorized) return auth.response;
+
     await connectDB();
-    
+
     const body = await request.json();
     const { action } = body;
     
@@ -185,8 +192,11 @@ export async function POST(request) {
 // PUT - Update admin or platform settings
 export async function PUT(request) {
   try {
+    const auth = requireAdmin(request);
+    if (!auth.authorized) return auth.response;
+
     await connectDB();
-    
+
     const body = await request.json();
     const { type } = body;
     
@@ -195,14 +205,14 @@ export async function PUT(request) {
       
       const platformSettings = await PlatformSettings.findOneAndUpdate(
         { key: 'platform_settings' },
-        { 
+        {
           ...settings,
           lastUpdatedBy: {
             adminName: body.adminName || 'Admin',
             updatedAt: new Date()
           }
         },
-        { new: true, upsert: true }
+        { new: true, upsert: true, runValidators: true, context: 'query' }
       );
       
       await AuditLog.log({
@@ -266,6 +276,12 @@ export async function PUT(request) {
     );
   } catch (error) {
     console.error('Update error:', error);
+    if (error.name === 'ValidationError') {
+      return NextResponse.json(
+        { success: false, message: error.message },
+        { status: 400 }
+      );
+    }
     return NextResponse.json(
       { success: false, message: 'Failed to update' },
       { status: 500 }
@@ -276,8 +292,11 @@ export async function PUT(request) {
 // DELETE - Delete admin
 export async function DELETE(request) {
   try {
+    const auth = requireAdmin(request);
+    if (!auth.authorized) return auth.response;
+
     await connectDB();
-    
+
     const { searchParams } = new URL(request.url);
     const adminId = searchParams.get('id');
     
@@ -334,8 +353,11 @@ export async function DELETE(request) {
 // PATCH - Change password or toggle status
 export async function PATCH(request) {
   try {
+    const auth = requireAdmin(request);
+    if (!auth.authorized) return auth.response;
+
     await connectDB();
-    
+
     const body = await request.json();
     const { adminId, action, oldPassword, newPassword } = body;
     

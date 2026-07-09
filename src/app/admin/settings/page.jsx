@@ -30,6 +30,33 @@ export default function AdminSettingsPage() {
     maxCancellationHours: 24
   });
 
+  // Referral program settings (backed by PlatformSettings.referral in the DB)
+  const [referralSettings, setReferralSettings] = useState({
+    enabled: true,
+    refereeSignupBonus: 200,
+    referrerBonus: 50,
+    maxReferrals: 10,
+    bonusSpendCapPercent: 20
+  });
+  const [referralLoading, setReferralLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchReferralSettings = async () => {
+      try {
+        const res = await fetch('/api/admin/settings?type=settings');
+        const json = await res.json();
+        if (json.success && json.data?.referral) {
+          setReferralSettings(json.data.referral);
+        }
+      } catch (error) {
+        console.error('Error fetching referral settings:', error);
+      } finally {
+        setReferralLoading(false);
+      }
+    };
+    fetchReferralSettings();
+  }, []);
+
   const handlePasswordChange = async () => {
     if (passwordForm.newPassword !== passwordForm.confirmPassword) {
       alert('❌ New passwords do not match!');
@@ -56,6 +83,29 @@ export default function AdminSettingsPage() {
       alert('✅ Settings saved successfully!');
       setSaving(false);
     }, 1000);
+  };
+
+  const handleSaveReferralSettings = async () => {
+    setSaving(true);
+    try {
+      const res = await fetch('/api/admin/settings', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ type: 'settings', settings: { referral: referralSettings } })
+      });
+      const json = await res.json();
+      if (json.success) {
+        alert('✅ Referral settings saved successfully!');
+        if (json.data?.referral) setReferralSettings(json.data.referral);
+      } else {
+        alert(`❌ ${json.message || 'Failed to save referral settings'}`);
+      }
+    } catch (error) {
+      console.error('Error saving referral settings:', error);
+      alert('❌ Failed to save referral settings');
+    } finally {
+      setSaving(false);
+    }
   };
 
   const handleExportAllData = async () => {
@@ -90,6 +140,7 @@ export default function AdminSettingsPage() {
             { id: 'profile', label: 'Profile', icon: User },
             { id: 'security', label: 'Security', icon: Lock },
             { id: 'platform', label: 'Platform', icon: Settings },
+            { id: 'referral', label: 'Referral Program', icon: Gift },
             { id: 'data', label: 'Data Export', icon: Download }
           ].map((tab) => {
             const Icon = tab.icon;
@@ -291,6 +342,89 @@ export default function AdminSettingsPage() {
               <Save className="w-5 h-5" />
               {saving ? 'Saving...' : 'Save Settings'}
             </button>
+          </div>
+        )}
+
+        {/* Referral Program Tab */}
+        {activeTab === 'referral' && (
+          <div className="bg-white rounded-2xl p-8 shadow-lg border border-gray-100">
+            <h3 className="text-xl font-bold text-gray-900 mb-6 flex items-center gap-2">
+              <Gift className="w-6 h-6 text-blue-600" />
+              Referral Program
+            </h3>
+            {referralLoading ? (
+              <p className="text-gray-500">Loading...</p>
+            ) : (
+              <>
+                <div className="flex items-center gap-3 mb-6">
+                  <input
+                    type="checkbox"
+                    id="referralEnabled"
+                    checked={referralSettings.enabled}
+                    onChange={(e) => setReferralSettings({ ...referralSettings, enabled: e.target.checked })}
+                    className="w-5 h-5 rounded border-gray-300"
+                  />
+                  <label htmlFor="referralEnabled" className="text-sm font-medium text-gray-700">
+                    Referral program enabled
+                  </label>
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6 max-w-2xl">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">New User Signup Bonus (₹)</label>
+                    <input
+                      type="number"
+                      value={referralSettings.refereeSignupBonus}
+                      onChange={(e) => setReferralSettings({ ...referralSettings, refereeSignupBonus: Math.max(0, parseInt(e.target.value) || 0) })}
+                      className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      min="0"
+                    />
+                    <p className="text-xs text-gray-500 mt-1">Credited to a new homeowner who signs up with a referral code</p>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Referrer Bonus (₹)</label>
+                    <input
+                      type="number"
+                      value={referralSettings.referrerBonus}
+                      onChange={(e) => setReferralSettings({ ...referralSettings, referrerBonus: Math.max(0, parseInt(e.target.value) || 0) })}
+                      className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      min="0"
+                    />
+                    <p className="text-xs text-gray-500 mt-1">Credited to the existing homeowner whose code was used</p>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Max Rewarded Referrals per User</label>
+                    <input
+                      type="number"
+                      value={referralSettings.maxReferrals}
+                      onChange={(e) => setReferralSettings({ ...referralSettings, maxReferrals: Math.max(0, parseInt(e.target.value) || 0) })}
+                      className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      min="0"
+                    />
+                    <p className="text-xs text-gray-500 mt-1">0 = unlimited referrals earn a bonus</p>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Bonus Wallet Spend Cap (%)</label>
+                    <input
+                      type="number"
+                      value={referralSettings.bonusSpendCapPercent}
+                      onChange={(e) => setReferralSettings({ ...referralSettings, bonusSpendCapPercent: Math.min(100, Math.max(1, parseInt(e.target.value) || 1)) })}
+                      className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      min="1"
+                      max="100"
+                    />
+                    <p className="text-xs text-gray-500 mt-1">Max % of bonus balance usable per wallet payment</p>
+                  </div>
+                </div>
+                <button
+                  onClick={handleSaveReferralSettings}
+                  disabled={saving}
+                  className="mt-6 flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-xl hover:shadow-lg transition font-medium disabled:opacity-50"
+                >
+                  <Save className="w-5 h-5" />
+                  {saving ? 'Saving...' : 'Save Referral Settings'}
+                </button>
+              </>
+            )}
           </div>
         )}
 
