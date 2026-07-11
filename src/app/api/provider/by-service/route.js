@@ -25,12 +25,14 @@ export async function GET(request) {
     const serviceRegex = new RegExp(`^${escapeRegex(normalizedService)}$`, 'i');
 
     // Build query with experience range filtering
-    // Only return providers bookings/create will actually accept (status: 'active') -
-    // the mobile UI has no way to distinguish/disable non-active providers, so listing
-    // them here just lets users pick someone the booking step will then reject.
+    // Only return providers the booking flow will actually accept: bookings/create
+    // requires status: 'active' and bookings/request requires aadhaarVerified: true.
+    // The mobile UI has no way to distinguish/disable providers that fail those checks,
+    // so listing them here just lets users pick someone a later step will reject.
     const query = {
       services: { $regex: serviceRegex },
-      status: 'active'
+      status: 'active',
+      aadhaarVerified: true
     };
 
     // Add experience range filter if provided
