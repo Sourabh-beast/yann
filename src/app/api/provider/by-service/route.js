@@ -25,8 +25,12 @@ export async function GET(request) {
     const serviceRegex = new RegExp(`^${escapeRegex(normalizedService)}$`, 'i');
 
     // Build query with experience range filtering
+    // Only return providers bookings/create will actually accept (status: 'active') -
+    // the mobile UI has no way to distinguish/disable non-active providers, so listing
+    // them here just lets users pick someone the booking step will then reject.
     const query = {
-      services: { $regex: serviceRegex }
+      services: { $regex: serviceRegex },
+      status: 'active'
     };
 
     // Add experience range filter if provided
@@ -52,8 +56,6 @@ export async function GET(request) {
       query._id = { $ne: excludeProviderId };
     }
 
-    // Fetch ALL providers for this service (including offline ones)
-    // Mobile app will handle displaying offline providers as grayed out
     const providers = await ServiceProvider.find(query).select('name experience rating totalReviews serviceRates workingHours profileImage services status isOnline');
 
     const mappedProviders = providers
@@ -80,13 +82,8 @@ export async function GET(request) {
       })
       .filter(Boolean)
       .sort((a, b) => {
-        // Sort active + online first, then active + offline, then others
-        const rank = (provider) => {
-          if (provider.status === 'active' && provider.isOnline) return 0;
-          if (provider.status === 'active' && !provider.isOnline) return 1;
-          return 2;
-        };
-        const rankDiff = rank(a) - rank(b);
+        // Online providers first, then by price
+        const rankDiff = (a.isOnline ? 0 : 1) - (b.isOnline ? 0 : 1);
         if (rankDiff !== 0) return rankDiff;
         return a.price - b.price;
       });

@@ -162,9 +162,13 @@ export function createRedisRateLimiter(config) {
 }
 
 // Export pre-configured limiters
+// IP-based, shared across every phone/email hitting this IP. Kept high because
+// mobile carriers (Jio/Airtel/Vi) route many unrelated subscribers through the
+// same CGNAT IP - a low ceiling here locks out legitimate users, not abusers.
+// Per-phone-number abuse is already capped separately at 5/hour in send-otp/route.js.
 export const redisOtpRateLimiter = createRedisRateLimiter({
     name: 'otp',
-    maxRequests: 3,
+    maxRequests: 30,
     windowMs: 15 * 60 * 1000,
     message: 'Too many OTP requests. Please try again in 15 minutes.',
 });
