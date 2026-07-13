@@ -106,6 +106,7 @@ export async function GET(request, { params }) {
         status: provider.status,
         bio: provider.bio || '',
         isVerified: provider.isVerified || provider.aadhaarVerified || false,
+        aadhaarVerified: provider.aadhaarVerified || false,
         isOnline: provider.isOnline ?? true,
         hasLateStarts: provider.hasLateStarts || false,
         averageResponseTime: responseTimeData.time,

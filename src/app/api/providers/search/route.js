@@ -116,7 +116,7 @@ export async function GET(request) {
 
         // Execute search
         const providers = await ServiceProvider.find(searchQuery)
-            .select('name email phone services serviceRates rating totalReviews profileImage bio status isOnline')
+            .select('name email phone services serviceRates rating totalReviews profileImage bio status isOnline aadhaarVerified')
             .sort(sortObj)
             .skip(skip)
             .limit(limit)

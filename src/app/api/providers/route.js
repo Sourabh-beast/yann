@@ -32,7 +32,7 @@ export async function GET(request) {
     // Get providers
     const [providers, total] = await Promise.all([
       ServiceProvider.find(query)
-        .select('name email phone experience rating totalReviews serviceRates workingHours profileImage services status isOnline')
+        .select('name email phone experience rating totalReviews serviceRates workingHours profileImage services status isOnline aadhaarVerified')
         .sort({ rating: -1, totalReviews: -1 })
         .skip(skip)
         .limit(limit),
@@ -53,6 +53,7 @@ export async function GET(request) {
       profileImage: provider.profileImage || '',
       status: provider.status,
       isOnline: provider.isOnline ?? true,
+      aadhaarVerified: provider.aadhaarVerified || false,
     }));
 
     return NextResponse.json({

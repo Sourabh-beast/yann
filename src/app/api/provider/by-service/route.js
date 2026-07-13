@@ -25,14 +25,15 @@ export async function GET(request) {
     const serviceRegex = new RegExp(`^${escapeRegex(normalizedService)}$`, 'i');
 
     // Build query with experience range filtering
-    // Only return providers the booking flow will actually accept: bookings/create
-    // requires status: 'active' and bookings/request requires aadhaarVerified: true.
-    // The mobile UI has no way to distinguish/disable providers that fail those checks,
-    // so listing them here just lets users pick someone a later step will reject.
+    // Only filter on status here - bookings/request also requires
+    // aadhaarVerified: true, but the mobile UI now surfaces that distinction
+    // itself (a "Provider Not Verified" dialog blocks booking one at the
+    // point of selection), so unverified providers are intentionally still
+    // listed rather than silently hidden. See `aadhaarVerified` in the
+    // response below.
     const query = {
       services: { $regex: serviceRegex },
-      status: 'active',
-      aadhaarVerified: true
+      status: 'active'
     };
 
     // Add experience range filter if provided
@@ -58,7 +59,7 @@ export async function GET(request) {
       query._id = { $ne: excludeProviderId };
     }
 
-    const providers = await ServiceProvider.find(query).select('name experience rating totalReviews serviceRates workingHours profileImage services status isOnline');
+    const providers = await ServiceProvider.find(query).select('name experience rating totalReviews serviceRates workingHours profileImage services status isOnline aadhaarVerified');
 
     const mappedProviders = providers
       .map((provider) => {
@@ -79,7 +80,8 @@ export async function GET(request) {
           workingHours: provider.workingHours || null,
           profileImage: provider.profileImage || '',
           status: provider.status || 'active',
-          isOnline: provider.isOnline ?? true // Include online state so apps can show offline status
+          isOnline: provider.isOnline ?? true, // Include online state so apps can show offline status
+          aadhaarVerified: provider.aadhaarVerified || false,
         };
       })
       .filter(Boolean)
