@@ -133,7 +133,8 @@ const CATEGORY_SERVICES = {
   ],
   driver: [
     'Full-Day Personal Driver',
-    'Outstation Driving Service'
+    'Outstation Driving Service',
+    'Personal Driver'
   ],
   electrical: [
     'Light Fitting',

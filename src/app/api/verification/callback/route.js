@@ -7,10 +7,19 @@ import connectDB from '@/lib/connectDB';
 const MEON_BASE_URL = 'https://digilocker.meon.co.in';
 const DEFAULT_APP_URL = process.env.NEXT_PUBLIC_APP_URL || 'https://yann-care.vercel.app';
 
+// The mobile app's own deep link scheme (app.json `expo.scheme`) - allowed in
+// addition to http(s) origins so the auto-redirect below can hand back to the
+// app directly instead of only being reachable via the manual "Return to App"
+// button.
+const APP_DEEP_LINK_SCHEME = 'yann:';
+
 const buildSafeReturnUrl = (returnUrl, reqUrl) => {
     if (!returnUrl) return null;
     try {
         const parsed = new URL(returnUrl);
+        if (parsed.protocol === APP_DEEP_LINK_SCHEME) {
+            return parsed.toString();
+        }
         const currentOrigin = new URL(reqUrl).origin;
         const allowedOrigins = [DEFAULT_APP_URL, currentOrigin].filter(Boolean);
         const isAllowed = allowedOrigins.some(origin => parsed.origin === origin);

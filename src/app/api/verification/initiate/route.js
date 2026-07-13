@@ -43,8 +43,15 @@ export async function POST(req) {
     // Let's assume we redirect to a success page on the backend which then redirects to app scheme.
     
     // Construct a unique redirect URL or state
-    // Meon API takes "redirect_url". 
-        const callbackUrl = new URL('/api/verification/callback', DEFAULT_APP_URL);
+    // Meon API takes "redirect_url".
+    // Derive the callback's base from this request's own origin instead of
+    // NEXT_PUBLIC_APP_URL - that env var can point somewhere other than this
+    // deployment (e.g. a marketing domain), in which case DigiLocker's
+    // callback never reaches this API at all and aadhaarVerified never gets
+    // set. Using the request's own origin is self-correcting: it always
+    // matches wherever this route is actually running.
+    const requestOrigin = new URL(req.url).origin;
+        const callbackUrl = new URL('/api/verification/callback', requestOrigin);
         callbackUrl.searchParams.set('userId', userId);
         callbackUrl.searchParams.set('userType', userType);
         callbackUrl.searchParams.set('clientToken', clientToken);

@@ -187,10 +187,14 @@ async function handleProfileUpdate(request) {
     const body = await request.json();
     console.log('📥 Received profile update request:', body);
 
-    // Provide the same CATEGORY_SERVICES definition as in the register route
+    // Provide the same CATEGORY_SERVICES definition as in the register route.
+    // 'Personal Driver' is the mobile app's own driver catalog entry
+    // (src/utils/constants.ts) - included here so this route recognizes it the
+    // same way provider/add-service/route.js already does.
     const CATEGORY_SERVICES_DRIVER = [
       'Full-Day Personal Driver',
-      'Outstation Driving Service'
+      'Outstation Driving Service',
+      'Personal Driver'
     ];
 
     // If services are being updated, check for driver constraints
@@ -227,7 +231,13 @@ async function handleProfileUpdate(request) {
       }
     }
 
-    await provider.save();
+    // validateModifiedOnly: without this, .save() re-validates every field on
+    // the document, not just the ones being changed here. Any pre-existing
+    // legacy/invalid data elsewhere on the document (e.g. an old
+    // driverServiceDetails value that predates the current schema's enums)
+    // would then block ALL future profile updates for that provider, not just
+    // edits that actually touch the invalid field.
+    await provider.save({ validateModifiedOnly: true });
     console.log('💾 Provider saved successfully. Bio:', provider.bio);
 
     return NextResponse.json({
